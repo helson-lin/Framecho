@@ -27,6 +27,28 @@
     -->
 
     <item>
+      <title>Version 0.35.1</title>
+      <sparkle:version>36</sparkle:version>
+      <sparkle:shortVersionString>0.35.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.4</sparkle:minimumSystemVersion>
+      <pubDate>Sat, 03 Oct 2026 15:32:03 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.35.1</h2>
+        <ul>
+          <li>侧边栏数值框改为滑块：显示当前值在范围中的位置，正负范围从中线向两侧填充</li>
+          <li>在数值框任意位置按下或拖动即可设定数值，使用时显示手柄，数值会自动避开手柄</li>
+          <li>拖过两端时数值框会轻微拉伸并回弹；按住 Option 微调，Shift+方向键大步调整</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Screendrop/releases/download/v0.35.1/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="NcqTBfrRTrqQ+Z2P2wIgkoaaIbqYQZHNwphlm8QLxscbZ46zKHSvHpLTEQim94jKupLshHF12Fwrw9IqegVaDg=="
+        length="8983445"
+      />
+    </item>
+
+    <item>
       <title>Version 0.35.0</title>
       <sparkle:version>35</sparkle:version>
       <sparkle:shortVersionString>0.35.0</sparkle:shortVersionString>
