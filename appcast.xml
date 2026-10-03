@@ -26,5 +26,32 @@
       Newest release goes on top.
     -->
 
+    <item>
+      <title>Version 0.34.1</title>
+      <sparkle:version>33</sparkle:version>
+      <sparkle:shortVersionString>0.34.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.4</sparkle:minimumSystemVersion>
+      <pubDate>Sat, 03 Oct 2026 10:36:16 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.34.1</h2>
+        <ul>
+          <li>首个 Framecho 版本，基于 Screendrop 0.34.0</li>
+          <li>简体中文界面</li>
+          <li>修复中文等非 ASCII 文件名导致的云端上传失败</li>
+          <li>修复开启辅助功能（如 VoiceOver）时打开设置会崩溃的问题</li>
+          <li>新增定时截图（⌥6）、可调的预览卡片大小</li>
+          <li>区域截图时按空格可切换成窗口截图</li>
+          <li>置顶截图支持用滚轮调整透明度</li>
+          <li>可单独设置上传后是否拷贝分享链接</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Screendrop/releases/download/v0.34.1/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="idXqTEn9+SAffwh87GvwZ/0zOrYoaTbmdTT9ywKbSuXnsK2K3lk0EfW5oBgsIVMavaalGvxLe23D8/g9Yc0EAQ=="
+        length="8674787"
+      />
+    </item>
+
   </channel>
 </rss>
