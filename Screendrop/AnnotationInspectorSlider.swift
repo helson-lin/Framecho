@@ -137,35 +137,54 @@ struct InspectorValueFormat {
     }
 }
 
-/// A Sketch-style scrub field: one quiet box with the label on the left and
-/// the exact value on the right. Hovering the label shows a left/right resize
-/// cursor; dragging nudges the value relative to where it started (right
-/// increases, left decreases), and clicking the value edits it directly.
-/// Hold Option while dragging for fine adjustments.
+/// A compact inspector slider: the label on the left, the exact value on the
+/// right, and a fill that shows where the value sits in its range (signed ranges
+/// fill outward from a zero mark). Pressing or dragging anywhere on the field
+/// sets the value at that point; a handle marks the fill edge while it's in use,
+/// and the value steps aside so the handle never covers it. Dragging past
+/// either end stretches the field a little and springs back. Hold Option to
+/// drag finely, click the value to type one, and use the arrow keys (Shift for
+/// bigger steps) while focused.
 struct InspectorSlider: View {
     let title: String
     @Binding var value: CGFloat
     let range: ClosedRange<CGFloat>
     let format: InspectorValueFormat
 
-    /// Points of horizontal drag that sweep the full range.
-    private static let fullRangeDragDistance: CGFloat = 200
     private static let fineDragMultiplier: CGFloat = 0.1
     /// Drag distance around zero that lands exactly on zero for signed ranges.
     private static let zeroDetentDistance: CGFloat = 4
     private static let valueWidth: CGFloat = 46
+    private static let contentInset: CGFloat = 8
+    /// Space kept between the handle and the value beside it.
+    private static let handleGap: CGFloat = 6
+    private static let handleSize = CGSize(width: 3, height: 14)
+    /// Farthest the field stretches when dragged past an end.
+    private static let maxStretch: CGFloat = 8
+    /// Keyboard steps with Shift move this fraction of the range.
+    private static let largeStepFraction: CGFloat = 0.1
+
+    private static let labelFont = NSFont.systemFont(ofSize: 11, weight: .regular)
+    private static let valueFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     @FocusState private var focusedPart: FocusedPart?
     @State private var draftText = ""
     @State private var editingBaselineText = ""
     @State private var valueSelection: TextSelection?
     @State private var isHovering = false
-    @State private var dragStartValue: CGFloat?
+    @State private var isDragging = false
+    @State private var fieldWidth: CGFloat = 0
+    /// Signed overshoot past an end while dragging: negative stretches the
+    /// leading edge, positive the trailing edge.
+    @State private var stretch: CGFloat = 0
+    /// Fine drags move relative to where Option was pressed.
+    @State private var fineAnchor: (location: CGFloat, value: CGFloat)?
 
     private enum FocusedPart: Hashable {
-        case scrubber
+        case slider
         case value
     }
 
@@ -193,20 +212,61 @@ struct InspectorSlider: View {
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: InspectorMetrics.fieldRadius, style: .continuous)
+        let layout = currentLayout
 
-        HStack(spacing: 4) {
-            scrubHandle
+        ZStack(alignment: .leading) {
+            sliderSurface
+
+            Text(title)
+                .font(.inspectorLabel)
+                .foregroundStyle(isActive ? Color.primary.opacity(0.85) : Color.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .padding(.leading, Self.contentInset)
+                .padding(.trailing, Self.valueWidth + Self.contentInset)
+                .offset(x: min(stretch, 0))
+                .opacity(layout.hidesLabel ? 0 : 1)
+                .allowsHitTesting(false)
+
+            if showsHandle {
+                Capsule()
+                    .fill(Color.primary.opacity(isEnabled ? 0.82 : 0.4))
+                    .frame(width: Self.handleSize.width, height: Self.handleSize.height)
+                    .offset(x: layout.handleX - Self.handleSize.width / 2)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                    .transition(.opacity)
+            }
+
             valueField
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .offset(x: layout.valueOffset)
         }
         .frame(height: InspectorMetrics.controlHeight)
         .frame(maxWidth: .infinity)
-        .background(shape.fill(fieldFill))
+        .background {
+            ZStack {
+                shape.fill(fieldFill)
+                valueIndicator
+            }
+            .clipShape(shape)
+            // Negative padding grows the field past its slot while overshooting.
+            .padding(.leading, min(stretch, 0))
+            .padding(.trailing, -max(stretch, 0))
+        }
         .overlay {
             if focusedPart != nil {
-                shape.stroke(Color.accentColor.opacity(0.72), lineWidth: 1)
+                shape
+                    .stroke(Color.accentColor.opacity(0.72), lineWidth: 1)
+                    .padding(.leading, min(stretch, 0))
+                    .padding(.trailing, -max(stretch, 0))
             }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { fieldWidth = $0 }
         .onHover { isHovering = $0 }
+        .animation(motion(.snappy(duration: 0.2)), value: layout.valueBesideHandle)
+        .animation(motion(.snappy(duration: 0.16)), value: showsHandle)
+        .animation(motion(.snappy(duration: 0.16)), value: layout.hidesLabel)
         .onAppear(perform: syncDraftText)
         .onDisappear {
             if focusedPart == .value {
@@ -225,44 +285,42 @@ struct InspectorSlider: View {
         }
     }
 
-    private var scrubHandle: some View {
-        Text(title)
-            .font(.inspectorLabel)
-            .foregroundStyle(isActive ? Color.primary.opacity(0.85) : Color.secondary)
-            .lineLimit(1)
-            .truncationMode(.tail)
-            .padding(.leading, 8)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    // MARK: Parts
+
+    /// The full-field hit target for pressing, dragging and keyboard focus.
+    /// The value field sits above it, so clicks on the number still edit it.
+    private var sliderSurface: some View {
+        Color.clear
             .contentShape(Rectangle())
             .gesture(
-                DragGesture(minimumDistance: 1)
-                    .onChanged { drag in
-                        if dragStartValue == nil {
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        if !isDragging {
                             if focusedPart == .value {
                                 commitDraftText()
                             }
-                            focusedPart = .scrubber
-                            dragStartValue = value
+                            focusedPart = .slider
+                            isDragging = true
                         }
-                        scrub(by: drag.translation.width)
+                        drag(to: gesture.location.x)
                     }
                     .onEnded { _ in
-                        dragStartValue = nil
+                        isDragging = false
+                        fineAnchor = nil
+                        withAnimation(motion(.spring(response: 0.32, dampingFraction: 0.55))) {
+                            stretch = 0
+                        }
                     }
             )
             .allowsHitTesting(isEnabled)
             .pointerStyle(isEnabled ? PointerStyle.columnResize : nil)
             .focusable(isEnabled)
             .focusEffectDisabled()
-            .focused($focusedPart, equals: .scrubber)
-            .onKeyPress(.leftArrow) {
+            .focused($focusedPart, equals: .slider)
+            .onKeyPress(keys: [.leftArrow, .rightArrow]) { press in
                 guard isEnabled else { return .ignored }
-                adjustValue(by: -format.step)
-                return .handled
-            }
-            .onKeyPress(.rightArrow) {
-                guard isEnabled else { return .ignored }
-                adjustValue(by: format.step)
+                let direction: CGFloat = press.key == .rightArrow ? 1 : -1
+                adjustValue(by: direction * keyboardStep(large: press.modifiers.contains(.shift)))
                 return .handled
             }
             .accessibilityElement(children: .ignore)
@@ -288,7 +346,7 @@ struct InspectorSlider: View {
             .foregroundStyle(.primary.opacity(0.85))
             .multilineTextAlignment(.trailing)
             .frame(width: Self.valueWidth)
-            .padding(.trailing, 8)
+            .padding(.trailing, Self.contentInset)
             .frame(maxHeight: .infinity)
             .focused($focusedPart, equals: .value)
             .onSubmit {
@@ -299,24 +357,107 @@ struct InspectorSlider: View {
                 draftText = editingBaselineText
                 focusedPart = nil
             }
-            .onKeyPress(.upArrow) {
+            .onKeyPress(keys: [.upArrow, .downArrow]) { press in
                 guard isEnabled else { return .ignored }
                 commitDraftText()
-                adjustValue(by: format.step)
-                return .handled
-            }
-            .onKeyPress(.downArrow) {
-                guard isEnabled else { return .ignored }
-                commitDraftText()
-                adjustValue(by: -format.step)
+                let direction: CGFloat = press.key == .upArrow ? 1 : -1
+                adjustValue(by: direction * keyboardStep(large: press.modifiers.contains(.shift)))
                 return .handled
             }
             .accessibilityLabel("\(title) value")
             .help("Enter an exact value for \(title)")
     }
 
+    /// The fill from the range's origin (zero for signed ranges) to the value.
+    /// Display only: input goes through `sliderSurface`.
+    private var valueIndicator: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            let origin = width * Self.fraction(of: indicatorOrigin, in: range)
+            let current = width * Self.fraction(of: value, in: range)
+
+            ZStack(alignment: .topLeading) {
+                Rectangle()
+                    .fill(indicatorFill)
+                    .frame(width: abs(current - origin), height: proxy.size.height)
+                    .offset(x: min(origin, current))
+
+                if isSignedRange {
+                    Rectangle()
+                        .fill(Color.primary.opacity(colorScheme == .dark ? 0.24 : 0.18))
+                        .frame(width: 1, height: proxy.size.height * 0.4)
+                        .offset(x: origin - 0.5, y: proxy.size.height * 0.3)
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    // MARK: Layout
+
+    private struct SliderLayout {
+        var handleX: CGFloat
+        var valueOffset: CGFloat
+        var valueBesideHandle: Bool
+        var hidesLabel: Bool
+    }
+
+    /// Places the handle on the fill edge and moves the value to the handle's
+    /// leading side when the handle would otherwise run into it. If that spot
+    /// overlaps the label, the label steps out of the way while it's in use.
+    private var currentLayout: SliderLayout {
+        let width = fieldWidth
+        let stretchedWidth = width + abs(stretch)
+        let edge = stretchedWidth * Self.fraction(of: value, in: range) + min(stretch, 0)
+        let handleInset = Self.handleSize.width / 2 + 3
+        let handleX = min(max(edge, handleInset + min(stretch, 0)), width + max(stretch, 0) - handleInset)
+
+        var layout = SliderLayout(
+            handleX: handleX,
+            valueOffset: max(stretch, 0),
+            valueBesideHandle: false,
+            hidesLabel: false
+        )
+        guard showsHandle, width > 0 else { return layout }
+
+        let valueTextWidth = Self.textWidth(format.displayString(for: value), font: Self.valueFont)
+        let valueLeadingEdge = width - Self.contentInset - valueTextWidth
+        guard handleX + Self.handleGap > valueLeadingEdge else { return layout }
+
+        // Right-align the value just before the handle instead.
+        let besideTrailingEdge = handleX - Self.handleGap
+        layout.valueOffset = besideTrailingEdge - (width - Self.contentInset)
+        layout.valueBesideHandle = true
+
+        let labelTrailingEdge = Self.contentInset + Self.textWidth(title, font: Self.labelFont)
+        layout.hidesLabel = besideTrailingEdge - valueTextWidth < labelTrailingEdge + 4
+        return layout
+    }
+
+    private var showsHandle: Bool {
+        isEnabled
+            && focusedPart != .value
+            && (isHovering || isDragging || focusedPart == .slider)
+    }
+
+    private var isSignedRange: Bool {
+        range.lowerBound < 0 && range.upperBound > 0
+    }
+
+    private var indicatorOrigin: CGFloat {
+        isSignedRange ? 0 : range.lowerBound
+    }
+
+    private var indicatorFill: Color {
+        let opacity: Double = colorScheme == .dark
+            ? (isActive ? 0.13 : 0.09)
+            : (isActive ? 0.10 : 0.07)
+        return Color.primary.opacity(opacity)
+    }
+
     private var isActive: Bool {
-        isEnabled && (isHovering || dragStartValue != nil || focusedPart != nil)
+        isEnabled && (isHovering || isDragging || focusedPart != nil)
     }
 
     private var fieldFill: Color {
@@ -325,23 +466,42 @@ struct InspectorSlider: View {
         return colorScheme == .dark ? Color.white.opacity(0.085) : Color.black.opacity(0.06)
     }
 
-    private func scrub(by translation: CGFloat) {
-        guard let dragStartValue else { return }
+    private func motion(_ animation: Animation) -> Animation? {
+        accessibilityReduceMotion ? nil : animation
+    }
+
+    // MARK: Input
+
+    private func drag(to location: CGFloat) {
+        let width = fieldWidth
         let span = range.upperBound - range.lowerBound
-        guard span.isFinite, span > 0 else { return }
+        guard width > 0, span.isFinite, span > 0 else { return }
 
-        let isFine = NSEvent.modifierFlags.contains(.option)
-        let perPoint = span / Self.fullRangeDragDistance * (isFine ? Self.fineDragMultiplier : 1)
-        var proposed = dragStartValue + translation * perPoint
-
-        // Soft detent: dragging through zero on a signed range rests on it
-        // briefly. Typed and keyboard input stay precise and never snap.
-        if range.lowerBound < 0, range.upperBound > 0,
-           abs(proposed) <= perPoint * Self.zeroDetentDistance {
-            proposed = 0
+        let proposed: CGFloat
+        if NSEvent.modifierFlags.contains(.option) {
+            let anchor = fineAnchor ?? (location, value)
+            fineAnchor = anchor
+            proposed = anchor.value + (location - anchor.location) / width * span * Self.fineDragMultiplier
+        } else {
+            fineAnchor = nil
+            var candidate = range.lowerBound + min(max(location / width, 0), 1) * span
+            // Soft detent: pointer drags rest on zero briefly. Typed and
+            // keyboard input stay precise and never snap.
+            if isSignedRange, abs(candidate) <= span / width * Self.zeroDetentDistance {
+                candidate = 0
+            }
+            proposed = candidate
         }
 
+        let overshoot = location < 0 ? location : max(location - width, 0)
+        stretch = Self.rubberBand(overshoot)
         setValue(proposed)
+    }
+
+    private func keyboardStep(large: Bool) -> CGFloat {
+        guard large else { return format.step }
+        let span = range.upperBound - range.lowerBound
+        return max(span * Self.largeStepFraction, format.step)
     }
 
     private func adjustValue(by delta: CGFloat) {
@@ -392,6 +552,27 @@ struct InspectorSlider: View {
         setValue(parsedValue)
         editingBaselineText = format.editingString(for: value)
         syncDraftText()
+    }
+
+    // MARK: Math
+
+    private static func fraction(of value: CGFloat, in range: ClosedRange<CGFloat>) -> CGFloat {
+        let span = range.upperBound - range.lowerBound
+        guard span.isFinite, span > 0, value.isFinite else { return 0 }
+        return min(max((value - range.lowerBound) / span, 0), 1)
+    }
+
+    /// Resistance past an end: grows quickly at first, then approaches
+    /// `maxStretch` however far the pointer goes.
+    private static func rubberBand(_ overshoot: CGFloat) -> CGFloat {
+        guard overshoot != 0 else { return 0 }
+        let distance = abs(overshoot)
+        let stretched = maxStretch * (1 - 1 / (distance / (maxStretch * 3) + 1))
+        return overshoot < 0 ? -stretched : stretched
+    }
+
+    private static func textWidth(_ text: String, font: NSFont) -> CGFloat {
+        ceil((text as NSString).size(withAttributes: [.font: font]).width)
     }
 }
 
