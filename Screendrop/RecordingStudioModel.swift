@@ -160,6 +160,8 @@ final class RecordingStudioModel {
     private(set) var motion = RecordingMotionSettings.disabled
     private(set) var motionTimeline = RecordingMotionTimeline.disabled
     var selectedMotionCueID: UUID?
+    /// The pose being adjusted directly on the canvas, if any.
+    private(set) var poseAdjustmentTarget: RecordingPoseAdjustmentTarget?
     private(set) var pointerTimeline = PointerTimeline.empty
     private(set) var keystrokeTimeline = KeystrokeCaptionTimeline.empty
     var selectedCueID: UUID? {
@@ -549,6 +551,7 @@ final class RecordingStudioModel {
 
     func play() {
         guard !isPlaying else { return }
+        endPoseAdjustment()
         if hoverPreviewTime != nil {
             hoverPreviewTime = nil
         }
@@ -1033,6 +1036,77 @@ final class RecordingStudioModel {
     var motionBasePose: RecordingCardPose {
         get { motion.basePose }
         set { editMotion(String(localized: "Edit Pose"), coalesces: true) { $0.basePose = newValue } }
+    }
+
+    // MARK: Canvas pose adjustment
+
+    /// The adjustment in progress, while its pose still exists and motion is
+    /// on. The canvas shows this pose instead of the one under the playhead.
+    var activePoseAdjustment: RecordingPoseAdjustmentTarget? {
+        guard motion.isEnabled, let target = poseAdjustmentTarget else { return nil }
+        switch target {
+        case .base:
+            return target
+        case .cue(let id):
+            return motion.cues.contains(where: { $0.id == id }) ? target : nil
+        }
+    }
+
+    var adjustedPose: RecordingCardPose? {
+        switch activePoseAdjustment {
+        case .base:
+            motion.basePose
+        case .cue(let id):
+            motion.cues.first { $0.id == id }?.targetPose
+        case nil:
+            nil
+        }
+    }
+
+    func beginPoseAdjustment(_ target: RecordingPoseAdjustmentTarget) {
+        guard motion.isEnabled else { return }
+        pause()
+        if isCroppingVideo { cancelVideoCrop() }
+        if case .cue(let id) = target {
+            selectMotionCue(id: id)
+        }
+        poseAdjustmentTarget = target
+    }
+
+    func endPoseAdjustment() {
+        guard poseAdjustmentTarget != nil else { return }
+        commitPendingMotionEdit()
+        poseAdjustmentTarget = nil
+    }
+
+    /// Applies a pose from a canvas drag. Callers bracket each drag with
+    /// begin/endMotionEdit so it lands as one undo step.
+    func setAdjustedPose(_ pose: RecordingCardPose) {
+        guard let target = activePoseAdjustment else { return }
+        editMotion(String(localized: "Adjust Pose")) { settings in
+            switch target {
+            case .base:
+                settings.basePose = pose
+            case .cue(let id):
+                guard let index = settings.cues.firstIndex(where: { $0.id == id }) else { return }
+                settings.cues[index].targetPose = pose
+                settings.cues[index].preset = nil
+            }
+        }
+    }
+
+    func resetAdjustedPose() {
+        guard let target = activePoseAdjustment else { return }
+        editMotion(String(localized: "Reset Pose")) { settings in
+            switch target {
+            case .base:
+                settings.basePose = .identity
+            case .cue(let id):
+                guard let index = settings.cues.firstIndex(where: { $0.id == id }) else { return }
+                settings.cues[index].targetPose = .identity
+                settings.cues[index].preset = nil
+            }
+        }
     }
 
     func resetMotionBasePose() {
@@ -2015,6 +2089,7 @@ final class RecordingStudioModel {
             return
         }
         pause()
+        endPoseAdjustment()
         workingVideoCropRect = videoCropRect
         videoCropAspect = .freeform
         isCroppingVideo = true
@@ -2658,4 +2733,9 @@ struct RecordingMotionTimelineBlock: Identifiable, Equatable, Sendable {
     var id: UUID {
         cue.id
     }
+}
+
+enum RecordingPoseAdjustmentTarget: Equatable {
+    case base
+    case cue(UUID)
 }
