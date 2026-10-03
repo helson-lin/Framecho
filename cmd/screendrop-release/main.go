@@ -76,9 +76,8 @@ const (
 	// Build/notarize configuration (used with -build).
 	projectName   = "Screendrop.xcodeproj"
 	releaseScheme = "Screendrop"
-	// Developer ID team for -build. Empty until there is one; without it,
-	// export the app to ~/Downloads by hand and release without -build.
-	developmentTeam = ""
+	// Developer ID team for -build (archive, export, notarize, staple).
+	developmentTeam = "64S5F787T9"
 	archiveName     = "Framecho.xcarchive"
 )
 
@@ -126,7 +125,7 @@ func main() {
 	flag.StringVar(&schemeFlag, "scheme", releaseScheme, "Xcode scheme to archive (with -build).")
 	flag.StringVar(&setVersionFlag, "set-version", "", "Set MARKETING_VERSION before archiving and commit it (with -build).")
 	flag.StringVar(&setBuildFlag, "set-build", "", "Set CURRENT_PROJECT_VERSION before archiving and commit it (with -build).")
-	flag.StringVar(&notaryProfile, "notary-profile", "screendrop-notary", "notarytool keychain profile name (with -build).")
+	flag.StringVar(&notaryProfile, "notary-profile", "framecho-notary", "notarytool keychain profile name (with -build).")
 	flag.Parse()
 
 	homeDir, _ := os.UserHomeDir()
@@ -885,7 +884,9 @@ func exportOptionsPlist() string {
 	<key>teamID</key>
 	<string>` + developmentTeam + `</string>
 	<key>signingStyle</key>
-	<string>automatic</string>
+	<string>manual</string>
+	<key>signingCertificate</key>
+	<string>Developer ID Application</string>
 </dict>
 </plist>
 `

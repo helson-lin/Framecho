@@ -76,13 +76,10 @@ Make atomic commits. Each commit should represent exactly one logical change (e.
 
 Updates are served by Sparkle from `appcast.xml` on `main` of `helson-lin/Screendrop`, with DMGs attached to GitHub releases. The EdDSA private key lives in the login keychain under the account `com.jarinhe.Framecho`; its public key is `SUPublicEDKey` in `Info.plist`. Back the key up (`generate_keys --account com.jarinhe.Framecho -x <file>`); without it, installed copies can't be updated.
 
-There is no Developer ID yet, so builds are ad-hoc signed and the release tool runs without `-build`:
+Builds are signed for team `64S5F787T9`: Debug with the Apple Development certificate, Release with Developer ID Application (hardened runtime on). Because the signature is tied to the team rather than the binary, privacy permissions survive rebuilds and updates.
+
+To release, run `go run ./cmd/screendrop-release -build -set-version <x.y.z> -set-build <n>`. It archives, exports with Developer ID, notarizes, staples, builds and Sparkle-signs the DMG, prepends `appcast.xml`, pushes it, and creates the GitHub release. Notarization reads the `framecho-notary` keychain profile; create it once with:
 
 ```bash
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
-  -project Screendrop.xcodeproj -scheme Screendrop -configuration Release \
-  -destination "platform=macOS" -derivedDataPath build/release \
-  CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= ENABLE_HARDENED_RUNTIME=NO
+xcrun notarytool store-credentials framecho-notary --apple-id <apple-id> --team-id 64S5F787T9
 ```
-
-Hardened runtime stays off for ad-hoc builds: its library validation rejects the embedded, separately signed Sparkle.framework and the app quits at launch. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` first, copy `build/release/Build/Products/Release/Framecho.app` to `~/Downloads`, then run `go run ./cmd/screendrop-release`.
