@@ -22,7 +22,7 @@ struct RecordingCameraBubbleSettings: Equatable {
 }
 
 struct RecordingEditDocument: Codable, Equatable {
-    var formatVersion = 5
+    var formatVersion = 6
     var style: StoredRecordingStudioStyle
     var zoomEnabled: Bool
     var zoomCues: [ZoomCue]
@@ -63,6 +63,9 @@ struct RecordingEditDocument: Codable, Equatable {
     /// Raw RecordingAudioFormat value for the audio-only export.
     var audioExportFormat: String?
     var audioVolume: Double?
+    /// 3D card pose and motion cues. Optional so projects saved before
+    /// format 6 decode with motion off and a flat card.
+    var motion: RecordingMotionSettings?
 
     private enum CodingKeys: String, CodingKey {
         case formatVersion
@@ -92,6 +95,7 @@ struct RecordingEditDocument: Codable, Equatable {
         case replacementAudioDisplayName
         case audioExportFormat
         case audioVolume
+        case motion
     }
 
     init(
@@ -114,7 +118,8 @@ struct RecordingEditDocument: Codable, Equatable {
         replacementAudioFileName: String? = nil,
         replacementAudioDisplayName: String? = nil,
         audioExportFormat: RecordingAudioFormat? = nil,
-        audioVolume: Double? = nil
+        audioVolume: Double? = nil,
+        motion: RecordingMotionSettings? = nil
     ) {
         self.style = StoredRecordingStudioStyle(style)
         self.zoomEnabled = zoomEnabled
@@ -145,6 +150,7 @@ struct RecordingEditDocument: Codable, Equatable {
         self.replacementAudioDisplayName = replacementAudioDisplayName
         self.audioExportFormat = audioExportFormat.map(\.rawValue)
         self.audioVolume = audioVolume
+        self.motion = motion
     }
 
     var audioExportFormatValue: RecordingAudioFormat {
@@ -230,6 +236,7 @@ struct RecordingEditDocument: Codable, Equatable {
         )
         audioExportFormat = try container.decodeIfPresent(String.self, forKey: .audioExportFormat)
         audioVolume = try container.decodeIfPresent(Double.self, forKey: .audioVolume)
+        motion = try container.decodeIfPresent(RecordingMotionSettings.self, forKey: .motion)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -261,6 +268,7 @@ struct RecordingEditDocument: Codable, Equatable {
         )
         try container.encodeIfPresent(audioExportFormat, forKey: .audioExportFormat)
         try container.encodeIfPresent(audioVolume, forKey: .audioVolume)
+        try container.encodeIfPresent(motion, forKey: .motion)
     }
 }
 

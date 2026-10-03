@@ -155,6 +155,11 @@ final class RecordingStudioModel {
     var transcriptionState = RecordingTranscriptionState.idle
     private(set) var zoomCues: [ZoomCue] = []
     private(set) var viewportTimeline = ViewportTimeline.identity
+    /// 3D card pose and motion cues. Edited through the motion methods so
+    /// every change is undoable and rebuilds the editor-time timeline.
+    private(set) var motion = RecordingMotionSettings.disabled
+    private(set) var motionTimeline = RecordingMotionTimeline.disabled
+    var selectedMotionCueID: UUID?
     private(set) var pointerTimeline = PointerTimeline.empty
     private(set) var keystrokeTimeline = KeystrokeCaptionTimeline.empty
     var selectedCueID: UUID?
@@ -227,6 +232,7 @@ final class RecordingStudioModel {
     private let editUndoManager = UndoManager()
     private(set) var undoRevision = 0
     private var zoomEditSnapshot: [ZoomCue]?
+    private var motionEditSnapshot: RecordingMotionSettings?
     /// The document as of the last explicit save. Everything the user does
     /// after that lives in memory and in the autosaved draft until they save
     /// again, which is what makes the close prompt meaningful.
@@ -397,6 +403,7 @@ final class RecordingStudioModel {
         }
         rebuildPointerTimeline()
         rebuildViewportTimeline()
+        rebuildMotionTimeline()
         installObservers()
         isLoaded = true
         rebuildPreviewReframe()
@@ -433,6 +440,8 @@ final class RecordingStudioModel {
         style = document.style.value
         zoomEnabled = document.zoomEnabled
         zoomCues = document.zoomCues
+        motion = document.motion ?? .disabled
+        selectedMotionCueID = nil
         // A project that never chose its own settings inherits whatever
         // was picked last, so "export as MP4" sticks across recordings.
         exportSettings = document.exportSettings ?? RecordingExportPreferences.lastSettings
@@ -664,11 +673,20 @@ final class RecordingStudioModel {
         guard clipTimeline.segments.contains(where: { $0.id == id }) else { return }
         selectedClipID = id
         selectedCueID = nil
+        selectedMotionCueID = nil
     }
 
     func selectZoomCue(id: UUID) {
         guard zoomCues.contains(where: { $0.id == id }) else { return }
         selectedCueID = id
+        selectedClipID = nil
+        selectedMotionCueID = nil
+    }
+
+    func selectMotionCue(id: UUID) {
+        guard motion.cues.contains(where: { $0.id == id }) else { return }
+        selectedMotionCueID = id
+        selectedCueID = nil
         selectedClipID = nil
     }
 
@@ -792,6 +810,7 @@ final class RecordingStudioModel {
         // change.
         rebuildPointerTimeline()
         rebuildViewportTimeline()
+        rebuildMotionTimeline()
 
         do {
             try rebuildScreenPlayerItem(preserving: min(max(playheadTime, 0), duration))
@@ -899,6 +918,294 @@ final class RecordingStudioModel {
                 to: CMTime(seconds: max(0, expected), preferredTimescale: 600),
                 toleranceBefore: .zero,
                 toleranceAfter: .zero
+            )
+        }
+    }
+
+    // MARK: - Card motion
+
+    private func rebuildMotionTimeline() {
+        motionTimeline = RecordingMotionTimeline.build(settings: motion, clipTimeline: clipTimeline)
+    }
+
+    private func replaceMotion(_ settings: RecordingMotionSettings) {
+        var next = settings
+        next.basePose = next.basePose.clamped
+        next.cues = next.cues.map { cue in
+            var cue = cue
+            cue.targetPose = cue.targetPose.clamped
+            return cue
+        }.sorted { $0.start < $1.start }
+        guard next != motion else { return }
+        motion = next
+        if let selectedMotionCueID, !next.cues.contains(where: { $0.id == selectedMotionCueID }) {
+            self.selectedMotionCueID = nil
+        }
+        rebuildMotionTimeline()
+        scheduleProjectSave()
+    }
+
+    private func applyMotion(_ settings: RecordingMotionSettings, actionName: String) {
+        let previous = motion
+        replaceMotion(settings)
+        guard motion != previous else { return }
+        registerUndo(actionName) { target in
+            target.applyMotion(previous, actionName: actionName)
+        }
+    }
+
+    /// Groups a continuous edit (a slider drag) into one undo step.
+    func beginMotionEdit() {
+        if motionEditSnapshot == nil {
+            motionEditSnapshot = motion
+        }
+    }
+
+    func endMotionEdit(actionName: String = String(localized: "Edit 3D Motion")) {
+        guard let previous = motionEditSnapshot else { return }
+        motionEditSnapshot = nil
+        guard previous != motion else { return }
+        registerUndo(actionName) { target in
+            target.applyMotion(previous, actionName: actionName)
+        }
+    }
+
+    /// Applies a change, as its own undo step unless a continuous edit is
+    /// in progress.
+    private func editMotion(
+        _ actionName: String = String(localized: "Edit 3D Motion"),
+        _ change: (inout RecordingMotionSettings) -> Void
+    ) {
+        var next = motion
+        change(&next)
+        if motionEditSnapshot != nil {
+            replaceMotion(next)
+        } else {
+            applyMotion(next, actionName: actionName)
+        }
+    }
+
+    var motionEnabled: Bool {
+        get { motion.isEnabled }
+        set {
+            editMotion(newValue
+                ? String(localized: "Turn On 3D Motion")
+                : String(localized: "Turn Off 3D Motion")) { $0.isEnabled = newValue }
+        }
+    }
+
+    var motionBasePose: RecordingCardPose {
+        get { motion.basePose }
+        set { editMotion { $0.basePose = newValue } }
+    }
+
+    func resetMotionBasePose() {
+        editMotion(String(localized: "Reset Pose")) { $0.basePose = .identity }
+    }
+
+    /// The card the motion projects, in preview canvas space.
+    private var motionCardRect: CGRect {
+        RecordingStudioLayout.make(
+            canvasSize: basePreviewCanvasSize,
+            style: style,
+            includeBubble: false,
+            usesUniformPadding: exportAspect == .original,
+            contentAspect: previewContentAspect,
+            contentMode: previewContentMode,
+            contentCropRect: videoCropRect
+        ).cardRect
+    }
+
+    /// True when the base pose or any cue target pushes the card past the
+    /// canvas edge, so the inspector can warn before export crops it.
+    var motionExceedsCanvas: Bool {
+        guard motion.isEnabled else { return false }
+        let canvas = basePreviewCanvasSize
+        let card = motionCardRect
+        let poses = [motion.basePose] + motion.cues.filter(\.isEnabled).map(\.targetPose)
+        return poses.contains { pose in
+            let bounds = RecordingCardProjection(cardRect: card, canvasSize: canvas, pose: pose).bounds(of: card)
+            return bounds.minX < -0.5 || bounds.minY < -0.5
+                || bounds.maxX > canvas.width + 0.5 || bounds.maxY > canvas.height + 0.5
+        }
+    }
+
+    /// Scales the base pose and every cue target by one saved factor so the
+    /// whole motion stays inside the canvas.
+    func fitMotionToCanvas() {
+        let poses = [motion.basePose] + motion.cues.filter(\.isEnabled).map(\.targetPose)
+        let factor = RecordingCardProjection.fittingScaleFactor(
+            cardRect: motionCardRect,
+            canvasSize: basePreviewCanvasSize,
+            poses: poses
+        )
+        guard factor.isFinite, abs(factor - 1) > 0.0005 else { return }
+        editMotion(String(localized: "Fit to Canvas")) { settings in
+            settings.basePose.scale *= factor
+            for index in settings.cues.indices {
+                settings.cues[index].targetPose.scale *= factor
+            }
+        }
+    }
+
+    var selectedMotionCue: RecordingMotionCue? {
+        motion.cues.first { $0.id == selectedMotionCueID }
+    }
+
+    /// The selected cue as it actually plays after cuts and speed changes.
+    var selectedMotionSegment: RecordingMotionTimeline.Segment? {
+        guard let selectedMotionCueID else { return nil }
+        return RecordingMotionTimeline.build(
+            settings: RecordingMotionSettings(isEnabled: true, basePose: motion.basePose, cues: motion.cues),
+            clipTimeline: clipTimeline
+        ).segment(for: selectedMotionCueID)
+    }
+
+    func motionPose(at time: TimeInterval) -> RecordingCardPose {
+        motionTimeline.pose(at: time)
+    }
+
+    /// Room a motion cue can use starting at a source time: pushed past any
+    /// cue it lands in, trimmed to the next one.
+    private func freeMotionSpan(
+        from start: TimeInterval,
+        length: TimeInterval
+    ) -> ClosedRange<TimeInterval>? {
+        guard sourceDuration > 0 else { return nil }
+        var lower = min(max(start, 0), sourceDuration)
+        while let covering = motion.cues.first(where: { $0.start <= lower && $0.end > lower }) {
+            lower = covering.end
+        }
+        let upper = motion.cues
+            .filter { $0.start > lower }
+            .map(\.start)
+            .min() ?? sourceDuration
+        guard upper - lower >= RecordingMotionCue.minimumDuration else { return nil }
+        return lower...min(lower + max(length, RecordingMotionCue.minimumDuration), upper)
+    }
+
+    /// Adds a cue at an editor time. Returns false when no gap is left.
+    @discardableResult
+    func addMotionCue(preset: RecordingMotionPreset, at editorTime: TimeInterval) -> Bool {
+        let sourceStart = clipTimeline.sourceTime(at: editorTime)
+        // Cover the default length in output time, whatever the clip speed.
+        let sourceEnd = clipTimeline.sourceTime(
+            at: min(editorTime + RecordingMotionCue.defaultDuration, duration)
+        )
+        let length = max(sourceEnd - sourceStart, RecordingMotionCue.defaultDuration)
+        guard let span = freeMotionSpan(from: sourceStart, length: length) else { return false }
+        let cue = RecordingMotionCue(
+            start: span.lowerBound,
+            end: span.upperBound,
+            targetPose: preset.targetPose(from: motion.basePose),
+            preset: preset
+        )
+        editMotion(String(localized: "Add Motion")) { settings in
+            settings.isEnabled = true
+            settings.cues.append(cue)
+        }
+        selectMotionCue(id: cue.id)
+        return true
+    }
+
+    func removeMotionCue(id: UUID) {
+        editMotion(String(localized: "Remove Motion")) { settings in
+            settings.cues.removeAll { $0.id == id }
+        }
+        if selectedMotionCueID == id {
+            selectedMotionCueID = nil
+        }
+    }
+
+    func duplicateMotionCue(id: UUID) {
+        guard let original = motion.cues.first(where: { $0.id == id }),
+              let span = freeMotionSpan(from: original.end, length: original.duration) else { return }
+        var copy = original
+        copy.id = UUID()
+        copy.start = span.lowerBound
+        copy.end = span.upperBound
+        editMotion(String(localized: "Duplicate Motion")) { $0.cues.append(copy) }
+        selectMotionCue(id: copy.id)
+    }
+
+    /// Points a cue at a preset's target, keeping its timing.
+    func applyMotionPreset(_ preset: RecordingMotionPreset, toCueID id: UUID) {
+        editMotion(String(localized: "Change Motion Preset")) { settings in
+            guard let index = settings.cues.firstIndex(where: { $0.id == id }) else { return }
+            settings.cues[index].targetPose = preset.targetPose(from: settings.basePose)
+            settings.cues[index].preset = preset
+        }
+    }
+
+    private func motionNeighborBounds(
+        forCueAt index: Int,
+        in cues: [RecordingMotionCue]
+    ) -> (lower: TimeInterval, upper: TimeInterval) {
+        (
+            lower: index > 0 ? max(0, cues[index - 1].end) : 0,
+            upper: index + 1 < cues.count
+                ? min(cues[index + 1].start, sourceDuration)
+                : sourceDuration
+        )
+    }
+
+    private func sanitizedMotionCue(_ cue: RecordingMotionCue) -> RecordingMotionCue {
+        var cue = cue
+        let range = RecordingMotionCue.transitionRange
+        cue.enterDuration = cue.enterDuration.isFinite
+            ? min(max(cue.enterDuration, range.lowerBound), range.upperBound) : RecordingMotionCue.defaultTransition
+        cue.exitDuration = cue.exitDuration.isFinite
+            ? min(max(cue.exitDuration, range.lowerBound), range.upperBound) : RecordingMotionCue.defaultTransition
+        cue.targetPose = cue.targetPose.clamped
+        cue.chainsFromPrevious = false
+        return cue
+    }
+
+    /// Applies an edited cue, stopping either edge at its neighbors.
+    func updateMotionCue(_ cue: RecordingMotionCue) {
+        let cues = motion.cues.sorted { $0.start < $1.start }
+        guard let index = cues.firstIndex(where: { $0.id == cue.id }) else { return }
+        let bounds = motionNeighborBounds(forCueAt: index, in: cues)
+        var updated = sanitizedMotionCue(cue)
+        updated.start = min(
+            max(updated.start, bounds.lower),
+            max(bounds.lower, bounds.upper - RecordingMotionCue.minimumDuration)
+        )
+        updated.end = min(
+            max(updated.end, updated.start + RecordingMotionCue.minimumDuration),
+            bounds.upper
+        )
+        editMotion { settings in
+            guard let stored = settings.cues.firstIndex(where: { $0.id == cue.id }) else { return }
+            settings.cues[stored] = updated
+        }
+    }
+
+    /// Slides a cue without changing its length; it parks against neighbors.
+    func moveMotionCue(_ cue: RecordingMotionCue) {
+        let cues = motion.cues.sorted { $0.start < $1.start }
+        guard let index = cues.firstIndex(where: { $0.id == cue.id }) else { return }
+        let bounds = motionNeighborBounds(forCueAt: index, in: cues)
+        let room = max(bounds.upper - bounds.lower, RecordingMotionCue.minimumDuration)
+        let length = min(max(cue.duration, RecordingMotionCue.minimumDuration), room)
+        var moved = sanitizedMotionCue(cue)
+        moved.start = min(max(cue.start, bounds.lower), max(bounds.lower, bounds.upper - length))
+        moved.end = min(moved.start + length, bounds.upper)
+        editMotion(String(localized: "Move Motion")) { settings in
+            guard let stored = settings.cues.firstIndex(where: { $0.id == cue.id }) else { return }
+            settings.cues[stored] = moved
+        }
+    }
+
+    /// One block per cue on the edited timeline, merged across cuts.
+    var motionTimelineBlocks: [RecordingMotionTimelineBlock] {
+        motion.cues.compactMap { cue in
+            let slices = clipTimeline.slices(overlapping: cue.start, sourceEnd: cue.end)
+            guard let first = slices.first, let last = slices.last else { return nil }
+            return RecordingMotionTimelineBlock(
+                cue: cue,
+                editorStart: first.editorStart,
+                editorEnd: last.editorEnd
             )
         }
     }
@@ -1170,7 +1477,8 @@ final class RecordingStudioModel {
             replacementAudioFileName: replacementAudio?.url.lastPathComponent,
             replacementAudioDisplayName: replacementAudio?.displayName,
             audioExportFormat: audioExportFormat,
-            audioVolume: Double(audioVolume)
+            audioVolume: Double(audioVolume),
+            motion: motion == .disabled ? nil : motion
         )
     }
 
@@ -1309,6 +1617,7 @@ final class RecordingStudioModel {
         try? rebuildScreenPlayerItem(preserving: currentTime)
         rebuildPointerTimeline()
         rebuildViewportTimeline()
+        rebuildMotionTimeline()
         rebuildPreviewReframe()
         editUndoManager.removeAllActions()
         undoRevision += 1
@@ -2296,6 +2605,16 @@ final class RecordingStudioModel {
 /// A zoom cue's single merged footprint on the edited timeline.
 struct RecordingZoomTimelineBlock: Identifiable, Equatable, Sendable {
     let cue: ZoomCue
+    let editorStart: TimeInterval
+    let editorEnd: TimeInterval
+
+    var id: UUID {
+        cue.id
+    }
+}
+
+struct RecordingMotionTimelineBlock: Identifiable, Equatable, Sendable {
+    let cue: RecordingMotionCue
     let editorStart: TimeInterval
     let editorEnd: TimeInterval
 
