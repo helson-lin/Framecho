@@ -9192,6 +9192,576 @@
           }
         }
       }
+    },
+    "%lld motions" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 个运镜"
+          }
+        }
+      }
+    },
+    "3D Motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D 运镜"
+          }
+        }
+      }
+    },
+    "3D motion track" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D 运镜轨道"
+          }
+        }
+      }
+    },
+    "Add Motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加运镜"
+          }
+        }
+      }
+    },
+    "Add Motion at Playhead" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在播放头处添加运镜"
+          }
+        }
+      }
+    },
+    "Add motion at playhead" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在播放头处添加运镜"
+          }
+        }
+      }
+    },
+    "Base pose" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基础姿态"
+          }
+        }
+      }
+    },
+    "Card size, separate from zooms" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片尺寸，独立于缩放片段"
+          }
+        }
+      }
+    },
+    "Change Motion Preset" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改运镜预设"
+          }
+        }
+      }
+    },
+    "Copy this motion into the next free space" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将此运镜复制到下一段空闲位置"
+          }
+        }
+      }
+    },
+    "Disable Motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停用运镜"
+          }
+        }
+      }
+    },
+    "Duplicate" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制"
+          }
+        }
+      }
+    },
+    "Duplicate Motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制运镜"
+          }
+        }
+      }
+    },
+    "Edit 3D Motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑 3D 运镜"
+          }
+        }
+      }
+    },
+    "Edit Motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑运镜"
+          }
+        }
+      }
+    },
+    "Edit Pose" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑姿态"
+          }
+        }
+      }
+    },
+    "Enable 3D motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用 3D 运镜"
+          }
+        }
+      }
+    },
+    "Enable Motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用运镜"
+          }
+        }
+      }
+    },
+    "Fit to Canvas" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "适配画布"
+          }
+        }
+      }
+    },
+    "Gentle Roll" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻微旋转"
+          }
+        }
+      }
+    },
+    "Holds %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保持 %@"
+          }
+        }
+      }
+    },
+    "Horizontal offset, as a share of the canvas width" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "水平偏移，按画布宽度的比例计算"
+          }
+        }
+      }
+    },
+    "In" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "进入"
+          }
+        }
+      }
+    },
+    "Motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "运镜"
+          }
+        }
+      }
+    },
+    "Move Motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移动运镜"
+          }
+        }
+      }
+    },
+    "Out" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "退出"
+          }
+        }
+      }
+    },
+    "Part of the card reaches past the canvas and will be cropped." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片有部分超出画布，导出时会被裁切。"
+          }
+        }
+      }
+    },
+    "Preset" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预设"
+          }
+        }
+      }
+    },
+    "Push In" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "推近"
+          }
+        }
+      }
+    },
+    "Remove Motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除运镜"
+          }
+        }
+      }
+    },
+    "Remove the selected motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除所选运镜"
+          }
+        }
+      }
+    },
+    "Reset Pose" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置姿态"
+          }
+        }
+      }
+    },
+    "Resize Motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "调整运镜时长"
+          }
+        }
+      }
+    },
+    "Return the card to a flat, centered pose" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "让卡片回到平放居中的姿态"
+          }
+        }
+      }
+    },
+    "Right-click to add 3D motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右键点击以添加 3D 运镜"
+          }
+        }
+      }
+    },
+    "Rotate" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "旋转"
+          }
+        }
+      }
+    },
+    "Rotate the card in the screen plane" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在屏幕平面内旋转卡片"
+          }
+        }
+      }
+    },
+    "Scale" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缩放"
+          }
+        }
+      }
+    },
+    "Scale the base pose and every motion so the card stays inside the canvas" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "统一缩放基础姿态和所有运镜，使卡片保持在画布内"
+          }
+        }
+      }
+    },
+    "Selected Motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所选运镜"
+          }
+        }
+      }
+    },
+    "Shortened to fit: in %@, out %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已缩短以适应：进入 %@，退出 %@"
+          }
+        }
+      }
+    },
+    "Target pose" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目标姿态"
+          }
+        }
+      }
+    },
+    "Tilt" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "俯仰"
+          }
+        }
+      }
+    },
+    "Tilt Left" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左倾"
+          }
+        }
+      }
+    },
+    "Tilt Right" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右倾"
+          }
+        }
+      }
+    },
+    "Tilt the card toward or away from you" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "让卡片朝向或背离你倾斜"
+          }
+        }
+      }
+    },
+    "Tilted" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已倾斜"
+          }
+        }
+      }
+    },
+    "Timing" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时间"
+          }
+        }
+      }
+    },
+    "Top Down" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "俯视"
+          }
+        }
+      }
+    },
+    "Turn" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左右转"
+          }
+        }
+      }
+    },
+    "Turn Off 3D Motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭 3D 运镜"
+          }
+        }
+      }
+    },
+    "Turn On 3D Motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开启 3D 运镜"
+          }
+        }
+      }
+    },
+    "Turn the card left or right" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "让卡片向左或向右转"
+          }
+        }
+      }
+    },
+    "Use this motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用此运镜"
+          }
+        }
+      }
+    },
+    "Vertical offset, as a share of the canvas height" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "垂直偏移，按画布高度的比例计算"
+          }
+        }
+      }
+    },
+    "X" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "X"
+          }
+        }
+      }
+    },
+    "Y" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Y"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

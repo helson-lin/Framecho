@@ -39,10 +39,19 @@ nonisolated struct RecordingExportTiming: Sendable {
             max(abs(a.minX - b.minX), abs(a.minY - b.minY)),
             max(abs(a.maxX - b.maxX), abs(a.maxY - b.maxY))
         )
+        return subframeTimes(at: time, displacement: displacement).map(frameRect)
+    }
+
+    /// Shutter sample times for a frame whose moving content travels
+    /// `displacement` output pixels across the shutter: one sample when
+    /// settled, up to 24 spread evenly across one frame interval.
+    func subframeTimes(at time: TimeInterval, displacement: CGFloat) -> [TimeInterval] {
+        guard motionBlurEnabled else { return [time] }
+        let shutter = frameInterval
         let count = displacement > 1.5 ? min(24, max(2, Int((displacement / 2).rounded(.up)))) : 1
+        guard count > 1 else { return [time] }
         return (0..<count).map { sample in
-            let sampleTime = time - shutter / 2 + shutter * (Double(sample) + 0.5) / Double(count)
-            return frameRect(sampleTime)
+            time - shutter / 2 + shutter * (Double(sample) + 0.5) / Double(count)
         }
     }
 }
