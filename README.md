@@ -105,7 +105,7 @@ Framecho 使用 Sparkle 检查更新，更新源为：
 
 Framecho 不提供统一的公共上传服务器。云端分享需要部署到你自己的 Cloudflare 账号。
 
-当前配套服务仍使用上游的 [screendrop-worker](https://github.com/fayazara/screendrop-worker)，不属于本仓库独立维护的代码。
+配套服务由本项目独立维护：[Framecho-worker](https://github.com/helson-lin/Framecho-worker)。截图和录屏分享使用 Workers + R2 + D1；壁纸下载桶可独立使用。首次部署只需填写 `UPLOAD_TOKEN`，GitHub / Google OAuth 用于评论和点赞，可在部署后选配。
 
 1. 打开 **设置 → 云端**，复制生成的上传令牌。
 2. 使用设置中的部署入口，将 Worker 部署到自己的 Cloudflare 账号。
