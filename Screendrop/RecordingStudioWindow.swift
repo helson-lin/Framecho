@@ -3598,6 +3598,12 @@ private struct StudioInspector: View {
     @State private var expandedSections = StudioInspectorSectionState.load()
     @State private var transcriptTab: StudioTranscriptTab = .captions
     @State private var isAudioExportOptionsPresented = false
+    @State private var scrollPosition = ScrollPosition(edge: .top)
+
+    /// Whatever the timeline has selected, for scrolling its controls in.
+    private var selectionKey: UUID? {
+        model.selectedCueID ?? model.selectedMotionCueID ?? model.selectedClipID
+    }
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
 
@@ -3821,6 +3827,19 @@ private struct StudioInspector: View {
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .padding(.bottom, PreviewPeekTab.pillHeight * 1.1)
+        }
+        .scrollPosition($scrollPosition)
+        // A new timeline selection puts its controls at the top; bring them
+        // into view even when the panel was scrolled down.
+        .onChange(of: selectionKey) { _, key in
+            guard key != nil else { return }
+            if accessibilityReduceMotion {
+                scrollPosition.scrollTo(edge: .top)
+            } else {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    scrollPosition.scrollTo(edge: .top)
+                }
+            }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
