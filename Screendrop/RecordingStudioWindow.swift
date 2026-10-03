@@ -3459,10 +3459,16 @@ private struct StudioMotionCueBlock: View {
                         model.endMotionEdit(actionName: String(localized: "Move Motion"))
                     }
             )
+            .onTapGesture(count: 2) {
+                model.beginPoseAdjustment(.cue(cue.id))
+            }
             .onTapGesture {
                 model.selectMotionCue(id: cue.id)
             }
             .contextMenu {
+                Button("Adjust on Canvas") {
+                    model.beginPoseAdjustment(.cue(cue.id))
+                }
                 Button(cue.isEnabled ? "Disable Motion" : "Enable Motion") {
                     var updated = cue
                     updated.isEnabled.toggle()

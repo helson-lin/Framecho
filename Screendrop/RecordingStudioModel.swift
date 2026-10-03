@@ -703,9 +703,12 @@ final class RecordingStudioModel {
 
     func selectMotionCue(id: UUID) {
         guard motion.cues.contains(where: { $0.id == id }) else { return }
-        // Picking another motion leaves the pose being adjusted.
+        // While adjusting on the canvas, picking a motion moves the
+        // adjustment to that motion's target, so the canvas shows the pose
+        // the selection will play rather than the flat base.
         if let target = poseAdjustmentTarget, target != .cue(id) {
-            endPoseAdjustment()
+            commitPendingMotionEdit()
+            poseAdjustmentTarget = .cue(id)
         }
         selectedMotionCueID = id
         selectedCueID = nil
