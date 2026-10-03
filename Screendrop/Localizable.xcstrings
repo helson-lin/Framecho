@@ -9952,6 +9952,56 @@
           }
         }
       }
+    },
+    "Actual Size" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实际大小"
+          }
+        }
+      }
+    },
+    "Drag to scale the card, or press = and -" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动以缩放卡片，也可以按 = 和 -"
+          }
+        }
+      }
+    },
+    "Press = or - to scale the card, 0 to return it to 100%" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按 = 或 - 缩放卡片，按 0 恢复到 100%"
+          }
+        }
+      }
+    },
+    "Scale Down" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缩小"
+          }
+        }
+      }
+    },
+    "Scale Up" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放大"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
