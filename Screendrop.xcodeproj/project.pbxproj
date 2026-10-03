@@ -276,7 +276,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Screendrop/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Screendrop;
+				INFOPLIST_KEY_CFBundleDisplayName = Framecho;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -289,8 +289,8 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.34.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.fayazahmed.Screendrop;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.jarinhe.Framecho;
+				PRODUCT_NAME = Framecho;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -318,7 +318,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Screendrop/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Screendrop;
+				INFOPLIST_KEY_CFBundleDisplayName = Framecho;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -331,8 +331,8 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.34.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.fayazahmed.Screendrop;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.jarinhe.Framecho;
+				PRODUCT_NAME = Framecho;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -424,7 +424,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Screendrop/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Screendrop Dev";
+				INFOPLIST_KEY_CFBundleDisplayName = "Framecho Dev";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -437,8 +437,8 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.34.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.fayazahmed.Screendrop.dev;
-				PRODUCT_NAME = "$(TARGET_NAME) Dev";
+				PRODUCT_BUNDLE_IDENTIFIER = com.jarinhe.Framecho.dev;
+				PRODUCT_NAME = "Framecho Dev";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;

@@ -477,7 +477,7 @@ nonisolated enum RecordingSessionStore {
         let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support", isDirectory: true)
         return baseURL
-            .appendingPathComponent("Screendrop", isDirectory: true)
+            .appendingPathComponent("Framecho", isDirectory: true)
             .appendingPathComponent("Recordings", isDirectory: true)
     }
 
@@ -485,7 +485,7 @@ nonisolated enum RecordingSessionStore {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd-HH-mm-ss"
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        let name = "Screendrop_\(formatter.string(from: Date()))_\(UUID().uuidString.prefix(6))"
+        let name = "Framecho_\(formatter.string(from: Date()))_\(UUID().uuidString.prefix(6))"
         let directory = recordingsDirectory
             .appendingPathComponent(name)
             .appendingPathExtension(RecordingSession.directoryExtension)

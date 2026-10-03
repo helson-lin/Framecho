@@ -161,7 +161,7 @@ actor AnnotationProgressiveBlurPreviewWorker {
     static let shared = AnnotationProgressiveBlurPreviewWorker()
 
     private let signposter = OSSignposter(
-        subsystem: "com.fayazahmed.Screendrop",
+        subsystem: "com.jarinhe.Framecho",
         category: "SceneBlurPreview"
     )
 

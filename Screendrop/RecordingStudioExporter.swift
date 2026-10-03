@@ -27,7 +27,7 @@ import SwiftUI
 import VideoToolbox
 
 nonisolated final class RecordingStudioExporter: @unchecked Sendable {
-    private static let logger = Logger(subsystem: "com.fayazahmed.Screendrop", category: "StudioExport")
+    private static let logger = Logger(subsystem: "com.jarinhe.Framecho", category: "StudioExport")
 
     struct Configuration: Sendable {
         let screenURL: URL

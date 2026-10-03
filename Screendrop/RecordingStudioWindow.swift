@@ -212,11 +212,12 @@ private struct RecordingStudioContent: View {
         return "\(clock) · \(Int(size.width))×\(Int(size.height))"
     }
 
-    /// Unrenamed recordings are named `Screendrop_<timestamp>_<id>` on disk;
+    /// Unrenamed recordings are named `Framecho_<timestamp>_<id>` on disk
+    /// (`Screendrop_` before the rename);
     /// the title shows when it was recorded instead of the raw file name.
     private static func friendlyTitle(for name: String) -> String {
         let parts = name.split(separator: "_")
-        guard parts.count >= 2, parts[0] == "Screendrop" else { return name }
+        guard parts.count >= 2, parts[0] == "Framecho" || parts[0] == "Screendrop" else { return name }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd-HH-mm-ss"
         formatter.locale = Locale(identifier: "en_US_POSIX")
