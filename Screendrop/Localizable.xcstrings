@@ -416,6 +416,26 @@
         }
       }
     },
+    "3D Perspective" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D 透视"
+          }
+        }
+      }
+    },
+    "3D Perspective sets the position while it’s on." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D 透视开启时，位置由镜头取景决定。"
+          }
+        }
+      }
+    },
     "50%" : {
 
     },
@@ -865,6 +885,16 @@
         }
       }
     },
+    "Auto Redact" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动遮挡"
+          }
+        }
+      }
+    },
     "Auto Zoom" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1241,6 +1271,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "取消上传"
+          }
+        }
+      }
+    },
+    "Canvas" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画面"
           }
         }
       }
@@ -1849,6 +1889,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "体积小巧的 AAC 音频，大多数增强工具都支持。"
+          }
+        }
+      }
+    },
+    "Composition" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "构图"
           }
         }
       }
@@ -3003,16 +3053,6 @@
         }
       }
     },
-    "Enable border" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "启用边框"
-          }
-        }
-      }
-    },
     "Enable progressive blur" : {
       "localizations" : {
         "zh-Hans" : {
@@ -3329,6 +3369,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "查找敏感内容并像素化处理"
+          }
+        }
+      }
+    },
+    "Find sensitive content in the screenshot and cover it." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查找截图中的敏感内容并遮盖。"
           }
         }
       }
@@ -4029,6 +4079,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "信息"
+          }
+        }
+      }
+    },
+    "Inspector" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "检查器"
           }
         }
       }
@@ -6129,6 +6189,26 @@
         }
       }
     },
+    "Reset 3D perspective" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置 3D 透视"
+          }
+        }
+      }
+    },
+    "Reset 3D Perspective to use alignment" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置 3D 透视后可调整对齐"
+          }
+        }
+      }
+    },
     "Reset all clip edits?" : {
       "localizations" : {
         "zh-Hans" : {
@@ -6149,32 +6229,22 @@
         }
       }
     },
-    "Reset camera" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重置镜头"
-          }
-        }
-      }
-    },
-    "Reset Camera to use alignment" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重置镜头后才能使用对齐"
-          }
-        }
-      }
-    },
     "Reset Clips" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "重置片段"
+          }
+        }
+      }
+    },
+    "Reset composition" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置构图"
           }
         }
       }
@@ -6195,6 +6265,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重置布局"
+          }
+        }
+      }
+    },
+    "Reset screenshot appearance" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置截图外观"
           }
         }
       }
