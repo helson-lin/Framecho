@@ -20,44 +20,76 @@ private enum AnnotationBackgroundFillLibrary: CaseIterable, Hashable {
     }
 }
 
-struct AnnotationBackgroundInspector: View {
+/// Where the screenshot sits on the canvas: output shape, breathing room and
+/// placement.
+struct AnnotationCompositionInspector: View {
     @Binding var settings: AnnotationBackgroundSettings
-    @Bindable var wallpaperStore: AnnotationWallpaperStore
     let onEditorAction: () -> Void
-    let onPickWallpaper: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: InspectorMetrics.groupSpacing) {
-            InspectorBackgroundFillPicker(
-                style: $settings.style,
-                rememberedWallpaper: settings.customWallpaper,
-                wallpaperStore: wallpaperStore,
-                onEditorAction: onEditorAction,
-                onPickWallpaper: onPickWallpaper,
-                onSelectWallpaper: { settings.customWallpaper = $0 }
+            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
+                InspectorGroupLabel("Aspect ratio")
+
+                InspectorSegmented(
+                    options: AnnotationBackgroundAspectRatio.allCases,
+                    isSelected: { $0 == settings.aspectRatio },
+                    onTap: {
+                        onEditorAction()
+                        settings.aspectRatio = $0
+                    },
+                    label: { ratio in
+                        Text(ratio.title)
+                            .font(.inspectorSegment)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                )
+            }
+
+            InspectorSlider(
+                "Padding",
+                value: $settings.padding,
+                range: 0.04...0.45,
+                format: .percent()
             )
 
-            innerDivider
-
-            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
-                InspectorGroupLabel("Layout")
-
-                InspectorFieldPair {
-                    InspectorSlider(
-                        "Padding",
-                        value: $settings.padding,
-                        range: 0.04...0.45,
-                        format: .percent()
+            VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+                InspectorRow("Alignment") {
+                    AlignmentPositionPicker(
+                        alignment: $settings.alignment,
+                        isEnabled: !settings.camera.hasEffect,
+                        onEditorAction: onEditorAction
                     )
-                } trailing: {
-                    InspectorSlider(
-                        "Corners",
-                        value: $settings.cornerRadius,
-                        range: 0...0.12,
-                        format: .percent()
-                    )
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+
+                if settings.camera.hasEffect {
+                    Text("3D Perspective sets the position while it’s on.")
+                        .font(.inspectorLabel)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
+        }
+    }
+}
+
+/// The screenshot card's own look: corners, shadow and border.
+struct AnnotationScreenshotAppearanceInspector: View {
+    @Binding var settings: AnnotationBackgroundSettings
+    let onEditorAction: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: InspectorMetrics.groupSpacing) {
+            InspectorSlider(
+                "Corners",
+                value: $settings.cornerRadius,
+                range: 0...0.12,
+                format: .percent()
+            )
 
             VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
                 InspectorGroupLabel("Shadow")
@@ -86,41 +118,31 @@ struct AnnotationBackgroundInspector: View {
                 .opacity(settings.shadow > 0 ? 1 : 0.45)
             }
 
-            InspectorRow("Alignment") {
-                AlignmentPositionPicker(
-                    alignment: $settings.alignment,
-                    isEnabled: !settings.camera.hasEffect,
-                    onEditorAction: onEditorAction
+            VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+                InspectorToggleRow(
+                    "Border",
+                    isOn: Binding(
+                        get: { settings.border.isEnabled },
+                        set: {
+                            onEditorAction()
+                            settings.border.isEnabled = $0
+                        }
+                    )
                 )
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            }
 
-            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
-                InspectorGroupLabel("Aspect ratio")
-
-                InspectorSegmented(
-                    options: AnnotationBackgroundAspectRatio.allCases,
-                    isSelected: { $0 == settings.aspectRatio },
-                    onTap: {
-                        onEditorAction()
-                        settings.aspectRatio = $0
-                    },
-                    label: { ratio in
-                        Text(ratio.title)
-                            .font(.inspectorSegment)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
-                )
+                if settings.border.isEnabled {
+                    AnnotationScreenshotBorderInspector(
+                        settings: $settings.border,
+                        onEditorAction: onEditorAction
+                    )
+                    .transition(.opacity)
+                }
             }
         }
-    }
-
-    private var innerDivider: some View {
-        Rectangle()
-            .fill(Color(nsColor: .separatorColor).opacity(0.4))
-            .frame(height: 0.5)
-            .padding(.vertical, 2)
+        .animation(
+            accessibilityReduceMotion ? nil : .snappy(duration: 0.18),
+            value: settings.border.isEnabled
+        )
     }
 }
 
@@ -675,7 +697,7 @@ private struct AlignmentPositionPicker: View {
         .background(shape.fill(InspectorControlPalette.trackFill(for: colorScheme)))
         .clipShape(shape)
         .opacity(isEnabled ? 1 : 0.46)
-        .help(isEnabled ? "Image alignment" : "Reset Camera to use alignment")
+        .help(isEnabled ? "Image alignment" : "Reset 3D Perspective to use alignment")
         .onChange(of: isEnabled) { _, enabled in
             if !enabled {
                 hoveredAlignment = nil

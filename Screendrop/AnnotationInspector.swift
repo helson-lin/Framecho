@@ -12,23 +12,35 @@ enum AnnotationEditorFocusedField: Hashable {
     case watermarkText
 }
 
-private enum AnnotationInspectorAdvancedSection: String, Hashable, CaseIterable {
+/// The inspector splits by scope: what you draw and select, and the canvas the
+/// screenshot is presented on.
+private enum AnnotationInspectorTab: Hashable, CaseIterable {
+    case annotate
+    case canvas
+
+    var title: String {
+        switch self {
+        case .annotate: String(localized: "Annotate")
+        case .canvas: String(localized: "Canvas")
+        }
+    }
+}
+
+private enum AnnotationInspectorEffectSection: String, Hashable, CaseIterable {
     case camera
     case progressiveBlur
-    case background
-    case border
     case watermark
 }
 
 private enum AnnotationInspectorSectionState {
     static let expandedSectionsKey = "annotationInspector.expandedAdvancedSections"
 
-    static func loadExpandedSections() -> Set<AnnotationInspectorAdvancedSection> {
+    static func loadExpandedSections() -> Set<AnnotationInspectorEffectSection> {
         let rawValues = UserDefaults.standard.stringArray(forKey: expandedSectionsKey) ?? []
-        return Set(rawValues.compactMap(AnnotationInspectorAdvancedSection.init(rawValue:)))
+        return Set(rawValues.compactMap(AnnotationInspectorEffectSection.init(rawValue:)))
     }
 
-    static func saveExpandedSections(_ sections: Set<AnnotationInspectorAdvancedSection>) {
+    static func saveExpandedSections(_ sections: Set<AnnotationInspectorEffectSection>) {
         UserDefaults.standard.set(sections.map(\.rawValue), forKey: expandedSectionsKey)
     }
 }
@@ -42,160 +54,17 @@ struct AnnotationEditorInspector: View {
     let onPickWallpaper: () -> Void
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
-    @State private var expandedAdvancedSections: Set<AnnotationInspectorAdvancedSection> = AnnotationInspectorSectionState.loadExpandedSections()
+    @State private var selectedTab: AnnotationInspectorTab = .annotate
+    @State private var expandedEffectSections: Set<AnnotationInspectorEffectSection> = AnnotationInspectorSectionState.loadExpandedSections()
 
     var body: some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 0) {
-                InspectorSection("Tools") {
-                    AnnotationInspectorToolGrid(selectedTool: model.selectedTool) { tool in
-                        onEditorAction()
-                        model.selectTool(tool)
-                    }
-
-                    smartRedactionRow
-                }
-
-                InspectorSectionDivider()
-
-                // Always present so selecting or deselecting annotations never
-                // shifts the sections below.
-                InspectorSection("Style") {
-                    styleControls
-                }
-
-                InspectorSectionDivider()
-
-                InspectorDisclosureSection(
-                    title: "Background",
-                    summary: AnnotationInspectorSummary.background(model.backgroundSettings),
-                    isExpanded: expansionBinding(for: .background),
-                    accessory: {
-                        if model.backgroundSettings.style != .none {
-                            InspectorClearButton(help: "Remove background") {
-                                onEditorAction()
-                                model.backgroundSettings.style = .none
-                            }
-                        }
-                    }
-                ) {
-                    AnnotationBackgroundInspector(
-                        settings: Binding(
-                            get: { model.backgroundSettings },
-                            set: { model.backgroundSettings = $0 }
-                        ),
-                        wallpaperStore: wallpaperStore,
-                        onEditorAction: onEditorAction,
-                        onPickWallpaper: onPickWallpaper
-                    )
-                }
-
-                InspectorDisclosureSection(
-                    title: "Border",
-                    summary: AnnotationInspectorSummary.border(model.backgroundSettings.border),
-                    isExpanded: expansionBinding(for: .border),
-                    accessory: {
-                        HStack(spacing: 5) {
-                            if model.backgroundSettings.border != AnnotationScreenshotBorderSettings() {
-                                sectionResetButton("Reset border", section: .border) {
-                                    model.backgroundSettings.border = AnnotationScreenshotBorderSettings()
-                                }
-                            }
-
-                            sectionToggle("Enable border", isOn: \.border.isEnabled, section: .border)
-                        }
-                    }
-                ) {
-                    AnnotationScreenshotBorderInspector(
-                        settings: Binding(
-                            get: { model.backgroundSettings.border },
-                            set: { model.backgroundSettings.border = $0 }
-                        ),
-                        onEditorAction: onEditorAction
-                    )
-                    .disabled(!model.backgroundSettings.border.isEnabled)
-                    .opacity(model.backgroundSettings.border.isEnabled ? 1 : 0.48)
-                }
-
-                InspectorDisclosureSection(
-                    title: "Camera",
-                    summary: AnnotationInspectorSummary.camera(model.backgroundSettings.camera),
-                    isExpanded: expansionBinding(for: .camera),
-                    accessory: {
-                        if !model.backgroundSettings.camera.isDefault {
-                            InspectorResetButton(help: "Reset camera") {
-                                onEditorAction()
-                                withAnimation(.snappy(duration: 0.2)) {
-                                    model.backgroundSettings.camera = AnnotationCameraSettings()
-                                }
-                            }
-                        }
-                    }
-                ) {
-                    AnnotationCameraInspector(
-                        settings: Binding(
-                            get: { model.backgroundSettings.camera },
-                            set: { model.backgroundSettings.camera = $0 }
-                        ),
-                        onEditorAction: onEditorAction
-                    )
-                }
-
-                InspectorDisclosureSection(
-                    title: "Progressive Blur",
-                    summary: AnnotationInspectorSummary.progressiveBlur(model.backgroundSettings.progressiveBlur),
-                    isExpanded: expansionBinding(for: .progressiveBlur),
-                    accessory: {
-                        HStack(spacing: 5) {
-                            if model.backgroundSettings.progressiveBlur != AnnotationProgressiveBlurSettings() {
-                                sectionResetButton("Reset progressive blur", section: .progressiveBlur) {
-                                    model.backgroundSettings.progressiveBlur = AnnotationProgressiveBlurSettings()
-                                }
-                            }
-
-                            sectionToggle(
-                                "Enable progressive blur",
-                                isOn: \.progressiveBlur.isEnabled,
-                                section: .progressiveBlur
-                            )
-                        }
-                    }
-                ) {
-                    AnnotationProgressiveBlurInspector(
-                        settings: Binding(
-                            get: { model.backgroundSettings.progressiveBlur },
-                            set: { model.backgroundSettings.progressiveBlur = $0 }
-                        ),
-                        onEditorAction: onEditorAction
-                    )
-                    .disabled(!model.backgroundSettings.progressiveBlur.isEnabled)
-                    .opacity(model.backgroundSettings.progressiveBlur.isEnabled ? 1 : 0.48)
-                }
-
-                InspectorDisclosureSection(
-                    title: "Watermark",
-                    summary: AnnotationInspectorSummary.watermark(model.backgroundSettings.watermark),
-                    isExpanded: expansionBinding(for: .watermark),
-                    accessory: {
-                        HStack(spacing: 5) {
-                            if model.backgroundSettings.watermark != AnnotationWatermarkSettings() {
-                                sectionResetButton("Reset watermark", section: .watermark) {
-                                    model.backgroundSettings.watermark = AnnotationWatermarkSettings()
-                                }
-                            }
-
-                            sectionToggle("Enable watermark", isOn: \.watermark.isEnabled, section: .watermark)
-                        }
-                    }
-                ) {
-                    AnnotationWatermarkInspector(
-                        settings: Binding(
-                            get: { model.backgroundSettings.watermark },
-                            set: { model.backgroundSettings.watermark = $0 }
-                        ),
-                        focusedField: focusedField,
-                        onFocusCleared: onEditorAction
-                    )
+                switch selectedTab {
+                case .annotate:
+                    annotateTab
+                case .canvas:
+                    canvasTab
                 }
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -203,13 +72,19 @@ struct AnnotationEditorInspector: View {
             // hidden behind the floating preview peek pill.
             .padding(.bottom, PreviewPeekTab.pillHeight * 1.1)
         }
+        // Each tab starts at its top instead of inheriting the other's offset.
+        .id(selectedTab)
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
-                AnnotationBackgroundPresetBar(
-                    model: model,
-                    presetStore: backgroundPresetStore,
-                    onEditorAction: onEditorAction
-                )
+                tabPicker
+
+                if selectedTab == .canvas {
+                    AnnotationBackgroundPresetBar(
+                        model: model,
+                        presetStore: backgroundPresetStore,
+                        onEditorAction: onEditorAction
+                    )
+                }
 
                 Rectangle()
                     .fill(Color(nsColor: .separatorColor).opacity(0.45))
@@ -220,6 +95,15 @@ struct AnnotationEditorInspector: View {
         .scrollContentBackground(.hidden)
         .scrollEdgeEffectSoftIfAvailable()
         .background(sidebarBackground)
+        // Drawing or selecting on the canvas always lands on the controls for it.
+        .onChange(of: model.selectedTool) { _, _ in
+            selectedTab = .annotate
+        }
+        .onChange(of: model.selectionCount) { _, count in
+            if count > 0 {
+                selectedTab = .annotate
+            }
+        }
         .inspectorColumnWidth(
             min: InspectorMetrics.columnMinWidth,
             ideal: InspectorMetrics.columnIdealWidth,
@@ -233,6 +117,236 @@ struct AnnotationEditorInspector: View {
         )
     }
 
+    private var tabPicker: some View {
+        InspectorSegmented(
+            options: AnnotationInspectorTab.allCases,
+            isSelected: { $0 == selectedTab },
+            onTap: { tab in
+                onEditorAction()
+                selectedTab = tab
+            },
+            label: { tab in
+                Text(tab.title)
+                    .font(.inspectorSegment)
+                    .lineLimit(1)
+            }
+        )
+        .padding(.horizontal, InspectorMetrics.horizontalPadding)
+        .padding(.top, 10)
+        .padding(.bottom, selectedTab == .canvas ? 0 : 10)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Inspector")
+    }
+
+    // MARK: Tabs
+
+    @ViewBuilder
+    private var annotateTab: some View {
+        InspectorSection("Tools") {
+            AnnotationInspectorToolGrid(selectedTool: model.selectedTool) { tool in
+                onEditorAction()
+                model.selectTool(tool)
+            }
+        }
+
+        InspectorSectionDivider()
+
+        // Always present so selecting or deselecting annotations never
+        // shifts the sections below.
+        InspectorSection("Style") {
+            styleControls
+        }
+
+        InspectorSectionDivider()
+
+        InspectorSection("Auto Redact") {
+            smartRedactionControls
+        }
+    }
+
+    @ViewBuilder
+    private var canvasTab: some View {
+        InspectorSection(
+            title: "Composition",
+            accessory: {
+                if !compositionIsDefault {
+                    InspectorResetButton(help: "Reset composition") {
+                        onEditorAction()
+                        let defaults = AnnotationBackgroundSettings()
+                        model.backgroundSettings.aspectRatio = defaults.aspectRatio
+                        model.backgroundSettings.padding = defaults.padding
+                        model.backgroundSettings.alignment = defaults.alignment
+                    }
+                }
+            }
+        ) {
+            AnnotationCompositionInspector(
+                settings: backgroundSettings,
+                onEditorAction: onEditorAction
+            )
+        }
+
+        InspectorSectionDivider()
+
+        InspectorSection(
+            title: "Background",
+            accessory: {
+                if model.backgroundSettings.style != .none {
+                    InspectorClearButton(help: "Remove background") {
+                        onEditorAction()
+                        model.backgroundSettings.style = .none
+                    }
+                }
+            }
+        ) {
+            InspectorBackgroundFillPicker(
+                style: backgroundSettings.style,
+                rememberedWallpaper: model.backgroundSettings.customWallpaper,
+                wallpaperStore: wallpaperStore,
+                onEditorAction: onEditorAction,
+                onPickWallpaper: onPickWallpaper,
+                onSelectWallpaper: { model.backgroundSettings.customWallpaper = $0 }
+            )
+        }
+
+        InspectorSectionDivider()
+
+        InspectorSection(
+            title: "Screenshot",
+            accessory: {
+                if !screenshotAppearanceIsDefault {
+                    InspectorResetButton(help: "Reset screenshot appearance") {
+                        onEditorAction()
+                        let defaults = AnnotationBackgroundSettings()
+                        model.backgroundSettings.cornerRadius = defaults.cornerRadius
+                        model.backgroundSettings.shadow = defaults.shadow
+                        model.backgroundSettings.shadowStyle = defaults.shadowStyle
+                        model.backgroundSettings.border = defaults.border
+                    }
+                }
+            }
+        ) {
+            AnnotationScreenshotAppearanceInspector(
+                settings: backgroundSettings,
+                onEditorAction: onEditorAction
+            )
+        }
+
+        InspectorSectionDivider()
+
+        effectSections
+    }
+
+    @ViewBuilder
+    private var effectSections: some View {
+        InspectorDisclosureSection(
+            title: "3D Perspective",
+            summary: AnnotationInspectorSummary.camera(model.backgroundSettings.camera),
+            isExpanded: expansionBinding(for: .camera),
+            accessory: {
+                if !model.backgroundSettings.camera.isDefault {
+                    InspectorResetButton(help: "Reset 3D perspective") {
+                        onEditorAction()
+                        withAnimation(sectionAnimation) {
+                            model.backgroundSettings.camera = AnnotationCameraSettings()
+                        }
+                    }
+                }
+            }
+        ) {
+            AnnotationCameraInspector(
+                settings: Binding(
+                    get: { model.backgroundSettings.camera },
+                    set: { model.backgroundSettings.camera = $0 }
+                ),
+                onEditorAction: onEditorAction
+            )
+        }
+
+        InspectorDisclosureSection(
+            title: "Progressive Blur",
+            summary: AnnotationInspectorSummary.progressiveBlur(model.backgroundSettings.progressiveBlur),
+            isExpanded: expansionBinding(for: .progressiveBlur),
+            accessory: {
+                HStack(spacing: 5) {
+                    if model.backgroundSettings.progressiveBlur != AnnotationProgressiveBlurSettings() {
+                        sectionResetButton("Reset progressive blur", section: .progressiveBlur) {
+                            model.backgroundSettings.progressiveBlur = AnnotationProgressiveBlurSettings()
+                        }
+                    }
+
+                    sectionToggle(
+                        "Enable progressive blur",
+                        isOn: \.progressiveBlur.isEnabled,
+                        section: .progressiveBlur
+                    )
+                }
+            }
+        ) {
+            AnnotationProgressiveBlurInspector(
+                settings: Binding(
+                    get: { model.backgroundSettings.progressiveBlur },
+                    set: { model.backgroundSettings.progressiveBlur = $0 }
+                ),
+                onEditorAction: onEditorAction
+            )
+            .disabled(!model.backgroundSettings.progressiveBlur.isEnabled)
+            .opacity(model.backgroundSettings.progressiveBlur.isEnabled ? 1 : 0.48)
+        }
+
+        InspectorDisclosureSection(
+            title: "Watermark",
+            summary: AnnotationInspectorSummary.watermark(model.backgroundSettings.watermark),
+            isExpanded: expansionBinding(for: .watermark),
+            accessory: {
+                HStack(spacing: 5) {
+                    if model.backgroundSettings.watermark != AnnotationWatermarkSettings() {
+                        sectionResetButton("Reset watermark", section: .watermark) {
+                            model.backgroundSettings.watermark = AnnotationWatermarkSettings()
+                        }
+                    }
+
+                    sectionToggle("Enable watermark", isOn: \.watermark.isEnabled, section: .watermark)
+                }
+            }
+        ) {
+            AnnotationWatermarkInspector(
+                settings: Binding(
+                    get: { model.backgroundSettings.watermark },
+                    set: { model.backgroundSettings.watermark = $0 }
+                ),
+                focusedField: focusedField,
+                onFocusCleared: onEditorAction
+            )
+        }
+    }
+
+    // MARK: Canvas helpers
+
+    private var backgroundSettings: Binding<AnnotationBackgroundSettings> {
+        Binding(
+            get: { model.backgroundSettings },
+            set: { model.backgroundSettings = $0 }
+        )
+    }
+
+    private var compositionIsDefault: Bool {
+        let settings = model.backgroundSettings
+        let defaults = AnnotationBackgroundSettings()
+        return settings.aspectRatio == defaults.aspectRatio
+            && settings.padding == defaults.padding
+            && settings.alignment == defaults.alignment
+    }
+
+    private var screenshotAppearanceIsDefault: Bool {
+        let settings = model.backgroundSettings
+        let defaults = AnnotationBackgroundSettings()
+        return settings.cornerRadius == defaults.cornerRadius
+            && settings.shadow == defaults.shadow
+            && settings.shadowStyle == defaults.shadowStyle
+            && settings.border == defaults.border
+    }
+
     private var sidebarBackground: Color {
         colorScheme == .dark ? Color(nsColor: .windowBackgroundColor) : .white
     }
@@ -242,30 +356,30 @@ struct AnnotationEditorInspector: View {
     }
 
     private func expansionBinding(
-        for section: AnnotationInspectorAdvancedSection
+        for section: AnnotationInspectorEffectSection
     ) -> Binding<Bool> {
         Binding(
-            get: { expandedAdvancedSections.contains(section) },
+            get: { expandedEffectSections.contains(section) },
             set: { isExpanded in
                 if isExpanded {
-                    expandedAdvancedSections.insert(section)
+                    expandedEffectSections.insert(section)
                 } else {
-                    expandedAdvancedSections.remove(section)
+                    expandedEffectSections.remove(section)
                 }
-                AnnotationInspectorSectionState.saveExpandedSections(expandedAdvancedSections)
+                AnnotationInspectorSectionState.saveExpandedSections(expandedEffectSections)
             }
         )
     }
 
-    private func setExpanded(_ section: AnnotationInspectorAdvancedSection, _ isExpanded: Bool) {
+    private func setExpanded(_ section: AnnotationInspectorEffectSection, _ isExpanded: Bool) {
         withAnimation(sectionAnimation) {
             if isExpanded {
-                expandedAdvancedSections.insert(section)
+                expandedEffectSections.insert(section)
             } else {
-                expandedAdvancedSections.remove(section)
+                expandedEffectSections.remove(section)
             }
         }
-        AnnotationInspectorSectionState.saveExpandedSections(expandedAdvancedSections)
+        AnnotationInspectorSectionState.saveExpandedSections(expandedEffectSections)
     }
 
     /// Header switch for sections with an on/off state. Turning one on opens
@@ -273,7 +387,7 @@ struct AnnotationEditorInspector: View {
     private func sectionToggle(
         _ title: LocalizedStringResource,
         isOn keyPath: WritableKeyPath<AnnotationBackgroundSettings, Bool>,
-        section: AnnotationInspectorAdvancedSection
+        section: AnnotationInspectorEffectSection
     ) -> some View {
         InspectorToggle(
             title,
@@ -290,13 +404,13 @@ struct AnnotationEditorInspector: View {
 
     private func sectionResetButton(
         _ help: String,
-        section: AnnotationInspectorAdvancedSection,
+        section: AnnotationInspectorEffectSection,
         reset: @escaping () -> Void
     ) -> some View {
         InspectorResetButton(help: help) {
             onEditorAction()
             reset()
-            if expandedAdvancedSections.contains(section) {
+            if expandedEffectSections.contains(section) {
                 setExpanded(section, false)
             }
         }
@@ -304,30 +418,33 @@ struct AnnotationEditorInspector: View {
 
     // MARK: Tools & style
 
-    private var smartRedactionRow: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            InspectorRow("Redact") {
-                HStack(spacing: 6) {
-                    InspectorActionButton(
-                        "Pixelate",
-                        systemImage: "app.background.dotted",
-                        isBusy: model.isSmartRedacting
-                    ) {
-                        onEditorAction()
-                        model.smartRedact(using: .pixelate)
-                    }
-                    .help("Find sensitive content and pixelate it")
+    private var smartRedactionControls: some View {
+        VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+            Text("Find sensitive content in the screenshot and cover it.")
+                .font(.inspectorLabel)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
-                    InspectorActionButton(
-                        "Blur",
-                        systemImage: "drop.fill",
-                        isBusy: model.isSmartRedacting
-                    ) {
-                        onEditorAction()
-                        model.smartRedact(using: .blur)
-                    }
-                    .help("Find sensitive content and blur it")
+            HStack(spacing: 6) {
+                InspectorActionButton(
+                    "Pixelate",
+                    systemImage: "app.background.dotted",
+                    isBusy: model.isSmartRedacting
+                ) {
+                    onEditorAction()
+                    model.smartRedact(using: .pixelate)
                 }
+                .help("Find sensitive content and pixelate it")
+
+                InspectorActionButton(
+                    "Blur",
+                    systemImage: "drop.fill",
+                    isBusy: model.isSmartRedacting
+                ) {
+                    onEditorAction()
+                    model.smartRedact(using: .blur)
+                }
+                .help("Find sensitive content and blur it")
             }
 
             if model.isSmartRedacting {
@@ -405,28 +522,6 @@ struct AnnotationEditorInspector: View {
 /// One-line readouts for collapsed section headers. `nil` means the section
 /// has nothing active worth announcing.
 private enum AnnotationInspectorSummary {
-    static func background(_ settings: AnnotationBackgroundSettings) -> String? {
-        let fill: String
-        switch settings.style {
-        case .none:
-            return nil
-        case .solid(let color):
-            fill = color.title
-        case .gradient(let gradient):
-            fill = gradient.title
-        case .customWallpaper(let wallpaper):
-            fill = wallpaper.title
-        }
-        guard settings.aspectRatio != .auto else { return fill }
-        return "\(fill) · \(settings.aspectRatio.title)"
-    }
-
-    static func border(_ settings: AnnotationScreenshotBorderSettings) -> String? {
-        guard settings.isEnabled else { return nil }
-        let thickness = InspectorValueFormat.percent(fractionDigits: 1).displayString(for: settings.thickness)
-        return "\(settings.color.title) · \(thickness)"
-    }
-
     static func camera(_ settings: AnnotationCameraSettings) -> String? {
         guard !settings.isDefault else { return nil }
         var parts: [String] = []
