@@ -9762,6 +9762,246 @@
           }
         }
       }
+    },
+    "Adjust Pose" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "调整姿态"
+          }
+        }
+      }
+    },
+    "Adjust on Canvas" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在画布上调整"
+          }
+        }
+      }
+    },
+    "Card pose" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片姿态"
+          }
+        }
+      }
+    },
+    "Done" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成"
+          }
+        }
+      }
+    },
+    "Done Adjusting" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成调整"
+          }
+        }
+      }
+    },
+    "Drag the card on the canvas to turn, tilt, rotate, scale and move it" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在画布上拖动卡片，进行转动、俯仰、旋转、缩放和移动"
+          }
+        }
+      }
+    },
+    "Drag to move the card" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动以移动卡片"
+          }
+        }
+      }
+    },
+    "Drag to rotate the card. Hold Shift for 15° steps." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动以旋转卡片。按住 Shift 以 15° 为步长。"
+          }
+        }
+      }
+    },
+    "Drag to scale the card" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动以缩放卡片"
+          }
+        }
+      }
+    },
+    "Drag to turn and tilt the card. Hold Shift to keep to one direction, Option to move it." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动以转动和俯仰卡片。按住 Shift 锁定单一方向，按住 Option 移动卡片。"
+          }
+        }
+      }
+    },
+    "Finish adjusting (Esc)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成调整（Esc）"
+          }
+        }
+      }
+    },
+    "Finish adjusting the pose on the canvas (Esc)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成在画布上的姿态调整（Esc）"
+          }
+        }
+      }
+    },
+    "Motion target" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "运镜目标"
+          }
+        }
+      }
+    },
+    "Turn %@ · Tilt %@ · Rotate %@ · Scale %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左右转 %@ · 俯仰 %@ · 旋转 %@ · 缩放 %@"
+          }
+        }
+      }
+    },
+    "Drag inside the ball to turn and tilt freely. Hold Shift to keep to one direction." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在球内拖动可自由转动和俯仰。按住 Shift 锁定单一方向。"
+          }
+        }
+      }
+    },
+    "Drag the blue ring to rotate the card. Hold Shift for 15° steps." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动蓝色环旋转卡片。按住 Shift 以 15° 为步长。"
+          }
+        }
+      }
+    },
+    "Drag the card to move it" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动卡片以移动位置"
+          }
+        }
+      }
+    },
+    "Drag the green ring to turn the card left or right" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动绿色环让卡片左右转"
+          }
+        }
+      }
+    },
+    "Drag the red ring to tilt the card up or down" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动红色环让卡片上下俯仰"
+          }
+        }
+      }
+    },
+    "Actual Size" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实际大小"
+          }
+        }
+      }
+    },
+    "Drag to scale the card, or press = and -" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动以缩放卡片，也可以按 = 和 -"
+          }
+        }
+      }
+    },
+    "Press = or - to scale the card, 0 to return it to 100%" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按 = 或 - 缩放卡片，按 0 恢复到 100%"
+          }
+        }
+      }
+    },
+    "Scale Down" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缩小"
+          }
+        }
+      }
+    },
+    "Scale Up" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放大"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

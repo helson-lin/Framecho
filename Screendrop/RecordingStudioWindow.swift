@@ -519,8 +519,26 @@ private struct StudioCanvas: View {
                 .contentShape(Rectangle())
                 .gesture(
                     TapGesture().onEnded(togglePlayback),
-                    including: model.isCroppingVideo ? .subviews : .all
+                    including: model.isCroppingVideo || model.activePoseAdjustment != nil
+                        ? .subviews
+                        : .all
                 )
+
+                if model.activePoseAdjustment != nil {
+                    StudioPoseAdjustOverlay(
+                        model: model,
+                        layout: RecordingStudioLayout.make(
+                            canvasSize: canvasSize,
+                            style: model.style,
+                            includeBubble: model.hasCameraVideo,
+                            usesUniformPadding: model.exportAspect == .original,
+                            contentAspect: model.previewContentAspect,
+                            contentMode: model.previewContentMode,
+                            contentCropRect: model.videoCropRect
+                        ),
+                        canvasSize: canvasSize
+                    )
+                }
 
                 if model.isCroppingVideo {
                     VideoCropOverlay(
@@ -533,7 +551,7 @@ private struct StudioCanvas: View {
                         .padding(12)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                         .allowsHitTesting(false)
-                } else if let skimTime {
+                } else if model.activePoseAdjustment == nil, let skimTime {
                     StudioCanvasBadge(text: String(localized: "Previewing \(studioPreciseTimecode(skimTime))"))
                         .padding(10)
                         .allowsHitTesting(false)
@@ -658,13 +676,14 @@ private struct StudioCanvasComposition: View {
                 ? ViewportFrame.identity
                 : model.previewViewportFrame(at: model.displayTime)
             // Adjusting the source crop or a zoom target edits the flat
-            // picture, so the card faces front until that mode ends.
+            // picture, so the card faces front until that mode ends. A pose
+            // adjusted on the canvas shows as-is, whatever the playhead.
             let projection = RecordingCardProjection(
                 cardRect: layout.cardRect,
                 canvasSize: canvasSize,
-                pose: isEditingVideoCrop || zoomTarget != nil
+                pose: model.adjustedPose ?? (isEditingVideoCrop || zoomTarget != nil
                     ? .identity
-                    : model.motionPose(at: model.displayTime),
+                    : model.motionPose(at: model.displayTime)),
                 projectionVersion: model.motionTimeline.projectionVersion
             )
 
@@ -674,6 +693,7 @@ private struct StudioCanvasComposition: View {
                     .clipped()
 
                 StudioPlayerLayerView(player: model.screenPlayer, gravity: .resize)
+                    .allowsHitTesting(false)
                     .frame(
                         width: layout.contentFillSize.width,
                         height: layout.contentFillSize.height
@@ -753,10 +773,457 @@ private struct StudioCanvasComposition: View {
     private var zoomTargetCue: ZoomCue? {
         guard !isEditingVideoCrop,
               !model.isPlaying,
+              model.activePoseAdjustment == nil,
               model.zoomEnabled,
               let cue = model.selectedCue,
               cue.isEnabled else { return nil }
         return cue
+    }
+}
+
+// MARK: - Pose adjustment
+
+/// Direct 3D manipulation of the card on the canvas, built around a
+/// rotation ball at the card's center. The ball's horizontal ring turns the
+/// card left and right, its vertical ring tilts it, its outer ring rotates it
+/// in the screen plane, and dragging inside the ball rotates freely like a
+/// trackball. Dragging the card outside the ball moves it; the corner
+/// squares scale it. Every drag is one undo step; the inspector keeps exact
+/// numeric entry.
+private struct StudioPoseAdjustOverlay: View {
+    @Bindable var model: RecordingStudioModel
+    let layout: RecordingStudioLayout
+    let canvasSize: CGSize
+
+    /// What a drag changes, decided where it starts.
+    private enum DragMode: Equatable {
+        case trackball
+        case turn
+        case tilt
+        case rotate
+        case move
+        case scale
+    }
+
+    /// The pose and pointer when a drag began, so each event is measured
+    /// against a fixed start instead of compounding.
+    private struct DragStart {
+        let pose: RecordingCardPose
+        let location: CGPoint
+        let center: CGPoint
+        let mode: DragMode
+    }
+
+    @State private var dragStart: DragStart?
+    @State private var hoverMode: DragMode?
+
+    /// Dragging across the ball's diameter turns the card this far.
+    private static let diameterDegrees: Double = 120
+    /// Vertical squash of the turn and tilt rings, which is what makes the
+    /// ball read as a sphere rather than a flat target.
+    private static let ringDepth: CGFloat = 0.34
+    /// How close to a ring a press must land to grab it.
+    private static let ringGrabDistance: CGFloat = 7
+    private static let handleSize: CGFloat = 9
+    private static let coordinateSpace = CoordinateSpace.named(VideoCropOverlay.coordinateSpaceName)
+
+    var body: some View {
+        let pose = model.adjustedPose ?? .identity
+        let projection = RecordingCardProjection(
+            cardRect: layout.cardRect,
+            canvasSize: canvasSize,
+            pose: pose,
+            projectionVersion: model.motionTimeline.projectionVersion
+        )
+        let quad = projection.quad(for: layout.cardRect)
+        let center = projection.project(CGPoint(x: layout.cardRect.midX, y: layout.cardRect.midY))
+        let radius = ballRadius(for: projection.bounds(of: layout.cardRect))
+        let outline = Path { path in
+            path.addLines(quad)
+            path.closeSubpath()
+        }
+
+        ZStack(alignment: .topLeading) {
+            // The card face: moving outside the ball, rotating inside it.
+            outline
+                .fill(Color.accentColor.opacity(0.05))
+                .overlay {
+                    outline.stroke(Color.accentColor.opacity(0.9), lineWidth: 1.5)
+                }
+
+            ball(pose: pose, center: center, radius: radius)
+
+            ForEach(0..<4, id: \.self) { index in
+                scaleHandle(at: quad[index])
+            }
+
+            hud(pose: pose)
+                .frame(width: canvasSize.width, height: canvasSize.height, alignment: .bottom)
+                .padding(.bottom, 10)
+        }
+        .frame(width: canvasSize.width, height: canvasSize.height, alignment: .topLeading)
+        // One hit surface for the face and the ball, so a press anywhere on
+        // the card picks its mode from where it lands.
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 1, coordinateSpace: Self.coordinateSpace)
+                .onChanged { value in
+                    drag(value, quad: quad, center: center, radius: radius)
+                }
+                .onEnded { _ in end() }
+        )
+        .onContinuousHover(coordinateSpace: Self.coordinateSpace) { phase in
+            switch phase {
+            case .active(let location):
+                hoverMode = mode(at: location, quad: quad, center: center, radius: radius)
+            case .ended:
+                hoverMode = nil
+            }
+        }
+        .pointerStyle(pointerStyle)
+        .help(helpText)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Card pose")
+        .accessibilityValue(Text(Self.summary(pose)))
+        .accessibilityAdjustableAction { direction in
+            var updated = pose
+            updated.yawDegrees += direction == .increment ? 5 : -5
+            model.setAdjustedPose(updated)
+        }
+    }
+
+    // MARK: Ball
+
+    private func ballRadius(for cardBounds: CGRect) -> CGFloat {
+        min(max(min(cardBounds.width, cardBounds.height) * 0.26, 48), 120)
+    }
+
+    private func ball(pose: RecordingCardPose, center: CGPoint, radius: CGFloat) -> some View {
+        let active = dragStart?.mode ?? hoverMode
+        let turnRing = Path(ellipseIn: CGRect(
+            x: center.x - radius,
+            y: center.y - radius * Self.ringDepth,
+            width: radius * 2,
+            height: radius * 2 * Self.ringDepth
+        ))
+        let tiltRing = Path(ellipseIn: CGRect(
+            x: center.x - radius * Self.ringDepth,
+            y: center.y - radius,
+            width: radius * 2 * Self.ringDepth,
+            height: radius * 2
+        ))
+        let rotateRing = Path(ellipseIn: CGRect(
+            x: center.x - radius,
+            y: center.y - radius,
+            width: radius * 2,
+            height: radius * 2
+        ))
+
+        return ZStack(alignment: .topLeading) {
+            // A soft shaded sphere so the controls read as 3D.
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.white.opacity(0.28), Color.black.opacity(0.18)],
+                        center: UnitPoint(x: 0.35, y: 0.3),
+                        startRadius: 0,
+                        endRadius: radius * 1.2
+                    )
+                )
+                .frame(width: radius * 2, height: radius * 2)
+                .position(center)
+
+            ring(rotateRing, color: .blue, isActive: active == .rotate, width: 2.5)
+            ring(turnRing, color: .green, isActive: active == .turn)
+            ring(tiltRing, color: .red, isActive: active == .tilt)
+
+            // Where the card's front faces on each ring.
+            marker(at: turnMarker(pose: pose, center: center, radius: radius), color: .green)
+            marker(at: tiltMarker(pose: pose, center: center, radius: radius), color: .red)
+            marker(at: rotateMarker(pose: pose, center: center, radius: radius), color: .blue)
+
+            Circle()
+                .fill(Color.white.opacity(active == .trackball ? 0.9 : 0.6))
+                .frame(width: 6, height: 6)
+                .position(center)
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func ring(_ path: Path, color: Color, isActive: Bool, width: CGFloat = 2) -> some View {
+        path
+            .stroke(color.opacity(isActive ? 1 : 0.75), lineWidth: isActive ? width + 1.5 : width)
+            .shadow(color: .black.opacity(0.35), radius: 1, y: 0.5)
+    }
+
+    private func marker(at point: CGPoint, color: Color) -> some View {
+        Circle()
+            .fill(color)
+            .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
+            .frame(width: 9, height: 9)
+            .position(point)
+    }
+
+    /// Yaw as a point travelling around the horizontal ring's front.
+    private func turnMarker(pose: RecordingCardPose, center: CGPoint, radius: CGFloat) -> CGPoint {
+        let angle = pose.yawDegrees * .pi / 180
+        return CGPoint(
+            x: center.x + radius * CGFloat(sin(angle)),
+            y: center.y + radius * Self.ringDepth * CGFloat(cos(angle))
+        )
+    }
+
+    /// Pitch as a point travelling around the vertical ring's front.
+    private func tiltMarker(pose: RecordingCardPose, center: CGPoint, radius: CGFloat) -> CGPoint {
+        let angle = pose.pitchDegrees * .pi / 180
+        return CGPoint(
+            x: center.x + radius * Self.ringDepth * CGFloat(cos(angle)),
+            y: center.y + radius * CGFloat(sin(angle))
+        )
+    }
+
+    /// Roll as a point on the outer ring, starting at the top.
+    private func rotateMarker(pose: RecordingCardPose, center: CGPoint, radius: CGFloat) -> CGPoint {
+        let angle = pose.rollDegrees * .pi / 180
+        return CGPoint(
+            x: center.x + radius * CGFloat(sin(angle)),
+            y: center.y - radius * CGFloat(cos(angle))
+        )
+    }
+
+    // MARK: Hit testing
+
+    private func mode(
+        at location: CGPoint,
+        quad: [CGPoint],
+        center: CGPoint,
+        radius: CGFloat
+    ) -> DragMode? {
+        if quad.contains(where: { hypot(location.x - $0.x, location.y - $0.y) <= 10 }) {
+            return .scale
+        }
+        let dx = location.x - center.x
+        let dy = location.y - center.y
+        let distance = hypot(dx, dy)
+        if abs(distance - radius) <= Self.ringGrabDistance {
+            return .rotate
+        }
+        if distance < radius {
+            if Self.distance(toEllipseWithRadii: CGSize(width: radius, height: radius * Self.ringDepth),
+                             dx: dx, dy: dy) <= Self.ringGrabDistance {
+                return .turn
+            }
+            if Self.distance(toEllipseWithRadii: CGSize(width: radius * Self.ringDepth, height: radius),
+                             dx: dx, dy: dy) <= Self.ringGrabDistance {
+                return .tilt
+            }
+            return .trackball
+        }
+        let outline = Path { path in
+            path.addLines(quad)
+            path.closeSubpath()
+        }
+        return outline.contains(location) ? .move : nil
+    }
+
+    /// Approximate distance from a point to an axis-aligned ellipse's curve.
+    private static func distance(toEllipseWithRadii radii: CGSize, dx: CGFloat, dy: CGFloat) -> CGFloat {
+        guard radii.width > 0, radii.height > 0 else { return .infinity }
+        let normalized = hypot(dx / radii.width, dy / radii.height)
+        guard normalized > 0 else { return min(radii.width, radii.height) }
+        let gradient = hypot(dx / (radii.width * radii.width), dy / (radii.height * radii.height))
+        return abs(normalized * normalized - 1) / (2 * max(gradient, 0.0001))
+    }
+
+    // MARK: Dragging
+
+    private func drag(
+        _ value: DragGesture.Value,
+        quad: [CGPoint],
+        center: CGPoint,
+        radius: CGFloat
+    ) {
+        if dragStart == nil {
+            guard let mode = mode(at: value.startLocation, quad: quad, center: center, radius: radius) else {
+                return
+            }
+            dragStart = DragStart(
+                pose: model.adjustedPose ?? .identity,
+                location: value.startLocation,
+                center: center,
+                mode: mode
+            )
+            model.beginMotionEdit()
+        }
+        guard let start = dragStart else { return }
+
+        let modifiers = NSEvent.modifierFlags
+        var dx = Double(value.location.x - start.location.x)
+        var dy = Double(value.location.y - start.location.y)
+        let degreesPerPoint = Self.diameterDegrees / Double(max(radius * 2, 1))
+        var pose = start.pose
+
+        switch start.mode {
+        case .trackball:
+            if modifiers.contains(.shift) {
+                if abs(dx) > abs(dy) { dy = 0 } else { dx = 0 }
+            }
+            // Like rolling the ball: dragging right sends the card's right
+            // edge away, dragging down sends its bottom away.
+            pose.yawDegrees = Self.detent(start.pose.yawDegrees + dx * degreesPerPoint)
+            pose.pitchDegrees = Self.detent(start.pose.pitchDegrees - dy * degreesPerPoint)
+        case .turn:
+            pose.yawDegrees = Self.snapped(start.pose.yawDegrees + dx * degreesPerPoint, modifiers)
+        case .tilt:
+            pose.pitchDegrees = Self.snapped(start.pose.pitchDegrees - dy * degreesPerPoint, modifiers)
+        case .rotate:
+            let startAngle = atan2(
+                Double(start.location.y - start.center.y),
+                Double(start.location.x - start.center.x)
+            )
+            let angle = atan2(
+                Double(value.location.y - start.center.y),
+                Double(value.location.x - start.center.x)
+            )
+            var delta = (angle - startAngle) * 180 / .pi
+            if delta > 180 { delta -= 360 }
+            if delta < -180 { delta += 360 }
+            pose.rollDegrees = Self.snapped(start.pose.rollDegrees + delta, modifiers)
+        case .move:
+            if modifiers.contains(.shift) {
+                if abs(dx) > abs(dy) { dy = 0 } else { dx = 0 }
+            }
+            pose.translationX = start.pose.translationX + dx / Double(max(canvasSize.width, 1))
+            pose.translationY = start.pose.translationY + dy / Double(max(canvasSize.height, 1))
+        case .scale:
+            let startDistance = hypot(
+                start.location.x - start.center.x,
+                start.location.y - start.center.y
+            )
+            let distance = hypot(
+                value.location.x - start.center.x,
+                value.location.y - start.center.y
+            )
+            guard startDistance > 1 else { return }
+            pose.scale = start.pose.scale * Double(distance / startDistance)
+        }
+        model.setAdjustedPose(pose)
+    }
+
+    private func end() {
+        guard dragStart != nil else { return }
+        dragStart = nil
+        model.endMotionEdit(actionName: String(localized: "Adjust Pose"))
+    }
+
+    private func scaleHandle(at position: CGPoint) -> some View {
+        RoundedRectangle(cornerRadius: 2, style: .continuous)
+            .fill(Color.white)
+            .overlay(
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .stroke(Color.accentColor, lineWidth: 1.5)
+            )
+            .frame(width: Self.handleSize, height: Self.handleSize)
+            .position(position)
+            .allowsHitTesting(false)
+    }
+
+    private var pointerStyle: PointerStyle? {
+        switch dragStart?.mode ?? hoverMode {
+        case .move: .grabIdle
+        case .scale: .frameResize(position: .topLeading)
+        case .turn: .columnResize
+        case .tilt: .rowResize
+        case .trackball, .rotate: .default
+        case nil: nil
+        }
+    }
+
+    private var helpText: String {
+        switch hoverMode {
+        case .turn: String(localized: "Drag the green ring to turn the card left or right")
+        case .tilt: String(localized: "Drag the red ring to tilt the card up or down")
+        case .rotate: String(localized: "Drag the blue ring to rotate the card. Hold Shift for 15° steps.")
+        case .trackball: String(localized: "Drag inside the ball to turn and tilt freely. Hold Shift to keep to one direction.")
+        case .move: String(localized: "Drag the card to move it")
+        case .scale: String(localized: "Drag to scale the card, or press = and -")
+        case nil: ""
+        }
+    }
+
+    // MARK: HUD
+
+    private func hud(pose: RecordingCardPose) -> some View {
+        HStack(spacing: 10) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+            Text(Self.summary(pose))
+                .font(.system(size: 11).monospacedDigit())
+                .foregroundStyle(.secondary)
+            Button("Reset") { model.resetAdjustedPose() }
+                .controlSize(.small)
+                .disabled(pose.isIdentity)
+            Button("Done") { model.endPoseAdjustment() }
+                .controlSize(.small)
+                .keyboardShortcut(.cancelAction)
+                .help("Finish adjusting (Esc)")
+        }
+        .help("Press = or - to scale the card, 0 to return it to 100%")
+        .background { scaleShortcuts }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Capsule().fill(.regularMaterial))
+        .overlay(Capsule().stroke(Color.primary.opacity(0.1), lineWidth: 0.5))
+    }
+
+    /// Plain keys while adjusting: = grows the card, - shrinks it, and
+    /// 0 returns it to 100%. ⌘= and ⌘- stay with the timeline zoom.
+    private var scaleShortcuts: some View {
+        ZStack {
+            // One binding per physical key: "+" also matches the = key and
+            // would fire twice.
+            Button("Scale Up") { model.scaleAdjustedPose(by: Self.scaleStep) }
+                .keyboardShortcut("=", modifiers: [])
+            Button("Scale Down") { model.scaleAdjustedPose(by: 1 / Self.scaleStep) }
+                .keyboardShortcut("-", modifiers: [])
+            Button("Actual Size") { model.resetAdjustedScale() }
+                .keyboardShortcut("0", modifiers: [])
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private static let scaleStep = 1.05
+
+    private var title: String {
+        switch model.activePoseAdjustment {
+        case .cue:
+            String(localized: "Motion target")
+        default:
+            String(localized: "Base pose")
+        }
+    }
+
+    static func summary(_ pose: RecordingCardPose) -> String {
+        let degrees = InspectorValueFormat.degrees(signed: true)
+        let percent = InspectorValueFormat.percent()
+        let turn = degrees.displayString(for: CGFloat(pose.yawDegrees))
+        let tilt = degrees.displayString(for: CGFloat(pose.pitchDegrees))
+        let rotate = degrees.displayString(for: CGFloat(pose.rollDegrees))
+        let scale = percent.displayString(for: CGFloat(pose.scale))
+        return String(localized: "Turn \(turn) · Tilt \(tilt) · Rotate \(rotate) · Scale \(scale)")
+    }
+
+    /// Lands exactly on zero when a drag passes close to it.
+    private static func detent(_ degrees: Double) -> Double {
+        abs(degrees) < 1.5 ? 0 : degrees
+    }
+
+    /// Shift snaps a single-axis drag to 15° steps.
+    private static func snapped(_ degrees: Double, _ modifiers: NSEvent.ModifierFlags) -> Double {
+        modifiers.contains(.shift) ? (degrees / 15).rounded() * 15 : detent(degrees)
     }
 }
 
@@ -1685,6 +2152,14 @@ final class StudioPlayerContainerView: NSView {
     }
 
     required init?(coder: NSCoder) {
+        nil
+    }
+
+    /// The video only displays; every click and drag on the card belongs to
+    /// the SwiftUI gestures above it. Left hit-testable, AppKit routed
+    /// mouse-downs inside the (projected) player to this view first, so the
+    /// canvas's pose and crop drags never started.
+    override func hitTest(_ point: NSPoint) -> NSView? {
         nil
     }
 
@@ -3007,10 +3482,16 @@ private struct StudioMotionCueBlock: View {
                         model.endMotionEdit(actionName: String(localized: "Move Motion"))
                     }
             )
+            .onTapGesture(count: 2) {
+                model.beginPoseAdjustment(.cue(cue.id))
+            }
             .onTapGesture {
                 model.selectMotionCue(id: cue.id)
             }
             .contextMenu {
+                Button("Adjust on Canvas") {
+                    model.beginPoseAdjustment(.cue(cue.id))
+                }
                 Button(cue.isEnabled ? "Disable Motion" : "Enable Motion") {
                     var updated = cue
                     updated.isEnabled.toggle()
@@ -3146,6 +3627,12 @@ private struct StudioInspector: View {
     @State private var expandedSections = StudioInspectorSectionState.load()
     @State private var transcriptTab: StudioTranscriptTab = .captions
     @State private var isAudioExportOptionsPresented = false
+    @State private var scrollPosition = ScrollPosition(edge: .top)
+
+    /// Whatever the timeline has selected, for scrolling its controls in.
+    private var selectionKey: UUID? {
+        model.selectedCueID ?? model.selectedMotionCueID ?? model.selectedClipID
+    }
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
 
@@ -3369,6 +3856,19 @@ private struct StudioInspector: View {
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .padding(.bottom, PreviewPeekTab.pillHeight * 1.1)
+        }
+        .scrollPosition($scrollPosition)
+        // A new timeline selection puts its controls at the top; bring them
+        // into view even when the panel was scrolled down.
+        .onChange(of: selectionKey) { _, key in
+            guard key != nil else { return }
+            if accessibilityReduceMotion {
+                scrollPosition.scrollTo(edge: .top)
+            } else {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    scrollPosition.scrollTo(edge: .top)
+                }
+            }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
@@ -3653,6 +4153,7 @@ private struct StudioInspector: View {
         VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
             VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
                 InspectorGroupLabel("Base pose")
+                adjustOnCanvasButton(for: .base)
                 poseControls(current: { model.motionBasePose }) { pose in
                     model.motionBasePose = pose
                 }
@@ -3726,6 +4227,7 @@ private struct StudioInspector: View {
 
             VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
                 InspectorGroupLabel("Target pose")
+                adjustOnCanvasButton(for: .cue(cue.id))
                 poseControls(current: { currentMotionCue(id: cue.id)?.targetPose ?? cue.targetPose }) { pose in
                     guard var updated = currentMotionCue(id: cue.id) else { return }
                     updated.targetPose = pose
@@ -3763,6 +4265,24 @@ private struct StudioInspector: View {
         }
         .disabled(!model.motionEnabled)
         .opacity(model.motionEnabled ? 1 : 0.48)
+    }
+
+    /// Toggles direct manipulation of a pose on the canvas.
+    private func adjustOnCanvasButton(for target: RecordingPoseAdjustmentTarget) -> some View {
+        let isActive = model.activePoseAdjustment == target
+        return InspectorActionButton(
+            isActive ? "Done Adjusting" : "Adjust on Canvas",
+            systemImage: isActive ? "checkmark" : "rotate.3d"
+        ) {
+            if isActive {
+                model.endPoseAdjustment()
+            } else {
+                model.beginPoseAdjustment(target)
+            }
+        }
+        .help(isActive
+            ? "Finish adjusting the pose on the canvas (Esc)"
+            : "Drag the card on the canvas to turn, tilt, rotate, scale and move it")
     }
 
     private func currentMotionCue(id: UUID) -> RecordingMotionCue? {
