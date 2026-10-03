@@ -30,6 +30,7 @@ struct CardMotionChecks {
         checkProjection()
         checkTimeline()
         checkClipMapping()
+        checkPreviewMatchesExport()
         print("Card motion checks passed: \(checks)")
     }
 
@@ -145,6 +146,48 @@ struct CardMotionChecks {
         check(RecordingMotionTimeline.build(settings: RecordingMotionSettings(isEnabled: true, cues: [off]),
                                             clipTimeline: clips).isIdentity, "Disabled cue is identity")
         check(RecordingMotionSettings(isEnabled: true, cues: [off]).isInert, "Disabled cue is inert")
+    }
+
+    /// The Studio preview draws the same layout at a smaller canvas. Its
+    /// projected corners, scaled up to the export size, must land within one
+    /// output pixel of the export's corners for every pose.
+    static func checkPreviewMatchesExport() {
+        let exportCanvas = CGSize(width: 3840, height: 2160)
+        let exportCard = CGRect(x: 230, y: 130, width: 3380, height: 1900)
+        let poses = [
+            RecordingCardPose(yawDegrees: 18, pitchDegrees: 4, scale: 0.94),
+            RecordingCardPose(yawDegrees: -45, pitchDegrees: 45, rollDegrees: 30, scale: 0.6,
+                              translationX: -0.2, translationY: 0.15),
+            RecordingCardPose(pitchDegrees: -30, rollDegrees: -12, scale: 1.4)
+        ]
+        for previewScale in [0.21, 0.37, 0.5] as [CGFloat] {
+            let previewCanvas = CGSize(width: exportCanvas.width * previewScale,
+                                       height: exportCanvas.height * previewScale)
+            let previewCard = CGRect(x: exportCard.minX * previewScale, y: exportCard.minY * previewScale,
+                                     width: exportCard.width * previewScale, height: exportCard.height * previewScale)
+            for pose in poses {
+                let exported = RecordingCardProjection(cardRect: exportCard, canvasSize: exportCanvas, pose: pose)
+                    .quad(for: exportCard)
+                let previewed = RecordingCardProjection(cardRect: previewCard, canvasSize: previewCanvas, pose: pose)
+                    .quad(for: previewCard)
+                for (export, preview) in zip(exported, previewed) {
+                    near(Double(preview.x / previewScale), Double(export.x), "Preview corner x matches export",
+                         tolerance: 1)
+                    near(Double(preview.y / previewScale), Double(export.y), "Preview corner y matches export",
+                         tolerance: 1)
+                }
+            }
+        }
+
+        // Portrait canvases project the same way.
+        let portrait = RecordingCardProjection(
+            cardRect: CGRect(x: 60, y: 600, width: 960, height: 720),
+            canvasSize: CGSize(width: 1080, height: 1920),
+            pose: RecordingCardPose(yawDegrees: 20, translationY: 0.1)
+        )
+        check(portrait.isValid, "Portrait projection is valid")
+        near(Double(portrait.project(CGPoint(x: 540, y: 960)).y), 960 + 192, "Portrait offset uses canvas height",
+             tolerance: 0.001)
     }
 
     static func checkClipMapping() {
