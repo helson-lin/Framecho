@@ -984,22 +984,44 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         .cacheIntermediates: false
     ])
 
-    /// Background plus the card's shadow for one pose. Static poses render
-    /// it once; moving ones every frame.
-    private var projectedBackdropCache: (pose: RecordingCardPose, image: CGImage)?
+    /// The card's shadow for one pose, as a layer covering only its reach.
+    /// Static poses render it once; moving ones every frame.
+    private var shadowLayerCache: (pose: RecordingCardPose, image: CGImage, rect: CGRect)?
 
-    private func finishProjected(_ frame: PendingFrame) throws {
-        let pose = motionTimeline.pose(at: frame.editorTime)
-        let projection = RecordingCardProjection(
+    private func projection(at editorTime: TimeInterval) -> RecordingCardProjection {
+        RecordingCardProjection(
             cardRect: layout.cardRect,
             canvasSize: canvasSize,
-            pose: pose,
+            pose: motionTimeline.pose(at: editorTime),
             projectionVersion: motionTimeline.projectionVersion
         )
+    }
+
+    /// Card poses across the frame's shutter. The subframe count follows
+    /// how far the projected corners travel, so a settled card pays for
+    /// one projection and a fast turn gets a smooth smear.
+    private func shutterProjections(at editorTime: TimeInterval) -> [RecordingCardProjection] {
+        guard timing.motionBlurEnabled, !motionTimeline.isStatic else {
+            return [projection(at: editorTime)]
+        }
+        let shutter = timing.frameInterval
+        let opening = projection(at: editorTime - shutter / 2).quad(for: layout.cardRect)
+        let closing = projection(at: editorTime + shutter / 2).quad(for: layout.cardRect)
+        let displacement = zip(opening, closing).reduce(CGFloat(0)) { travel, corners in
+            max(travel, abs(corners.0.x - corners.1.x), abs(corners.0.y - corners.1.y))
+        }
+        return timing.subframeTimes(at: editorTime, displacement: displacement).map(projection(at:))
+    }
+
+    private func finishProjected(_ frame: PendingFrame) throws {
+        let projection = projection(at: frame.editorTime)
+        let shutterProjections = shutterProjections(at: frame.editorTime)
         guard let foreground = cardForeground else {
             throw RecordingStudioExporter.ExportError.writerFailed(nil)
         }
 
+        // The card content is drawn once; every shutter pose projects the
+        // same video frame, so only the card's own motion smears.
         try withBitmapContext(foreground) { context in
             context.clear(CGRect(origin: .zero, size: canvasSize))
             if let screenImage = Self.makeImage(from: frame.screenFrame, colorSpace: colorSpace) {
@@ -1010,15 +1032,19 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         }
 
         try withBitmapContext(frame.destination) { context in
-            if let image = projectedBackdrop(for: projection) {
-                context.draw(image, in: CGRect(origin: .zero, size: canvasSize))
+            let canvasRect = CGRect(origin: .zero, size: canvasSize)
+            if let backdrop {
+                context.draw(backdrop, in: canvasRect)
             } else {
                 context.setFillColor(CGColor(gray: 0, alpha: 1))
-                context.fill(CGRect(origin: .zero, size: canvasSize))
+                context.fill(canvasRect)
+            }
+            if let shadow = projectedShadow(for: projection) {
+                context.draw(shadow.image, in: shadow.rect)
             }
         }
 
-        try renderProjectedCard(foreground, projection: projection, into: frame.destination)
+        try renderProjectedCard(foreground, projections: shutterProjections, into: frame.destination)
 
         try withBitmapContext(frame.destination) { context in
             if let cameraFrame = frame.cameraFrame, layout.bubbleRect.width > 0 {
@@ -1048,38 +1074,55 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         context.flush()
     }
 
-    private func projectedBackdrop(for projection: RecordingCardProjection) -> CGImage? {
-        if let cached = projectedBackdropCache, cached.pose == projection.pose {
-            return cached.image
+    /// Same shadow as the flat backdrop, cast by the projected card outline.
+    /// A soft shadow carries no fine detail, so a wide blur renders at a
+    /// fraction of the resolution and is scaled up when drawn; the layer
+    /// covers only the shadow's reach rather than the whole canvas.
+    private func projectedShadow(
+        for projection: RecordingCardProjection
+    ) -> (image: CGImage, rect: CGRect)? {
+        guard cardShadowStrength > 0 else { return nil }
+        if let cached = shadowLayerCache, cached.pose == projection.pose {
+            return (cached.image, cached.rect)
         }
-        guard let backdrop else { return nil }
-        guard cardShadowStrength > 0 else { return backdrop }
-        let image = renderLayer(covering: CGRect(origin: .zero, size: canvasSize)) { context in
-            let canvasRect = CGRect(origin: .zero, size: canvasSize)
-            context.draw(backdrop, in: canvasRect)
-            // Same shadow as the flat backdrop, cast by the projected card
-            // outline. The outline is drawn off-canvas and only its shadow
-            // is offset back in, so nothing paints under the card's
-            // antialiased edge.
-            let minDimension = min(canvasSize.width, canvasSize.height)
-            let blur = minDimension * 0.045 * cardShadowStrength
-            let away = canvasSize.width * 2 + blur * 4
-            context.saveGState()
-            context.setShadow(
-                offset: CGSize(width: -away, height: -blur * 0.35),
-                blur: blur,
-                color: CGColor(gray: 0, alpha: 0.55 * cardShadowStrength)
-            )
-            context.translateBy(x: away, y: 0)
-            context.addPath(projectedCardPath(projection))
-            context.setFillColor(CGColor(gray: 0, alpha: 1))
-            context.fillPath()
-            context.restoreGState()
-        }
-        if let image {
-            projectedBackdropCache = (projection.pose, image)
-        }
-        return image
+        let minDimension = min(canvasSize.width, canvasSize.height)
+        let blur = minDimension * 0.045 * cardShadowStrength
+        let offsetY = blur * 0.35
+        let cardBounds = flipped(projection.bounds(of: layout.cardRect))
+        let rect = cardBounds
+            .insetBy(dx: -(blur * 2), dy: -(blur * 2 + offsetY))
+            .intersection(CGRect(origin: .zero, size: canvasSize))
+            .integral
+        guard rect.width >= 1, rect.height >= 1 else { return nil }
+        let scale: CGFloat = blur >= 24 ? 0.25 : (blur >= 10 ? 0.5 : 1)
+        let width = max(1, Int((rect.width * scale).rounded(.up)))
+        let height = max(1, Int((rect.height * scale).rounded(.up)))
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+        ) else { return nil }
+        // The outline is drawn off-layer and only its shadow is offset back
+        // in, so nothing paints under the card's antialiased edge. Shadow
+        // offset and blur are in device space, hence the explicit scale.
+        let away = rect.width * 2 + blur * 4
+        context.scaleBy(x: scale, y: scale)
+        context.translateBy(x: -rect.minX + away, y: -rect.minY)
+        context.setShadow(
+            offset: CGSize(width: -away * scale, height: -offsetY * scale),
+            blur: blur * scale,
+            color: CGColor(gray: 0, alpha: 0.55 * cardShadowStrength)
+        )
+        context.addPath(projectedCardPath(projection))
+        context.setFillColor(CGColor(gray: 0, alpha: 1))
+        context.fillPath()
+        guard let image = context.makeImage() else { return nil }
+        shadowLayerCache = (projection.pose, image, rect)
+        return (image, rect)
     }
 
     /// The rounded card outline through the projection, bottom-up.
@@ -1123,31 +1166,56 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
 
     private func renderProjectedCard(
         _ foreground: CVPixelBuffer,
-        projection: RecordingCardProjection,
+        projections: [RecordingCardProjection],
         into destination: CVPixelBuffer
     ) throws {
         let plane = cardPlaneRect
-        guard plane.width >= 1, plane.height >= 1 else { return }
+        guard plane.width >= 1, plane.height >= 1, !projections.isEmpty else { return }
         let canvasRect = CGRect(origin: .zero, size: canvasSize)
         // Core Image is bottom-up: the crop is the flipped plane, and its
         // top-left corner is the plane's canvas top-left.
         let flat = CIImage(cvPixelBuffer: foreground).cropped(to: flipped(plane))
-        let corners = projection.quad(for: plane).map {
-            CGPoint(x: $0.x, y: canvasSize.height - $0.y)
+        func projected(_ projection: RecordingCardProjection) -> CIImage? {
+            let corners = projection.quad(for: plane).map {
+                CGPoint(x: $0.x, y: canvasSize.height - $0.y)
+            }
+            let filter = CIFilter.perspectiveTransform()
+            filter.inputImage = flat
+            filter.topLeft = corners[0]
+            filter.topRight = corners[1]
+            filter.bottomRight = corners[2]
+            filter.bottomLeft = corners[3]
+            return filter.outputImage?.cropped(to: canvasRect)
         }
-        let filter = CIFilter.perspectiveTransform()
-        filter.inputImage = flat
-        filter.topLeft = corners[0]
-        filter.topRight = corners[1]
-        filter.bottomRight = corners[2]
-        filter.bottomLeft = corners[3]
-        guard let projected = filter.outputImage?.cropped(to: canvasRect) else { return }
+
+        let image: CIImage?
+        if projections.count == 1 {
+            image = projected(projections[0])
+        } else {
+            // Average the shutter poses in premultiplied color so translucent
+            // edges do not darken. CIColorMatrix works on unpremultiplied
+            // color, so weighting alpha alone weights the premultiplied
+            // pixel. Core Image accumulates in half float, so the sum does
+            // not band.
+            let weight = CGFloat(1) / CGFloat(projections.count)
+            image = projections.reduce(nil as CIImage?) { sum, projection in
+                guard let sample = projected(projection) else { return sum }
+                let weighted = sample.applyingFilter("CIColorMatrix", parameters: [
+                    "inputAVector": CIVector(x: 0, y: 0, z: 0, w: weight)
+                ])
+                guard let sum else { return weighted }
+                return weighted.applyingFilter("CIAdditionCompositing", parameters: [
+                    kCIInputBackgroundImageKey: sum
+                ])
+            }?.cropped(to: canvasRect)
+        }
+        guard let image else { return }
 
         let target = CIRenderDestination(pixelBuffer: destination)
         target.colorSpace = nil
         target.blendKernel = .sourceOver
         do {
-            try ciContext.startTask(toRender: projected, to: target).waitUntilCompleted()
+            try ciContext.startTask(toRender: image, to: target).waitUntilCompleted()
         } catch {
             throw RecordingStudioExporter.ExportError.writerFailed(error)
         }
