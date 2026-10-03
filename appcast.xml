@@ -27,6 +27,29 @@
     -->
 
     <item>
+      <title>Version 0.35.0</title>
+      <sparkle:version>35</sparkle:version>
+      <sparkle:shortVersionString>0.35.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.4</sparkle:minimumSystemVersion>
+      <pubDate>Sat, 03 Oct 2026 15:09:14 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.35.0</h2>
+        <ul>
+          <li>Studio 新增 3D 运动：为视频卡片设置 3D 姿态与运动关键帧，导出时带运动模糊和阴影</li>
+          <li>可直接在 Studio 画布上拖动或用旋转球调整卡片姿态，并支持键盘缩放</li>
+          <li>截图编辑器侧边栏分为「标注」和「画面」两个标签，画面设置按构图、背景、截图、效果分组</li>
+          <li>「摄像头」更名为「3D 透视」；选择工具或选中标注时自动切回「标注」</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Screendrop/releases/download/v0.35.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="q5U7flJBHyOrzZGFI0odmQICW2QyMfOm3FguJ1rsEjrszXhmJtQowrsPXzls+q1lLjgG9TifYP7TdVm/X0MdCg=="
+        length="8958845"
+      />
+    </item>
+
+    <item>
       <title>Version 0.34.2</title>
       <sparkle:version>34</sparkle:version>
       <sparkle:shortVersionString>0.34.2</sparkle:shortVersionString>
