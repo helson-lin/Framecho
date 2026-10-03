@@ -162,9 +162,17 @@ final class RecordingStudioModel {
     var selectedMotionCueID: UUID?
     private(set) var pointerTimeline = PointerTimeline.empty
     private(set) var keystrokeTimeline = KeystrokeCaptionTimeline.empty
-    var selectedCueID: UUID?
+    var selectedCueID: UUID? {
+        didSet {
+            if selectedCueID != nil { selectedMotionCueID = nil }
+        }
+    }
     private(set) var clipTimeline = RecordingClipTimeline(segments: [])
-    var selectedClipID: UUID?
+    var selectedClipID: UUID? {
+        didSet {
+            if selectedClipID != nil { selectedMotionCueID = nil }
+        }
+    }
     var timelineHoverTime: TimeInterval?
     /// Storyboard tiles for the clip lane, sampled on demand at whatever
     /// density the lane's current zoom needs.
@@ -233,6 +241,7 @@ final class RecordingStudioModel {
     private(set) var undoRevision = 0
     private var zoomEditSnapshot: [ZoomCue]?
     private var motionEditSnapshot: RecordingMotionSettings?
+    private var motionEditCommitTask: Task<Void, Never>?
     /// The document as of the last explicit save. Everything the user does
     /// after that lives in memory and in the autosaved draft until they save
     /// again, which is what makes the close prompt meaningful.
@@ -691,6 +700,7 @@ final class RecordingStudioModel {
     }
 
     func undo() {
+        commitPendingMotionEdit()
         guard editUndoManager.canUndo else { return }
         pause()
         editUndoManager.undo()
@@ -698,6 +708,7 @@ final class RecordingStudioModel {
     }
 
     func redo() {
+        commitPendingMotionEdit()
         guard editUndoManager.canRedo else { return }
         pause()
         editUndoManager.redo()
@@ -954,8 +965,9 @@ final class RecordingStudioModel {
         }
     }
 
-    /// Groups a continuous edit (a slider drag) into one undo step.
+    /// Groups a continuous edit (a timeline drag) into one undo step.
     func beginMotionEdit() {
+        commitPendingMotionEdit()
         if motionEditSnapshot == nil {
             motionEditSnapshot = motion
         }
@@ -970,19 +982,43 @@ final class RecordingStudioModel {
         }
     }
 
-    /// Applies a change, as its own undo step unless a continuous edit is
-    /// in progress.
+    /// Applies a change. Discrete edits are their own undo step; coalescing
+    /// edits (inspector scrubbing and typing) group into one step that
+    /// commits once the value has been still for a moment.
     private func editMotion(
         _ actionName: String = String(localized: "Edit 3D Motion"),
+        coalesces: Bool = false,
         _ change: (inout RecordingMotionSettings) -> Void
     ) {
         var next = motion
         change(&next)
-        if motionEditSnapshot != nil {
+        if coalesces {
+            if motionEditSnapshot == nil {
+                motionEditSnapshot = motion
+            }
+            replaceMotion(next)
+            motionEditCommitTask?.cancel()
+            motionEditCommitTask = Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(600))
+                guard !Task.isCancelled else { return }
+                self?.motionEditCommitTask = nil
+                self?.endMotionEdit(actionName: actionName)
+            }
+        } else if motionEditSnapshot != nil, motionEditCommitTask == nil {
+            // Inside an explicit begin/end pair, such as a timeline drag.
             replaceMotion(next)
         } else {
+            commitPendingMotionEdit()
             applyMotion(next, actionName: actionName)
         }
+    }
+
+    /// Closes a coalescing edit now, so undo never splits it.
+    private func commitPendingMotionEdit() {
+        guard let task = motionEditCommitTask else { return }
+        task.cancel()
+        motionEditCommitTask = nil
+        endMotionEdit()
     }
 
     var motionEnabled: Bool {
@@ -996,7 +1032,7 @@ final class RecordingStudioModel {
 
     var motionBasePose: RecordingCardPose {
         get { motion.basePose }
-        set { editMotion { $0.basePose = newValue } }
+        set { editMotion(String(localized: "Edit Pose"), coalesces: true) { $0.basePose = newValue } }
     }
 
     func resetMotionBasePose() {
@@ -1162,7 +1198,7 @@ final class RecordingStudioModel {
     }
 
     /// Applies an edited cue, stopping either edge at its neighbors.
-    func updateMotionCue(_ cue: RecordingMotionCue) {
+    func updateMotionCue(_ cue: RecordingMotionCue, coalesces: Bool = false) {
         let cues = motion.cues.sorted { $0.start < $1.start }
         guard let index = cues.firstIndex(where: { $0.id == cue.id }) else { return }
         let bounds = motionNeighborBounds(forCueAt: index, in: cues)
@@ -1175,7 +1211,7 @@ final class RecordingStudioModel {
             max(updated.end, updated.start + RecordingMotionCue.minimumDuration),
             bounds.upper
         )
-        editMotion { settings in
+        editMotion(String(localized: "Edit Motion"), coalesces: coalesces) { settings in
             guard let stored = settings.cues.firstIndex(where: { $0.id == cue.id }) else { return }
             settings.cues[stored] = updated
         }

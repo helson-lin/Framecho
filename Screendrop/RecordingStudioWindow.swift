@@ -129,6 +129,8 @@ private struct RecordingStudioContent: View {
         .onDeleteCommand {
             if let selectedCueID = model.selectedCueID {
                 model.removeZoomCue(id: selectedCueID)
+            } else if let selectedMotionCueID = model.selectedMotionCueID {
+                model.removeMotionCue(id: selectedMotionCueID)
             } else if model.selectedClipID != nil {
                 model.deleteSelectedClip()
             }
@@ -1777,7 +1779,7 @@ private struct StudioTimelineEditor: View {
                 clampZoom()
             }
         }
-        .frame(height: StudioTimelineMetrics.lanesHeight)
+        .frame(height: StudioTimelineMetrics.lanesHeight(showsMotionLane: showsMotionLane))
         .onChange(of: model.duration) { _, _ in clampZoom() }
         .onChange(of: model.currentTime) { _, time in followPlayhead(to: time) }
     }
@@ -1796,6 +1798,12 @@ private struct StudioTimelineEditor: View {
                     showsHint: model.zoomEnabled && model.zoomTimelineBlocks.isEmpty
                 )
                     .frame(height: StudioTimelineMetrics.zoomLaneHeight)
+                if showsMotionLane {
+                    StudioMotionLaneBackground(
+                        showsHint: model.motionTimelineBlocks.isEmpty
+                    )
+                        .frame(height: StudioTimelineMetrics.motionLaneHeight)
+                }
                 Color.clear
                     .frame(height: StudioTimelineMetrics.scrollerGutter)
             }
@@ -1818,6 +1826,18 @@ private struct StudioTimelineEditor: View {
                         height: StudioTimelineMetrics.zoomLaneHeight
                     )
 
+                    if showsMotionLane {
+                        StudioMotionLane(
+                            model: model,
+                            scale: scale,
+                            visibleRange: scale.visibleRange(scrollX: scrollX)
+                        )
+                        .frame(
+                            width: scale.contentWidth,
+                            height: StudioTimelineMetrics.motionLaneHeight
+                        )
+                    }
+
                     Color.clear
                         .frame(height: StudioTimelineMetrics.scrollerGutter)
                 }
@@ -1833,7 +1853,11 @@ private struct StudioTimelineEditor: View {
                 }
             }
         }
-        .frame(height: StudioTimelineMetrics.scrollingLanesHeight)
+        .frame(height: StudioTimelineMetrics.scrollingLanesHeight(showsMotionLane: showsMotionLane))
+    }
+
+    private var showsMotionLane: Bool {
+        model.motion.isEnabled || !model.motion.cues.isEmpty
     }
 
     private var clipLane: some View {
@@ -2059,12 +2083,14 @@ private struct StudioTimelineEditor: View {
     }
 
     private var canDeleteSelection: Bool {
-        model.selectedCueID != nil || model.canDeleteSelectedClip
+        model.selectedCueID != nil || model.selectedMotionCueID != nil || model.canDeleteSelectedClip
     }
 
     private func deleteSelection() {
         if let cueID = model.selectedCueID {
             model.removeZoomCue(id: cueID)
+        } else if let motionCueID = model.selectedMotionCueID {
+            model.removeMotionCue(id: motionCueID)
         } else if model.selectedClipID != nil {
             model.deleteSelectedClip()
         }
@@ -2140,14 +2166,22 @@ private enum StudioTimelineMetrics {
     static let rulerHeight: CGFloat = 16
     static let clipLaneHeight: CGFloat = 52
     static let zoomLaneHeight: CGFloat = 32
+    static let motionLaneHeight: CGFloat = 32
     /// Room under the lanes for the horizontal scroller, so it never sits on
     /// top of a zoom block.
     static let scrollerGutter: CGFloat = 8
 
-    static let scrollingLanesHeight = clipLaneHeight + zoomLaneHeight
-        + scrollerGutter + rowSpacing * 2
-    static let lanesHeight = playheadLaneHeight + rulerHeight
-        + scrollingLanesHeight + rowSpacing * 2
+    /// The motion lane appears once 3D motion is in use, so recordings that
+    /// never touch it keep the original timeline height.
+    static func scrollingLanesHeight(showsMotionLane: Bool) -> CGFloat {
+        clipLaneHeight + zoomLaneHeight + scrollerGutter + rowSpacing * 2
+            + (showsMotionLane ? motionLaneHeight + rowSpacing : 0)
+    }
+
+    static func lanesHeight(showsMotionLane: Bool) -> CGFloat {
+        playheadLaneHeight + rulerHeight
+            + scrollingLanesHeight(showsMotionLane: showsMotionLane) + rowSpacing * 2
+    }
 }
 
 /// Shared horizontal scale for every lane in the Studio timeline. `zoom` is a
@@ -2778,6 +2812,275 @@ private struct StudioZoomCueBlock: View {
     }
 }
 
+// MARK: - Motion lane
+
+private struct StudioMotionLaneBackground: View {
+    var showsHint = false
+
+    var body: some View {
+        RoundedRectangle(
+            cornerRadius: StudioZoomLaneMetrics.laneCornerRadius,
+            style: .continuous
+        )
+            .fill(Color.primary.opacity(0.055))
+            .overlay {
+                if showsHint {
+                    Label("Right-click to add 3D motion", systemImage: "rotate.3d")
+                        .font(.system(size: 10.5, weight: .medium))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .allowsHitTesting(false)
+    }
+}
+
+/// Timed 3D motion cues. Blank space seeks; blocks move and resize like
+/// zoom blocks, and their ramps show the entrance and exit as they play.
+private struct StudioMotionLane: View {
+    @Bindable var model: RecordingStudioModel
+    let scale: StudioTimelineScale
+    let visibleRange: ClosedRange<TimeInterval>
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Color.clear
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            guard scale.pointsPerSecond > 0 else { return }
+                            model.pause()
+                            model.seek(to: scale.time(forX: value.location.x))
+                        }
+                )
+
+            ForEach(visibleBlocks) { block in
+                StudioMotionCueBlock(model: model, block: block, scale: scale)
+            }
+        }
+        .contextMenu {
+            Menu("Add Motion at Playhead") {
+                ForEach(RecordingMotionPreset.allCases) { preset in
+                    Button {
+                        model.addMotionCue(preset: preset, at: model.currentTime)
+                    } label: {
+                        Label(preset.title, systemImage: preset.systemImage)
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("3D motion track")
+    }
+
+    private var visibleBlocks: [RecordingMotionTimelineBlock] {
+        model.motionTimelineBlocks.filter {
+            $0.editorEnd >= visibleRange.lowerBound && $0.editorStart <= visibleRange.upperBound
+        }
+    }
+}
+
+private struct StudioMotionCueBlock: View {
+    @Bindable var model: RecordingStudioModel
+    let block: RecordingMotionTimelineBlock
+    let scale: StudioTimelineScale
+
+    private struct DragBase {
+        let cue: RecordingMotionCue
+        let editorStart: TimeInterval
+        let editorEnd: TimeInterval
+    }
+
+    @State private var dragBase: DragBase?
+
+    private var isSelected: Bool {
+        model.selectedMotionCueID == block.cue.id
+    }
+
+    private static let tint = Color.indigo
+
+    var body: some View {
+        guard scale.pointsPerSecond > 0 else { return AnyView(EmptyView()) }
+
+        let cue = block.cue
+        let blockDuration = max(block.editorEnd - block.editorStart, 0.0001)
+        let width = min(
+            scale.contentWidth,
+            max(24, CGFloat(blockDuration) * scale.pointsPerSecond)
+        )
+        let x = min(
+            max(scale.x(for: block.editorStart), 0),
+            max(0, scale.contentWidth - width)
+        )
+        // The ramps use the transitions as they will actually play.
+        let segment = RecordingMotionTimeline.segment(for: cue, clipTimeline: model.clipTimeline)
+        let enterWidth = width * CGFloat((segment?.enter ?? 0) / blockDuration)
+        let exitWidth = width * CGFloat((segment?.exit ?? 0) / blockDuration)
+        let opacity = cue.isEnabled ? (isSelected ? 0.95 : 0.72) : 0.3
+
+        return AnyView(
+            HStack(spacing: 0) {
+                resizeHandle(edge: .leading)
+                Spacer(minLength: 0)
+                if width >= StudioZoomLaneMetrics.minimumLabelledBlockWidth {
+                    Label(cue.title, systemImage: cue.isEnabled ? "rotate.3d" : "eye.slash")
+                        .labelStyle(.titleAndIcon)
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .fixedSize()
+                }
+                Spacer(minLength: 0)
+                resizeHandle(edge: .trailing)
+            }
+            .frame(width: width, height: StudioZoomLaneMetrics.blockHeight)
+            .background(
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(
+                        cornerRadius: StudioZoomLaneMetrics.blockCornerRadius,
+                        style: .continuous
+                    )
+                        .fill(Self.tint.opacity(opacity))
+                    // Entrance and exit ramps, lighter than the hold.
+                    HStack(spacing: 0) {
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.32), Color.white.opacity(0)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        .frame(width: max(0, enterWidth))
+                        Spacer(minLength: 0)
+                        LinearGradient(
+                            colors: [Color.white.opacity(0), Color.white.opacity(0.32)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        .frame(width: max(0, exitWidth))
+                    }
+                    .clipShape(RoundedRectangle(
+                        cornerRadius: StudioZoomLaneMetrics.blockCornerRadius,
+                        style: .continuous
+                    ))
+                }
+            )
+            .overlay {
+                if isSelected {
+                    RoundedRectangle(
+                        cornerRadius: StudioZoomLaneMetrics.selectionRingCornerRadius,
+                        style: .continuous
+                    )
+                        .stroke(Color.white.opacity(0.8), lineWidth: 1.5)
+                        .padding(-StudioZoomLaneMetrics.selectionRingPadding)
+                }
+            }
+            .offset(x: x, y: StudioZoomLaneMetrics.blockInset)
+            .gesture(
+                DragGesture(coordinateSpace: .global)
+                    .onChanged { value in
+                        if dragBase == nil {
+                            dragBase = DragBase(
+                                cue: cue,
+                                editorStart: block.editorStart,
+                                editorEnd: block.editorEnd
+                            )
+                            model.beginMotionEdit()
+                            model.selectMotionCue(id: cue.id)
+                        }
+                        guard let dragBase else { return }
+                        let delta = Double(value.translation.width) * scale.secondsPerPoint
+                        var moved = dragBase.cue
+                        let length = dragBase.cue.duration
+                        let baseBlockDuration = dragBase.editorEnd - dragBase.editorStart
+                        let editorStart = min(
+                            max(0, dragBase.editorStart + delta),
+                            max(0, model.duration - baseBlockDuration)
+                        )
+                        moved.start = min(
+                            max(0, model.sourceTime(atEditorTime: editorStart)),
+                            max(0, model.sourceDuration - length)
+                        )
+                        moved.end = min(model.sourceDuration, moved.start + length)
+                        model.moveMotionCue(moved)
+                    }
+                    .onEnded { _ in
+                        dragBase = nil
+                        model.endMotionEdit(actionName: String(localized: "Move Motion"))
+                    }
+            )
+            .onTapGesture {
+                model.selectMotionCue(id: cue.id)
+            }
+            .contextMenu {
+                Button(cue.isEnabled ? "Disable Motion" : "Enable Motion") {
+                    var updated = cue
+                    updated.isEnabled.toggle()
+                    model.updateMotionCue(updated)
+                }
+                Button("Duplicate Motion") {
+                    model.duplicateMotionCue(id: cue.id)
+                }
+                Divider()
+                Button("Remove Motion", role: .destructive) {
+                    model.removeMotionCue(id: cue.id)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(cue.title))
+            .accessibilityValue(Text(cue.isEnabled ? "On" : "Off"))
+            .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+            .accessibilityAction { model.selectMotionCue(id: cue.id) }
+        )
+    }
+
+    private func resizeHandle(edge: HorizontalEdge) -> some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.001))
+            .frame(width: 10, height: StudioZoomLaneMetrics.blockHeight)
+            .overlay(alignment: .center) {
+                Capsule()
+                    .fill(Color.white.opacity(isSelected ? 0.9 : 0.45))
+                    .frame(width: 2.5, height: 12)
+            }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(coordinateSpace: .global)
+                    .onChanged { value in
+                        if dragBase == nil {
+                            dragBase = DragBase(
+                                cue: block.cue,
+                                editorStart: block.editorStart,
+                                editorEnd: block.editorEnd
+                            )
+                            model.beginMotionEdit()
+                            model.selectMotionCue(id: block.cue.id)
+                        }
+                        guard let dragBase else { return }
+                        let delta = Double(value.translation.width) * scale.secondsPerPoint
+                        var resized = dragBase.cue
+                        switch edge {
+                        case .leading:
+                            let sourceTime = model.sourceTime(atEditorTime: dragBase.editorStart + delta)
+                            resized.start = min(
+                                max(0, sourceTime),
+                                dragBase.cue.end - RecordingMotionCue.minimumDuration
+                            )
+                        case .trailing:
+                            let sourceTime = model.sourceTime(atEditorTime: dragBase.editorEnd + delta)
+                            resized.end = max(
+                                dragBase.cue.start + RecordingMotionCue.minimumDuration,
+                                min(model.sourceDuration, sourceTime)
+                            )
+                        }
+                        model.updateMotionCue(resized)
+                    }
+                    .onEnded { _ in
+                        dragBase = nil
+                        model.endMotionEdit(actionName: String(localized: "Resize Motion"))
+                    }
+            )
+    }
+}
+
 // MARK: - Inspector
 
 private extension ZoomAnchorMode {
@@ -2794,6 +3097,7 @@ private enum StudioInspectorSection: String, Hashable, CaseIterable {
     case background
     case layout
     case motion
+    case cardMotion
     case cursor
     case keystrokes
     case transcription
@@ -2871,6 +3175,26 @@ private struct StudioInspector: View {
                         selectedZoomControls(for: selected)
                     }
                     InspectorSectionDivider()
+                } else if let selectedMotion = model.selectedMotionCue {
+                    InspectorSection(
+                        title: "Selected Motion",
+                        accessory: {
+                            InspectorToggle(
+                                "Use this motion",
+                                isOn: Binding(
+                                    get: { selectedMotion.isEnabled },
+                                    set: { isEnabled in
+                                        var updated = selectedMotion
+                                        updated.isEnabled = isEnabled
+                                        model.updateMotionCue(updated)
+                                    }
+                                )
+                            )
+                        }
+                    ) {
+                        selectedMotionControls(for: selectedMotion)
+                    }
+                    InspectorSectionDivider()
                 } else if let selectedClip = model.selectedClip {
                     InspectorSection("Selected Clip") {
                         selectedClipControls(for: selectedClip)
@@ -2922,6 +3246,21 @@ private struct StudioInspector: View {
                     }
                 ) {
                     zoomControls
+                }
+
+                InspectorDisclosureSection(
+                    title: "3D Motion",
+                    summary: cardMotionSummary,
+                    isExpanded: expansionBinding(for: .cardMotion),
+                    accessory: {
+                        sectionToggle(
+                            String(localized: "Enable 3D motion"),
+                            isOn: $model.motionEnabled,
+                            section: .cardMotion
+                        )
+                    }
+                ) {
+                    cardMotionControls
                 }
 
                 if model.pointerIsSynthesized {
@@ -3288,6 +3627,236 @@ private struct StudioInspector: View {
         let x = Int((position.x * 100).rounded())
         let y = Int((position.y * 100).rounded())
         return "\(x), \(y)"
+    }
+
+    // MARK: 3D motion
+
+    private static let secondsFormat = InspectorValueFormat(
+        multiplier: 1,
+        fractionDigits: 1,
+        suffix: " s",
+        showsPositiveSign: false,
+        step: 0.1,
+        acceptedSuffixes: ["seconds", "second", "sec", "s"]
+    )
+
+    private var cardMotionSummary: String? {
+        guard model.motion.isEnabled else { return nil }
+        let count = model.motion.cues.count
+        if count > 0 {
+            return String(localized: "\(count) motions")
+        }
+        return model.motion.basePose.isIdentity ? nil : String(localized: "Tilted")
+    }
+
+    private var cardMotionControls: some View {
+        VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
+                InspectorGroupLabel("Base pose")
+                poseControls(current: { model.motionBasePose }) { pose in
+                    model.motionBasePose = pose
+                }
+            }
+
+            HStack(spacing: InspectorMetrics.rowSpacing) {
+                InspectorActionButton("Reset Pose", systemImage: "arrow.counterclockwise") {
+                    model.resetMotionBasePose()
+                }
+                .disabled(model.motion.basePose.isIdentity)
+                .help("Return the card to a flat, centered pose")
+
+                InspectorActionButton("Fit to Canvas", systemImage: "arrow.down.right.and.arrow.up.left") {
+                    model.fitMotionToCanvas()
+                }
+                .disabled(!model.motionExceedsCanvas)
+                .help("Scale the base pose and every motion so the card stays inside the canvas")
+            }
+
+            if model.motionExceedsCanvas {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .accessibilityHidden(true)
+                    Text("Part of the card reaches past the canvas and will be cropped.")
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .font(.inspectorLabel)
+                .accessibilityElement(children: .combine)
+            }
+
+            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
+                InspectorGroupLabel("Add motion at playhead")
+                InspectorSegmented(
+                    options: RecordingMotionPreset.allCases,
+                    isSelected: { _ in false },
+                    onTap: { preset in
+                        model.addMotionCue(preset: preset, at: model.currentTime)
+                    },
+                    label: { preset in
+                        Image(systemName: preset.systemImage)
+                            .font(.inspectorSegment)
+                            .help(preset.title)
+                            .accessibilityLabel(Text(preset.title))
+                    }
+                )
+            }
+        }
+        .disabled(!model.motionEnabled)
+        .opacity(model.motionEnabled ? 1 : 0.48)
+    }
+
+    private func selectedMotionControls(for cue: RecordingMotionCue) -> some View {
+        let segment = model.selectedMotionSegment
+        return VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
+                InspectorGroupLabel("Preset")
+                InspectorSegmented(
+                    options: RecordingMotionPreset.allCases,
+                    isSelected: { $0 == cue.preset },
+                    onTap: { model.applyMotionPreset($0, toCueID: cue.id) },
+                    label: { preset in
+                        Image(systemName: preset.systemImage)
+                            .font(.inspectorSegment)
+                            .help(preset.title)
+                            .accessibilityLabel(Text(preset.title))
+                    }
+                )
+            }
+
+            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
+                InspectorGroupLabel("Target pose")
+                poseControls(current: { currentMotionCue(id: cue.id)?.targetPose ?? cue.targetPose }) { pose in
+                    guard var updated = currentMotionCue(id: cue.id) else { return }
+                    updated.targetPose = pose
+                    updated.preset = nil
+                    model.updateMotionCue(updated, coalesces: true)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
+                InspectorGroupLabel("Timing")
+                InspectorFieldPair {
+                    motionTimingSlider("In", cue: cue, keyPath: \.enterDuration)
+                } trailing: {
+                    motionTimingSlider("Out", cue: cue, keyPath: \.exitDuration)
+                }
+                if let segment {
+                    Text(motionTimingSummary(cue: cue, segment: segment))
+                        .font(.inspectorLabel)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            HStack(spacing: InspectorMetrics.rowSpacing) {
+                InspectorActionButton("Duplicate", systemImage: "plus.square.on.square") {
+                    model.duplicateMotionCue(id: cue.id)
+                }
+                .help("Copy this motion into the next free space")
+
+                InspectorActionButton("Remove", systemImage: "trash", role: .destructive) {
+                    model.removeMotionCue(id: cue.id)
+                }
+                .help("Remove the selected motion")
+            }
+        }
+        .disabled(!model.motionEnabled)
+        .opacity(model.motionEnabled ? 1 : 0.48)
+    }
+
+    private func currentMotionCue(id: UUID) -> RecordingMotionCue? {
+        model.motion.cues.first { $0.id == id }
+    }
+
+    /// Hold length, and the transitions actually played when a cut or speed
+    /// change left the cue shorter than its requested entrance and exit.
+    private func motionTimingSummary(
+        cue: RecordingMotionCue,
+        segment: RecordingMotionTimeline.Segment
+    ) -> String {
+        let format = Self.secondsFormat
+        let hold = max(0, segment.editorEnd - segment.editorStart - segment.enter - segment.exit)
+        let holdText = String(localized: "Holds \(format.displayString(for: CGFloat(hold)))")
+        let shortened = segment.enter < cue.enterDuration - 0.005 || segment.exit < cue.exitDuration - 0.005
+        guard shortened else { return holdText }
+        let inText = format.displayString(for: CGFloat(segment.enter))
+        let outText = format.displayString(for: CGFloat(segment.exit))
+        return String(localized: "Shortened to fit: in \(inText), out \(outText)")
+    }
+
+    private func motionTimingSlider(
+        _ title: LocalizedStringResource,
+        cue: RecordingMotionCue,
+        keyPath: WritableKeyPath<RecordingMotionCue, TimeInterval>
+    ) -> some View {
+        let range = RecordingMotionCue.transitionRange
+        return InspectorSlider(
+            title,
+            value: Binding(
+                get: { CGFloat(cue[keyPath: keyPath]) },
+                set: { newValue in
+                    guard var updated = currentMotionCue(id: cue.id) else { return }
+                    updated[keyPath: keyPath] = Double(newValue)
+                    model.updateMotionCue(updated, coalesces: true)
+                }
+            ),
+            range: CGFloat(range.lowerBound)...CGFloat(range.upperBound),
+            format: Self.secondsFormat
+        )
+    }
+
+    /// Turn, tilt, rotate, scale and offset for one pose. Reads the live pose
+    /// on every change so scrubbing one value never resets another.
+    private func poseControls(
+        current: @escaping () -> RecordingCardPose,
+        set: @escaping (RecordingCardPose) -> Void
+    ) -> some View {
+        let pose = current()
+        func slider(
+            _ title: LocalizedStringResource,
+            _ keyPath: WritableKeyPath<RecordingCardPose, Double>,
+            range: ClosedRange<Double>,
+            format: InspectorValueFormat
+        ) -> InspectorSlider {
+            InspectorSlider(
+                title,
+                value: Binding(
+                    get: { CGFloat(pose[keyPath: keyPath]) },
+                    set: { newValue in
+                        var updated = current()
+                        updated[keyPath: keyPath] = Double(newValue)
+                        set(updated)
+                    }
+                ),
+                range: CGFloat(range.lowerBound)...CGFloat(range.upperBound),
+                format: format
+            )
+        }
+
+        return VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+            InspectorFieldPair {
+                slider("Turn", \.yawDegrees, range: RecordingCardPose.yawRange, format: .degrees(signed: true))
+                    .help("Turn the card left or right")
+            } trailing: {
+                slider("Tilt", \.pitchDegrees, range: RecordingCardPose.pitchRange, format: .degrees(signed: true))
+                    .help("Tilt the card toward or away from you")
+            }
+            InspectorFieldPair {
+                slider("Rotate", \.rollDegrees, range: RecordingCardPose.rollRange, format: .degrees(signed: true))
+                    .help("Rotate the card in the screen plane")
+            } trailing: {
+                slider("Scale", \.scale, range: RecordingCardPose.scaleRange, format: .percent())
+                    .help("Card size, separate from zooms")
+            }
+            InspectorFieldPair {
+                slider("X", \.translationX, range: RecordingCardPose.translationRange, format: .percent(signed: true))
+                    .help("Horizontal offset, as a share of the canvas width")
+            } trailing: {
+                slider("Y", \.translationY, range: RecordingCardPose.translationRange, format: .percent(signed: true))
+                    .help("Vertical offset, as a share of the canvas height")
+            }
+        }
     }
 
     // MARK: Selected clip
