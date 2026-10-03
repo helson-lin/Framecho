@@ -9902,6 +9902,56 @@
           }
         }
       }
+    },
+    "Drag inside the ball to turn and tilt freely. Hold Shift to keep to one direction." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在球内拖动可自由转动和俯仰。按住 Shift 锁定单一方向。"
+          }
+        }
+      }
+    },
+    "Drag the blue ring to rotate the card. Hold Shift for 15° steps." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动蓝色环旋转卡片。按住 Shift 以 15° 为步长。"
+          }
+        }
+      }
+    },
+    "Drag the card to move it" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动卡片以移动位置"
+          }
+        }
+      }
+    },
+    "Drag the green ring to turn the card left or right" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动绿色环让卡片左右转"
+          }
+        }
+      }
+    },
+    "Drag the red ring to tilt the card up or down" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动红色环让卡片上下俯仰"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
