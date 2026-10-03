@@ -655,6 +655,16 @@ private struct StudioCanvasComposition: View {
             let state = isEditingVideoCrop || zoomTarget != nil
                 ? ViewportFrame.identity
                 : model.previewViewportFrame(at: model.displayTime)
+            // Adjusting the source crop or a zoom target edits the flat
+            // picture, so the card faces front until that mode ends.
+            let projection = RecordingCardProjection(
+                cardRect: layout.cardRect,
+                canvasSize: canvasSize,
+                pose: isEditingVideoCrop || zoomTarget != nil
+                    ? .identity
+                    : model.motionPose(at: model.displayTime),
+                projectionVersion: model.motionTimeline.projectionVersion
+            )
 
             ZStack {
                 StudioBackgroundView(style: model.style.background)
@@ -695,6 +705,11 @@ private struct StudioCanvasComposition: View {
                             )
                         }
                     }
+                    // Everything on the card projects together; the shadow
+                    // follows, cast by the projected card in canvas space.
+                    .projectionEffect(ProjectionTransform(
+                        projection.localTransform(origin: layout.cardRect.origin)
+                    ))
                     .shadow(
                         color: .black.opacity(model.style.background == .none ? 0 : 0.55 * model.style.shadow),
                         radius: min(canvasSize.width, canvasSize.height) * 0.045 * model.style.shadow,
@@ -725,6 +740,9 @@ private struct StudioCanvasComposition: View {
                 }
             }
             .frame(width: canvasSize.width, height: canvasSize.height)
+            // A tilted card can reach past the canvas; the export crops
+            // there, so the preview does too.
+            .clipped()
         }
         .frame(width: canvasSize.width, height: canvasSize.height)
     }
