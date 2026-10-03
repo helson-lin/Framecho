@@ -1,439 +1,146 @@
-# Screendrop
+# Framecho
 
-A beautiful screenshot + screen recording + Loom alternative - all native, self hostable and free.
+原生 macOS 截图、录屏与编辑工具。支持简体中文界面、本地素材库、非破坏性编辑，以及部署到自己 Cloudflare 账号的云端分享。
 
-<p>
-  <a href="https://github.com/fayazara/Screendrop/releases/latest/download/Screendrop.dmg">
-    <img src="download-button.png" alt="Download the latest version of Screendrop" width="220">
-  </a>
-</p>
+Framecho 基于 [Screendrop](https://github.com/fayazara/Screendrop) 开发，由 [helson-lin](https://github.com/helson-lin) 独立维护。本项目使用自己的应用标识、签名、公证、发布渠道和 Sparkle 更新源。源码目录、Xcode 工程与 scheme 保留 `Screendrop` 名称，便于维护和合并上游改进。
 
-<img width="3494" height="2206" alt="Screendrop_2026-08-17-09-17-20-compressed-550B05" src="https://github.com/user-attachments/assets/e4c2ef6c-97af-4ad4-8885-442c7fbb07b7" />
+**系统要求：macOS 26.4 或更高版本。发布包同时支持 Apple Silicon 和 Intel。**
 
+[下载最新 Framecho.dmg](https://github.com/helson-lin/Screendrop/releases/latest/download/Framecho.dmg) · [发布记录](https://github.com/helson-lin/Screendrop/releases) · [反馈问题](https://github.com/helson-lin/Screendrop/issues)
 
+> 项目仍在持续开发中。请在反馈问题时附上 macOS 版本、Framecho 版本和复现步骤。
 
-<br />
-<br />
+## 安装与更新
 
+1. 下载最新的 `Framecho.dmg`。
+2. 打开 DMG，将 **Framecho** 拖入「应用程序」文件夹。
+3. 启动 Framecho，按提示授予屏幕录制权限。正常启动会打开素材库，菜单栏提供截图和录屏入口；登录时启动会留在菜单栏。
 
+正式发布包使用 Developer ID 签名，并经过 Apple 公证。录屏使用摄像头、麦克风或按键字幕时，会分别请求相应权限。
 
-> [!IMPORTANT]
-> Screendrop is under active development. Expect rough edges and occasional breaking changes
+Framecho 使用 Sparkle 检查更新，更新源为：
 
+[https://raw.githubusercontent.com/helson-lin/Screendrop/main/appcast.xml](https://raw.githubusercontent.com/helson-lin/Screendrop/main/appcast.xml)
 
-<p>
-  <a href="https://github.com/fayazara/Screendrop/releases/latest">Latest release</a>
-  ·
-  <a href="https://github.com/fayazara/Screendrop/releases">All releases</a>
-</p>
+`appcast.xml` 保存在本仓库的 `main` 分支，DMG 保存在 GitHub Release 附件中；更新源无需作为每个 Release 的附件。已安装当前最新版时不会出现更新提示。Debug 构建不启动更新检查。
 
+本项目暂未提供自己的 Homebrew cask。上游的 `fayazara/tap/screendrop` 安装的是 Screendrop，请使用上面的 Framecho 下载链接。
 
-## Features
+## 主要功能
 
-- Capture a display, window, or selected area as a screenshot or recording.
-- Configure global hotkeys, timers, file formats, save behavior, and complete after-capture workflows.
-- Copy, compress, save, pin, preview, annotate, edit, upload, or delete directly from a customizable floating preview stack.
-- Grab text off the screen with on-device OCR - no screenshot saved, just the text on your clipboard.
-- Open images from Finder with Screendrop and edit imported copies without touching the originals.
-- Annotate non-destructively with drawing tools, crop, smart redaction, backgrounds, wallpaper packs, perspective effects, progressive blur, borders, and watermarks.
-- Record camera, microphone, and system audio as separately editable sources.
-- Use a notch-native teleprompter that follows your narration with on-device speech recognition.
-- Edit recordings with smooth zooms, reconstructed cursors and clicks, keystroke captions, camera layouts, clip cuts, speed changes, social aspect ratios, and reusable style presets.
-- Transcribe narration on-device, burn in karaoke-style captions, or edit the video by cutting its transcript.
-- Share through your own Cloudflare account with a video player, scrub previews, searchable transcripts, comments, and rich link previews.
-- Automate screenshots and recordings with Apple Shortcuts, Siri, and App Intents.
+### 截图与素材库
 
-## Install
+- 全屏、窗口和区域截图；区域选择时按空格可切换到窗口截图。
+- 定时截图、窗口阴影、PNG / JPEG 导出及自定义保存目录。
+- 本地 OCR：选择屏幕区域，识别并复制文字，无需保存截图。
+- 可调整大小、位置和操作顺序的浮动预览卡片。
+- 复制、保存、压缩、编辑、上传、置顶和删除等截图后操作。
+- 置顶截图支持通过滚轮调整透明度。
+- 素材库统一管理截图、视频和可编辑录屏项目，支持搜索、排序、网格 / 列表视图与批量操作。
+- 从 Finder 打开图片时导入副本进行编辑，保留原文件。
 
-### Download
+### 图片标注与背景
 
-1. Download the latest `Screendrop.dmg` using the button above or from the [releases page](https://github.com/fayazara/Screendrop/releases/latest).
-2. Open the DMG and drag **Screendrop** into your Applications folder.
-3. Launch Screendrop. It lives in the menu bar at the top-right of the screen.
+- 矩形、圆形、箭头、直线、自由绘制、文字、编号及高亮。
+- 模糊、像素化和敏感文字自动遮挡。
+- 裁剪、撤销与重做；保留原图和 `.screendrop` 编辑 sidecar，可再次打开修改。
+- 纯色、渐变、自定义壁纸和按需下载的壁纸包。
+- 留白、圆角、阴影、边框、水印及画布比例。
+- 截图透视、旋转、缩放、平移和渐进模糊效果。
+- 导入、导出 `.screendroppreset` 背景预设；本地壁纸文件不会随预设一起导出。
 
-The download button always points to the newest release.
+### 录屏与视频编辑
 
-**Requirements:** macOS 26.4 or newer.
+- 录制显示器、窗口或区域，可同时录制摄像头、麦克风和系统音频。
+- 暂停、继续、重新录制；原始屏幕和摄像头轨道分别保存。
+- 提词器，可通过设备端语音识别跟随讲述进度。
+- 时间线分割、裁剪、删除片段和调整播放速度。
+- 自动 / 手动缩放、鼠标跟随、重建光标、点击效果及按键字幕。
+- 可调整摄像头位置、大小和圆角；保存背景与布局预设。
+- 设备端转写、字幕编辑、逐词高亮，以及按转写文本剪辑视频。
+- 原始比例、横屏、竖屏和方形导出；支持视频画面单独裁剪。
+- 质量、编码、分辨率、30 / 60 fps、运动模糊和音频导出设置。
+- 导出与分享使用项目编辑结果，支持进度显示和取消。
 
+### 自托管分享与自动化
 
-### Homebrew
+- 使用自己的 Cloudflare Workers、R2 和 D1 分享截图与视频。
+- 视频分享页支持播放器、拖动预览、可搜索转写文本和评论。
+- 截图与录屏分别配置自动保存、复制、上传和打开编辑器等动作。
+- 上传与上传后复制分享链接可以分别设置。
+- 支持 Apple Shortcuts、Siri 和 App Intents。
 
-Install from the Homebrew tap:
+## 默认快捷键
 
-```bash
-brew install --cask fayazara/tap/screendrop
-```
-
-Update later with:
-
-```bash
-brew upgrade --cask screendrop
-```
-
-Screendrop can also update itself through Sparkle.
-
-## Quick Start
-
-Screendrop can be controlled from its menu bar item or with global hotkeys.
-
-| Default shortcut | Action |
+| 快捷键 | 操作 |
 | --- | --- |
-| `Option + 1` | Capture full screen |
-| `Option + 2` | Capture a window |
-| `Option + 3` | Capture an area |
-| `Option + 4` | Open the screen-recording picker |
-| `Option + 5` | Capture text (OCR) to the clipboard |
-| `Option + 6` | Capture the screen after a countdown |
+| `⌥1` | 全屏截图 |
+| `⌥2` | 窗口截图 |
+| `⌥3` | 区域截图 |
+| `⌥4` | 打开录屏选择器 |
+| `⌥5` | 识别并复制屏幕文字 |
+| `⌥6` | 倒计时后截图 |
+| `⌘⇧L` | 打开素材库 |
 
-All six shortcuts are customizable under **Settings → Screenshots** and **Settings → Screen Recordings**. If a replacement shortcut cannot be registered, Settings explains the failure and keeps your previous working shortcut.
+六个截图 / 录屏全局快捷键可在设置中修改。如果新快捷键无法注册，应用会保留原先可用的设置并提示原因。
 
-You can also:
+## 壁纸资源包
 
-- Run capture and recording actions from Apple Shortcuts, Siri, or Spotlight.
-- Right-click one or more images in Finder and choose **Open With → Screendrop**.
-- Browse screenshots and recordings together in the native Library, or reopen recent captures from the menu bar.
+壁纸包在点击安装时下载，安装后保存在本地 `~/Library/Application Support/Framecho/Wallpapers/`。截图和视频编辑均可使用这些壁纸；也可以直接选择自己的图片作为背景。
 
-## Screenshots
+两个内置包现由 Framecho 维护者通过 Cloudflare R2 托管，应用直接使用以下公开 HTTPS 地址下载：
 
-### Capture
+| 包 ID | 资源包 | 原作者 | 下载地址 |
+| --- | --- | --- | --- |
+| `uihssn` | UIHSSN | [Ahmed Hassan](https://x.com/uihssn) | [uihssn-wallpaper-pack.zip](https://r2.jarin.me/Frameecho/uihssn-wallpaper-pack.zip) |
+| `fayaz` | Fayazara | [Fayaz Ahmed](https://x.com/fayazara) | [fayaz-wallpaper-pack.zip](https://r2.jarin.me/Frameecho/fayaz-wallpaper-pack.zip) |
 
-Capture an entire display, a window, or a freely selected area. Screenshots are taken at native display resolution and imported into the local Library before any optional automation runs.
+托管包与原始下载包的 SHA-256 一致，包 ID、内部文件名和目录结构保持不变，已有本地壁纸与已保存的引用可继续使用。对象路径中的 `Frameecho` 是当前 R2 路径，大小写和拼写须保持一致。
 
-Screenshot preferences include:
+两个包分别包含 12 张和 5 张图片。下载失败时，可继续使用已有壁纸、纯色、渐变或自定义图片。应用内的下载器目前不进行资源摘要校验，也未配置镜像回退。
 
-- A self-timer of 3, 5, or 10 seconds.
-- Optional window shadows.
-- Automatic trimming of the empty black menu-bar strip on notched Macs.
-- PNG or JPEG export with configurable JPEG quality.
-- A configurable export folder and a Save action that can bypass the save panel.
-- A lower-resolution editor preview to reduce memory use while preserving full-resolution exports.
-- An option to include Screendrop's own windows in screenshots and recordings; they are excluded by default.
+资源来自上游壁纸包，保留原作者署名。迁移托管不改变素材许可；本仓库的 CC0 许可不自动适用于外部壁纸。
 
-### Capture Text
+## 云端分享配置
 
-**Capture Text** (`Option + 5`, or the menu bar) drags out an area like a normal
-area capture, recognizes the text inside it with on-device Vision OCR, and puts
-that text on the clipboard. No image is saved, nothing is added to Library, and
-no preview card appears - a brief toast confirms what was copied.
+Framecho 不提供统一的公共上传服务器。云端分享需要部署到你自己的 Cloudflare 账号。
 
-Recognized lines are returned in reading order, so multi-column screenshots
-paste in the order you read them rather than the order Vision happened to find
-them.
+当前配套服务仍使用上游的 [screendrop-worker](https://github.com/fayazara/screendrop-worker)，不属于本仓库独立维护的代码。
 
-### Capture on Timer
+1. 打开 **设置 → 云端**，复制生成的上传令牌。
+2. 使用设置中的部署入口，将 Worker 部署到自己的 Cloudflare 账号。
+3. 将上传令牌配置为 Worker 的 `UPLOAD_TOKEN` secret，并完成 R2 / D1 绑定。
+4. 将部署后的 Worker URL 填回 Framecho，验证连接后即可上传。
 
-**Capture on Timer** (`Option + 6`, or the menu bar) shows a countdown, then
-captures the whole display under the pointer. Use the countdown to open a menu,
-hover a control, or bring up a tooltip: Screendrop stays in the background, so
-those states are still on screen when the shot is taken. The capture then goes
-through the normal preview and after-capture flow, and can be cropped in the
-editor.
-
-Choose a 3, 5, or 10 second countdown in **Settings → Screenshots**. It is
-separate from the self-timer, which delays every capture mode.
-
-### After-Capture Automation
-
-Choose exactly what happens after every screenshot:
-
-- Show the preview overlay.
-- Copy the image to the clipboard.
-- Save it to the export folder.
-- Upload it and copy the share link.
-- Open the annotation editor.
-- Pin it above other windows.
-
-Recording automation has its own independent settings for previewing, copying, saving, uploading, and opening Studio. Automatic uploading requires Cloud setup; the action links directly to **Settings → Cloud** when configuration is missing.
-
-### Floating Preview Stack
-
-New captures appear as floating cards on the active display. From a card you can:
-
-- Copy the capture or drag it into another app.
-- Save it to disk.
-- Create a smaller JPEG.
-- Pin a screenshot as an always-on-top reference.
-- Scroll over a pinned screenshot to adjust its opacity.
-- Open Quick Look.
-- Annotate a screenshot or edit a recording.
-- Upload to your cloud and copy the link.
-- Delete the file or dismiss only the preview.
-- Copy recognized text from a screenshot using on-device OCR.
-
-The overlay can appear on the left or right, close automatically after a chosen delay, and dismiss after a drag. Its actions are completely rearrangeable: drag actions between four corner slots, the center buttons, and a hidden-actions tray in **Settings → Overlay**.
-
-Opening Save keeps a screenshot preview available if you cancel or saving fails. If a screenshot cannot be written to the configured export folder, choose another location or retry from the error dialog.
-
-A recording card is a quick handoff: it closes once Studio has loaded successfully or a manual Save or Upload from the card succeeds. Failed or cancelled actions keep the card available for retry. Exporting or sharing from Studio or Library also clears that recording's card; the recording remains in Library. Studio shows **Saved** with a Finder reveal action, or **Link Copied** with actions to copy or open the share link, without creating another overlay.
-
-When the stack is collapsed, it becomes a small peek tab instead of disappearing. This keeps captures close without covering the workspace.
-
-### Library
-
-Library brings screenshots, videos, and complete recording projects into one native macOS window, replacing the History page and separate Recording Projects browser. The sidebar filters All Captures, Screenshots, and Recordings. Switch between thumbnail grid and list views, search by name, or sort by capture date, name, and last modification. The layout, sort order, and inspector visibility are remembered.
-
-The browser uses reusable AppKit collection cells, background package discovery, and a bounded thumbnail cache with cancellable loading. The inspector shows dimensions, capture dates, duration, disk usage, editable-project state, file location, and cloud sharing actions. Recording packages and their History entries appear as one capture; existing files and edits stay where they are.
-
-- Double-click a capture or press **Space** for a large Quick Look preview. Use **Edit** to annotate a screenshot or reopen a recording in Studio.
-- Reopening an edited screenshot restores its preserved base image and saved annotations and background settings, including screenshots with only background or crop edits.
-- Use **Command-click**, **Shift-click**, or **Command-A** to select multiple captures, then copy, export, reveal in Finder, or move them to Trash. **Command-C** copies the selection and **Command-Delete** offers Move to Trash.
-- Press **Return** to rename a selected capture. Screenshot titles are stored separately from filenames, preserving annotation sidecars.
-- Recording previews, copies, and exports resolve the edited deliverable, including the cursor and camera. Preparing an uncached recording can take time; Library shows the operation in its status bar.
-- **Move to Trash** includes the capture's edits and recording tracks. Close a capture's editor first. Exported copies and cloud links are unaffected; deleting a cloud copy is a separate inspector action.
-
-Normal launches open Library, with a Dock icon while regular windows are open. Launch at login stays quietly in the menu bar. Open Library again from the menu bar, Finder, Spotlight, or **Command-Shift-L**. Closing it leaves capture shortcuts and the menu bar available. **Command-Option-I** toggles the inspector.
-
-### Open Images from Finder
-
-Screendrop registers as an image editor in Finder. Opening an image with Screendrop:
-
-1. Validates the image.
-2. Imports a copy into the Screendrop Library.
-3. Opens the copy in the annotation editor.
-
-The original file is never modified. Multiple selected images can be opened at once, each in its own editor window.
-
-## Annotation Studio
-
-The annotation editor is non-destructive. Screendrop preserves the untouched base image and writes editable state to a neighboring `.screendrop` sidecar, so saved annotations can be reopened and changed later. Display previews are lightweight, while final renders use the source image's full pixel resolution.
-
-Save, Done, and Upload coordinate screenshot commits so conflicting saves cannot overlap. Failed commits keep the editor open with its changes unsaved; file replacements retain recovery copies until the image and editable files are written successfully. Upload also works on screenshots without annotations. Recording Studio likewise stays open when **Save and Close** cannot save the project.
-
-### Drawing and Redaction
-
-Available tools include:
-
-- Rectangle and filled rectangle
-- Circle
-- Straight line and arrow
-- Freehand drawing
-- Numbered markers
-- Text with font, weight, alignment, and size controls
-- Highlight regions that dim everything outside the selection
-- Pixelate and blur
-- Select, move, resize, multi-select, delete, undo, and redo
-
-Smart Redaction scans the screenshot for sensitive text and can add blur or pixelation automatically. Redaction strength remains editable after detection.
-
-### Crop
-
-Crop at full resolution with freeform, original, `1:1`, `16:9`, `9:16`, `4:3`, and `3:2` presets. Crops remap existing annotations into the new image coordinates and participate in undo and redo.
-
-### Backgrounds and Mockups
-
-Turn a plain screenshot into a finished visual without leaving Screendrop:
-
-- Apply solid colors, gradients, custom images, or downloadable wallpaper packs.
-- Save, import, export, and share background presets as versioned `.screendroppreset` JSON files.
-- Adjust padding, corner radius, shadow, aspect ratio, and nine-point alignment.
-- Add a configurable solid border around the screenshot.
-- Add a text watermark with placement and typography controls.
-- Use camera-style perspective, rotation, zoom, and pan controls for dimensional mockups.
-- Add radial or directional progressive blur, either clipped to the screenshot or bleeding into the surrounding scene.
-
-The editor keeps these effects live and re-editable instead of flattening them into the source.
-
-The canvas zoom menu offers Fit Canvas (⌘1), actual size (⌘0), and zoom in/out (⌘+/⌘−), up to 1000%. Fit leaves breathing room around the composition; zoomed content uses the full editor workspace. Pinch or hold ⌘/Option while scrolling to zoom around the pointer, and scroll to pan. Pinch zoom keeps its starting image point fixed until a canvas edge constrains the view. Menu and keyboard zoom use the center of your current view. Panning stops at the composition edges; axes that fit inside the viewport stay centered. Fit recenters the whole composition. These controls change only the editing view, not the exported image.
-
-Shared presets include portable colors, gradients, layout, camera, blur, border, and watermark settings. Local wallpaper images and their file paths are never exported or imported; a wallpaper-based preset uses no background when opened on another Mac.
-
-## Screen Recording
-
-### Before Recording
-
-The recording picker provides one place to prepare a session:
-
-- Choose a display, app window, or selected area.
-- Choose a camera, including external and Continuity Camera devices.
-- Choose a microphone.
-- Toggle system audio.
-- Set a 1, 3, or 5 second start timer.
-- Write and enable a teleprompter script.
-
-During the start countdown, click **Cancel**, press **Escape**, or close the recorder to cancel the pending recording. Source selection is disabled until the countdown finishes or is cancelled. The display control shows source-loading progress; if loading fails, it offers Retry and, when needed, a link to screen recording permissions.
-
-Turning on the camera starts a live preview before recording begins, giving the camera time to settle exposure and white balance. Camera permission failures or disconnected optional devices do not throw away the screen recording; Screendrop warns and continues without that input.
-
-For area recordings, the selected boundary remains visibly highlighted while the rest of the display is dimmed. The guide is click-through and excluded from the recording.
-
-### While Recording
-
-A floating control bar shows elapsed time and lets you:
-
-- Pause or resume.
-- Restart the same source.
-- Stop and keep the recording.
-- Delete the current recording.
-
-The screen, camera, cursor activity, clicks, keystrokes, microphone, and system audio are captured as coordinated inputs. Screendrop keeps the raw screen and camera masters separate so later edits do not permanently burn effects into the footage.
-
-### Teleprompter
-
-Paste or type a script from the pre-record bar, choose how many lines to show, and enable the teleprompter for the next recording.
-
-On a Mac with a notch, the script grows out of the hardware notch in a Dynamic Island-style panel. On other displays it appears as a floating pill below the menu bar. With a microphone enabled, Apple's on-device Speech Analyzer follows the spoken words, highlights progress, and advances the script automatically. Without a microphone, the script remains available as a static prompt.
-
-The teleprompter and its speech tracking are best-effort and never interrupt the recording if recognition is unavailable.
-
-## Recording Studio
-
-Every new recording is stored as a non-destructive session package. The package preserves the screen master, optional camera master, input timeline, metadata, and a small editable project document. The original media stays untouched, and the project can be reopened from Library.
-
-### Timeline Editing
-
-- Scrub with generated frame thumbnails.
-- Split clips at the playhead.
-- Trim or delete clips.
-- Change speed per clip.
-- Select zoom and clip blocks directly on the timeline.
-- Undo and redo project edits.
-
-### Background, Layout, and Social Formats
-
-- Use colors, gradients, or wallpapers behind the recording.
-- Adjust padding, corner radius, and shadow.
-- Export in the original aspect ratio, `16:9`, `9:16`, `1:1`, or `4:5`.
-- Choose **Fill** for a pointer-following reframed crop or **Fit** to keep the full recording visible on the background.
-- Crop only the screen-video card with freeform, original, `1:1`, `16:9`, `9:16`, `4:3`, or `3:2` handles; the background canvas and source recording remain unchanged.
-- Save the current background, layout, cursor, and camera design as a named preset.
-- Choose a preset as the default for future recordings.
-
-### Zooms, Cursor, Clicks, and Keystrokes
-
-Screendrop records interaction data separately from the screen pixels, so presentation effects remain editable:
-
-- **Auto Zoom** turns recorded clicks into smooth camera moves.
-- Add, remove, enable, resize, and retime zooms manually.
-- Let a zoom follow the pointer or give it a fixed focal point with a visual focus pad.
-- Adjust the reconstructed cursor size after recording.
-- Toggle click highlights.
-- Toggle keystroke captions and place them across six top or bottom positions.
-
-Because the operating-system cursor is not baked into the source video, Studio can reconstruct a smoother cursor using the artwork and pointer timeline captured during the session.
-
-### Camera
-
-The camera remains a separate video track:
-
-- Show or hide it at any time.
-- Drag it directly on the canvas.
-- Adjust its size and roundness.
-- Preserve camera edits as part of a reusable Studio preset.
-
-### Transcription, Captions, and Text-Based Editing
-
-Narrated recordings can be transcribed entirely on-device with Apple's Speech Analyzer.
-
-The result powers two workflows:
-
-- **Captions:** edit text line by line, click timestamps to seek, adjust position and size, and optionally highlight each spoken word for a karaoke-style effect.
-- **Edit Video:** click a word to seek, Shift-click to select a passage, and cut the selection to remove the matching footage. Screendrop can also remove filler words and trim narration silences automatically.
-
-Transcript cuts update the video timeline and captions together and remain undoable.
-
-### Export and Share
-
-Studio exports the complete composition-screen, camera, backgrounds, zooms, cursor, click effects, keystrokes, captions, edits, speed changes, and selected audio-in one render.
-
-Export Options includes quality, codec, resolution, format, **30 / 60 fps**, **Motion blur**, and audio. The defaults remain 60 fps with motion blur enabled. Choose 30 fps and turn motion blur off to reduce rendering work, or keep either feature independently. Confirmed options are remembered for new recordings and saved with the project; Share uses the same project settings. Existing projects retain their original 60 fps and blur behavior until you change them.
-
-Export and Share show progress, can be cancelled, and report completion. Renders are cached against the project state, including frame rate and motion blur, so exporting or sharing the same edit again can reuse finished work.
-
-Studio uses Metal to accelerate eligible motion-blur frames. Blur-on uses a one-frame shutter at the selected frame rate; blur-off draws the screen once at each frame's camera position. Core Graphics remains available for unsupported frames and devices. See [export performance](docs/export-performance.md) for the rendering policy, benchmarks, and comparison workflow.
-
-Screendrop also includes a lightweight trim-and-compress editor for regular video files. FFmpeg enables its conversion and compression options:
-
-```bash
-brew install ffmpeg
-```
-
-## Cloud Sharing
-
-Cloud sharing is optional, self-hosted, and Cloudflare-first:
-
-- A Cloudflare Worker receives authenticated uploads and returns share links.
-- [Cloudflare R2](https://developers.cloudflare.com/r2/) stores screenshots and recordings without egress-bandwidth charges.
-- [Cloudflare D1](https://developers.cloudflare.com/d1/) stores lightweight upload and share-page metadata.
-- Screendrop only needs the Worker URL and an upload token; it never needs R2 or S3 access keys.
-
-Shared recordings get a Loom-style page:
-
-- A video player with captions, playback speed, theater mode, and thumbnail previews while scrubbing.
-- A synced, searchable transcript that follows playback and seeks when clicked.
-- Comments that can be attached to moments in the video.
-- View counts, a poster image, and rich previews when the link is pasted into chat.
-
-Shared screenshots use a clean viewer with copy and download actions.
-
-The companion Worker lives at:
-
-[github.com/fayazara/screendrop-worker](https://github.com/fayazara/screendrop-worker)
-
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/fayazara/screendrop-worker)
-
-### Cloud Setup
-
-The fastest setup is built into Screendrop:
-
-1. Open **Settings → Cloud**.
-2. Copy the generated upload token.
-3. Click **Deploy to Cloudflare**.
-4. Paste the token when Cloudflare asks for the `UPLOAD_TOKEN` secret.
-5. After deployment, copy the Worker URL back into Screendrop.
-6. Click **Verify Connection**.
-
-The deploy flow provisions the R2 and D1 bindings used by the Worker. For a manual deployment, configure the Worker with those bindings and store the token as a Worker secret:
+手动部署时，可通过 Wrangler 设置令牌：
 
 ```bash
 npx wrangler secret put UPLOAD_TOKEN
 ```
 
-Screendrop verifies the Worker URL and token before enabling uploads.
+上传令牌存储在 macOS 钥匙串中。文件只会在手动上传或已启用的自动上传动作触发时发送到你配置的服务。
 
-### How Uploads Work
+## 本地数据与权限
 
-1. Screendrop sends the file to the Worker with `PUT /api/upload`.
-2. The Worker validates the bearer token, streams the file to R2, and writes its metadata to D1.
-3. The Worker returns a share URL. Screendrop copies it and stores it in the local Library.
-4. For edited recordings, Screendrop uploads the rendered final cut-not the raw screen master.
-5. Screendrop then adds best-effort video sidecars: a title, poster, transcript remapped to the edited timeline, and a storyboard sprite used for scrub previews.
+截图、录屏原始轨道、编辑项目与转写文本保存在 Mac 本地。语音转写在设备端运行；首次使用时，系统可能下载所需语言模型。
 
-The share link works as soon as the main upload finishes and becomes richer as the sidecars arrive.
+| 权限 | 用途 |
+| --- | --- |
+| 屏幕与系统音频录制 | 截图、录屏和系统音频 |
+| 摄像头 | 摄像头预览及独立视频轨道 |
+| 麦克风 | 旁白与提词器语音跟随 |
+| 输入监控 | 可编辑的按键字幕 |
 
-## Privacy and Permissions
+默认排除 Framecho 自身窗口。需要录制预览卡片、控制条或设置界面时，可在通用设置中开启捕获自身窗口。
 
-Screendrop is local-first:
+## 从源码构建
 
-- Captures, project files, editable annotation sidecars, and transcripts are stored on your Mac.
-- Speech transcription runs on-device. Apple may download the required language model when you first enable transcription or the speech-following teleprompter.
-- The cloud upload token is stored in Keychain.
-- Cloud uploads only happen when an upload action or configured after-capture action requests one.
-- Screendrop has no central account or hosted Screendrop server.
-- Network access is otherwise limited to explicit features such as update checks, cloud setup, and wallpaper downloads.
-
-macOS may request:
-
-- **Screen & System Audio Recording** for screenshots and screen recordings.
-- **Camera** for the separate camera track and preview.
-- **Microphone** for narration and speech-following teleprompter progress.
-- **Input Monitoring** for editable keystroke captions.
-
-Screendrop windows are excluded from captures by default. Enable **Settings → General → Include Screendrop windows in captures** when you intentionally want preview cards, recording controls, Settings, or other Screendrop UI in the result.
-
-While this setting is enabled, a reminder below the pre-record bar warns that Screendrop windows will be captured. Turn off its switch to disable capture visibility immediately; the reminder disappears when the setting is off or recording begins.
-
-## Building Locally
-
-Requirements:
-
-- macOS 26.4 or newer
-- Xcode 26.4 beta toolchain
-
-Xcode resolves the Sparkle and DockProgress package dependencies automatically.
-
-Build from the command line:
+需要 macOS 26.4 或更高版本，以及包含所需 macOS SDK 的 Xcode。Xcode 会自动解析 Sparkle 和 DockProgress 依赖。
 
 ```bash
+git clone https://github.com/helson-lin/Screendrop.git
+cd Screendrop
+
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
   -project Screendrop.xcodeproj \
   -scheme Screendrop \
@@ -441,20 +148,31 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
   -destination "platform=macOS"
 ```
 
-There is no test target. A successful Xcode build is the automated verification gate.
+仓库中的签名配置使用维护者的 Apple 开发者团队。其他开发者需在 Xcode 中选择自己的团队与可用证书；仅进行本地编译验证时，可在命令后加 `CODE_SIGNING_ALLOWED=NO`，该产物不用于正式分发。
 
-The standalone [motion-blur benchmark](docs/export-performance.md#standalone-check) also compares the Metal renderer with Core Graphics and checks encoder interoperability and settled screen reuse without launching Screendrop. [Editor performance](docs/editor-performance.md) documents image budgets, close/cancellation behavior, and standalone resource checks.
+工程和 scheme 名称仍为 `Screendrop`，生成的应用名称为 `Framecho.app`，Bundle ID 为 `com.jarinhe.Framecho`。项目没有 Xcode 测试 target，构建成功是基本自动验证；性能专项检查见 [视频导出性能](docs/export-performance.md) 和 [编辑器性能](docs/editor-performance.md)。
 
-## Releasing
+## 发布流程
 
-Screendrop includes a Go release helper. To run the complete archive, notarize, package, and publish flow:
+发布工具位于 `cmd/screendrop-release`，发布目标为 `helson-lin/Screendrop`。完整流程需要 Go、`create-dmg`、已登录的 `gh`、Xcode、Developer ID Application 证书、Sparkle 签名密钥，以及名为 `framecho-notary` 的公证凭据配置。
 
 ```bash
-go run ./cmd/screendrop-release -build
+brew install create-dmg
+
+# 示例：在 0.34.1（build 33）之后发布下一版。
+go run ./cmd/screendrop-release -build -yes \
+  -set-version 0.34.2 -set-build 34 \
+  -notes-file /path/to/release-notes.txt
 ```
 
-It creates a DMG, signs the update for Sparkle, creates the GitHub release, updates and pushes `appcast.xml`, and updates the Homebrew cask. Without `-build`, the helper expects an already exported `Screendrop.app` in `~/Downloads`.
+更新说明文件每行一条。每次发布递增 build 号，并在发布前提交待发布的代码。工具会归档、Developer ID 签名导出、公证、附加公证票据、生成并进行 Sparkle 签名的 DMG，推送提交，创建 GitHub Release，最后更新并推送 `appcast.xml`。
 
-## License
+不使用 `-build` 时，工具读取已经导出到 `~/Downloads/Framecho.app` 的应用进行打包和发布。当前未配置 Homebrew tap，不会发布或更新 cask。
 
-Screendrop is dedicated to the public domain under [CC0 1.0 Universal](LICENSE).
+Sparkle 的 EdDSA 私钥保存在维护者钥匙串的 `com.jarinhe.Framecho` 账户中。公证凭据与私钥不要提交到仓库；请安全备份签名密钥，以便持续向已安装版本提供可信更新。
+
+## 来源与许可
+
+感谢 [Screendrop](https://github.com/fayazara/Screendrop) 及其贡献者提供项目基础。Framecho 的应用发布与维护在本仓库进行，问题请提交到 [Framecho Issues](https://github.com/helson-lin/Screendrop/issues)。
+
+本仓库沿用 [CC0 1.0 Universal](LICENSE)。外部壁纸、第三方依赖及云端 Worker 的许可应分别查看各自来源，不能将本仓库许可自动套用到这些资源。
