@@ -1095,8 +1095,12 @@ final class RecordingStudioModel {
     /// Applies a pose from a canvas drag. Callers bracket each drag with
     /// begin/endMotionEdit so it lands as one undo step.
     func setAdjustedPose(_ pose: RecordingCardPose) {
+        applyAdjustedPose(pose, coalesces: false)
+    }
+
+    private func applyAdjustedPose(_ pose: RecordingCardPose, coalesces: Bool) {
         guard let target = activePoseAdjustment else { return }
-        editMotion(String(localized: "Adjust Pose")) { settings in
+        editMotion(String(localized: "Adjust Pose"), coalesces: coalesces) { settings in
             switch target {
             case .base:
                 settings.basePose = pose
@@ -1106,6 +1110,21 @@ final class RecordingStudioModel {
                 settings.cues[index].preset = nil
             }
         }
+    }
+
+    /// Keyboard scaling while adjusting on the canvas. Repeated presses
+    /// coalesce into one undo step.
+    func scaleAdjustedPose(by factor: Double) {
+        guard let pose = adjustedPose else { return }
+        var updated = pose
+        updated.scale = pose.scale * factor
+        applyAdjustedPose(updated, coalesces: true)
+    }
+
+    func resetAdjustedScale() {
+        guard var pose = adjustedPose, abs(pose.scale - 1) > 0.0001 else { return }
+        pose.scale = 1
+        applyAdjustedPose(pose, coalesces: true)
     }
 
     func resetAdjustedPose() {

@@ -1146,7 +1146,7 @@ private struct StudioPoseAdjustOverlay: View {
         case .rotate: String(localized: "Drag the blue ring to rotate the card. Hold Shift for 15° steps.")
         case .trackball: String(localized: "Drag inside the ball to turn and tilt freely. Hold Shift to keep to one direction.")
         case .move: String(localized: "Drag the card to move it")
-        case .scale: String(localized: "Drag to scale the card")
+        case .scale: String(localized: "Drag to scale the card, or press = and -")
         case nil: ""
         }
     }
@@ -1168,11 +1168,34 @@ private struct StudioPoseAdjustOverlay: View {
                 .keyboardShortcut(.cancelAction)
                 .help("Finish adjusting (Esc)")
         }
+        .help("Press = or - to scale the card, 0 to return it to 100%")
+        .background { scaleShortcuts }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(Capsule().fill(.regularMaterial))
         .overlay(Capsule().stroke(Color.primary.opacity(0.1), lineWidth: 0.5))
     }
+
+    /// Plain keys while adjusting: = grows the card, - shrinks it, and
+    /// 0 returns it to 100%. ⌘= and ⌘- stay with the timeline zoom.
+    private var scaleShortcuts: some View {
+        ZStack {
+            // One binding per physical key: "+" also matches the = key and
+            // would fire twice.
+            Button("Scale Up") { model.scaleAdjustedPose(by: Self.scaleStep) }
+                .keyboardShortcut("=", modifiers: [])
+            Button("Scale Down") { model.scaleAdjustedPose(by: 1 / Self.scaleStep) }
+                .keyboardShortcut("-", modifiers: [])
+            Button("Actual Size") { model.resetAdjustedScale() }
+                .keyboardShortcut("0", modifiers: [])
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private static let scaleStep = 1.05
 
     private var title: String {
         switch model.activePoseAdjustment {
