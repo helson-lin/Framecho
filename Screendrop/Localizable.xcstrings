@@ -1323,6 +1323,16 @@
         }
       }
     },
+    "Capture on Timer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "定时截图"
+          }
+        }
+      }
+    },
     "Capture Text" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1989,6 +1999,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "拷贝共享链接"
+          }
+        }
+      }
+    },
+    "Copy share link after upload" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上传后拷贝分享链接"
           }
         }
       }
@@ -3853,6 +3873,26 @@
         }
       }
     },
+    "How large the floating preview cards appear." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "浮动预览卡片显示的大小。"
+          }
+        }
+      }
+    },
+    "How long Capture on Timer counts down before capturing the screen under the pointer. Other capture modes aren't affected." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "定时截图在截取指针所在屏幕之前倒计时的时长。不影响其他截图方式。"
+          }
+        }
+      }
+    },
     "How much of the frame's edge stays in view while zoomed" : {
       "localizations" : {
         "zh-Hans" : {
@@ -5509,6 +5549,16 @@
         }
       }
     },
+    "Preview size" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预览大小"
+          }
+        }
+      }
+    },
     "Previewing %@" : {
       "localizations" : {
         "zh-Hans" : {
@@ -6055,6 +6105,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "替换"
+          }
+        }
+      }
+    },
+    "Replace the clipboard with the share URL after a successful upload. Turn this off to keep Copy to clipboard." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上传成功后，用分享链接替换剪贴板中的内容。关闭后，剪贴板会保留“拷贝到剪贴板”拷贝的内容。"
           }
         }
       }
@@ -8535,12 +8595,12 @@
         }
       }
     },
-    "Upload to Cloud & copy link" : {
+    "Upload to Cloud" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "上传到云端并拷贝链接"
+            "value" : "上传到云端"
           }
         }
       }
@@ -8565,12 +8625,12 @@
         }
       }
     },
-    "Upload to your cloud and copy the share link." : {
+    "Upload to your cloud. The share URL is saved in History." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "上传到你的云端并拷贝共享链接。"
+            "value" : "上传到你的云端。分享链接会保存在历史记录中。"
           }
         }
       }
