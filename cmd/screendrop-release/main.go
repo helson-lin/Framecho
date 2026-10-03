@@ -52,28 +52,34 @@ func fail(msg string) {
 }
 
 const (
-	appDisplayName = "Screendrop"
-	githubRepo     = "fayazara/screendrop"
+	appDisplayName = "Framecho"
+	githubRepo     = "helson-lin/Screendrop"
 	gitBranch      = "main"
 	minSystemVer   = "26.4"
-	dmgVolumeName  = "Screendrop"
-	appName        = "Screendrop.app"
-	dmgName        = "Screendrop.dmg"
+	dmgVolumeName  = "Framecho"
+	appName        = "Framecho.app"
+	dmgName        = "Framecho.dmg"
 	appcastFile    = "appcast.xml"
 	repoEnvVar     = "SCREENDROP_REPO"
-	appcastURL     = "https://raw.githubusercontent.com/fayazara/screendrop/main/appcast.xml"
+	appcastURL     = "https://raw.githubusercontent.com/helson-lin/Screendrop/main/appcast.xml"
 
-	// Homebrew tap (cask) configuration.
-	tapRepo      = "fayazara/homebrew-tap"
+	// Keychain account of the EdDSA key made with
+	// `generate_keys --account com.jarinhe.Framecho`.
+	sparkleAccount = "com.jarinhe.Framecho"
+
+	// Homebrew tap (cask) configuration. Empty skips the cask update.
+	tapRepo      = ""
 	caskRelPath  = "Casks/screendrop.rb"
 	tapDirEnvVar = "SCREENDROP_TAP_DIR"
-	bundleID     = "com.fayazahmed.Screendrop"
+	bundleID     = "com.jarinhe.Framecho"
 
 	// Build/notarize configuration (used with -build).
-	projectName     = "Screendrop.xcodeproj"
-	releaseScheme   = "Screendrop"
-	developmentTeam = "TB2S44TFQS"
-	archiveName     = "Screendrop.xcarchive"
+	projectName   = "Screendrop.xcodeproj"
+	releaseScheme = "Screendrop"
+	// Developer ID team for -build. Empty until there is one; without it,
+	// export the app to ~/Downloads by hand and release without -build.
+	developmentTeam = ""
+	archiveName     = "Framecho.xcarchive"
 )
 
 var derivedDataPrefixes = []string{
@@ -147,7 +153,7 @@ func main() {
 		requireCommand("ditto", "")
 	}
 
-	signUpdate := findSignUpdate(homeDir)
+	signUpdate := findSignUpdate(homeDir, repoDir)
 	if signUpdate == "" && !doBuild {
 		fail("Sparkle sign_update not found in DerivedData. Build the project once first.")
 	}
@@ -159,7 +165,7 @@ func main() {
 		// The archive populates DerivedData with Sparkle's artifacts, so
 		// sign_update is available now even if it wasn't before.
 		if signUpdate == "" {
-			signUpdate = findSignUpdate(homeDir)
+			signUpdate = findSignUpdate(homeDir, repoDir)
 			if signUpdate == "" {
 				fail("Sparkle sign_update not found in DerivedData after archiving.")
 			}
@@ -256,7 +262,7 @@ func main() {
 
 	step("Signing DMG with Sparkle...")
 
-	signOut, err := runCmd(signUpdate, dmgPath)
+	signOut, err := runCmd(signUpdate, "--account", sparkleAccount, dmgPath)
 	if err != nil {
 		fail(fmt.Sprintf("sign_update failed: %s\n%s", err, signOut))
 	}
@@ -356,11 +362,13 @@ func main() {
 	}
 	success("Pushed to " + gitBranch)
 
-	step("Updating Homebrew cask...")
-	if err := updateHomebrewCask(homeDir, version, dmgPath); err != nil {
-		warn("Homebrew cask not updated: " + err.Error())
-	} else {
-		success("Homebrew cask updated in " + tapRepo)
+	if tapRepo != "" {
+		step("Updating Homebrew cask...")
+		if err := updateHomebrewCask(homeDir, version, dmgPath); err != nil {
+			warn("Homebrew cask not updated: " + err.Error())
+		} else {
+			success("Homebrew cask updated in " + tapRepo)
+		}
 	}
 
 	fmt.Printf("\n%s%s=======================================%s\n", green, bold, reset)
@@ -493,8 +501,7 @@ func findRepoDir(homeDir string) string {
 	}
 
 	candidates := []string{
-		filepath.Join(homeDir, "Developer", "fayazara", "mac", "OpenShot"),
-		filepath.Join(homeDir, "Developer", "fayazara", "mac", "Screendrop"),
+		filepath.Join(homeDir, "person", "Screendrop"),
 	}
 	for _, candidate := range candidates {
 		if fileExists(filepath.Join(candidate, appcastFile)) {
@@ -502,11 +509,19 @@ func findRepoDir(homeDir string) string {
 		}
 	}
 
-	fail("Could not find Screendrop repo. Set " + repoEnvVar + " to the repo path.")
+	fail("Could not find the Framecho repo. Set " + repoEnvVar + " to the repo path.")
 	return ""
 }
 
-func findSignUpdate(homeDir string) string {
+func findSignUpdate(homeDir, repoDir string) string {
+	// The command-line Release build in AGENTS.md keeps its derived data
+	// inside the repo.
+	local := filepath.Join(repoDir, "build", "release",
+		"SourcePackages", "artifacts", "sparkle", "Sparkle", "bin", "sign_update")
+	if fileExists(local) {
+		return local
+	}
+
 	derivedData := filepath.Join(homeDir, "Library", "Developer", "Xcode", "DerivedData")
 	entries, err := os.ReadDir(derivedData)
 	if err != nil {
@@ -702,6 +717,9 @@ func cleanNote(line string) string {
 // notarytool, and staple. The notarized + stapled app is placed at appPath
 // (~/Downloads/Screendrop.app) so the rest of the pipeline can package it.
 func runBuildPhase(repoDir, homeDir, appPath string) {
+	if developmentTeam == "" {
+		fail("-build needs a Developer ID team: set developmentTeam in main.go, or export " + appName + " to ~/Downloads and run without -build.")
+	}
 	ensureXcodeDeveloperDir()
 
 	projectPath := filepath.Join(repoDir, projectName)
@@ -926,14 +944,14 @@ func writeAppcast(path string, items []Item) error {
   xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"
   xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
-    <title>Screendrop Updates</title>
-    <link>https://raw.githubusercontent.com/fayazara/screendrop/main/appcast.xml</link>
+    <title>Framecho Updates</title>
+    <link>` + appcastURL + `</link>
     <language>en</language>
 
     <!--
       HOW TO ADD A NEW RELEASE:
       1. Bump MARKETING_VERSION and CURRENT_PROJECT_VERSION in Xcode.
-      2. Export Screendrop.app to ~/Downloads.
+      2. Export Framecho.app to ~/Downloads (a Release build; see AGENTS.md).
       3. Run: go run ./cmd/screendrop-release
          - Enter release notes when prompted, or run non-interactively with
            flags, e.g.:
@@ -942,7 +960,7 @@ func writeAppcast(path string, items []Item) error {
              Improved upload flow"
            (-notes-file <path> reads bullets from a file instead.)
 
-      The release tool creates Screendrop.dmg, signs it with Sparkle, prepends
+      The release tool creates Framecho.dmg, signs it with Sparkle, prepends
       this appcast, commits/pushes appcast.xml to main, and creates the GitHub
       release with the DMG attached.
 
