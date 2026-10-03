@@ -19,11 +19,11 @@ struct ScreendropApp: App {
     var body: some Scene {
         let _ = configurePreviewPresentation()
 
-        MenuBarExtra("Screendrop", image: "MenuBarIcon", isInserted: $showMenuBarIcon) {
+        MenuBarExtra("Framecho", image: "MenuBarIcon", isInserted: $showMenuBarIcon) {
             MenuBarView()
         }
 
-        Window("Screendrop Library", id: "CAPTURE_LIBRARY") {
+        Window("Framecho Library", id: "CAPTURE_LIBRARY") {
             CaptureLibraryView()
         }
         .defaultSize(width: 1180, height: 760)
@@ -40,13 +40,13 @@ struct ScreendropApp: App {
             }
         }
         
-        WindowGroup("Screendrop Annotate", id: "ANNOTATION_EDITOR", for: URL.self) { value in
+        WindowGroup("Framecho Annotate", id: "ANNOTATION_EDITOR", for: URL.self) { value in
             AnnotationEditorWindow(url: value)
         }
         .windowResizability(.contentSize)
         .defaultSize(width: 1100, height: 760)
 
-        WindowGroup("Screendrop Recording Editor", id: "VIDEO_EDITOR", for: URL.self) { value in
+        WindowGroup("Framecho Recording Editor", id: "VIDEO_EDITOR", for: URL.self) { value in
             RecordingStudioWindow(url: value)
         }
         .windowResizability(.contentSize)
@@ -197,11 +197,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.alertStyle = .warning
             alert.messageText = String(localized: "A screen recording is still in progress")
             if unsavedCount == 1 {
-                alert.informativeText = String(localized: "Screendrop will finish and save the recording before quitting. You also have 1 unsaved capture that will be discarded.")
+                alert.informativeText = String(localized: "Framecho will finish and save the recording before quitting. You also have 1 unsaved capture that will be discarded.")
             } else if unsavedCount > 1 {
-                alert.informativeText = String(localized: "Screendrop will finish and save the recording before quitting. You also have \(unsavedCount) unsaved captures that will be discarded.")
+                alert.informativeText = String(localized: "Framecho will finish and save the recording before quitting. You also have \(unsavedCount) unsaved captures that will be discarded.")
             } else {
-                alert.informativeText = String(localized: "Screendrop will finish and save the recording before quitting. This can take a moment for a long recording.")
+                alert.informativeText = String(localized: "Framecho will finish and save the recording before quitting. This can take a moment for a long recording.")
             }
             alert.addButton(withTitle: String(localized: "Cancel"))
             alert.addButton(withTitle: String(localized: "Finish Recording and Quit"))

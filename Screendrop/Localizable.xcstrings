@@ -645,22 +645,22 @@
         }
       }
     },
-    "Allow Screendrop to use the camera in Privacy & Security, then select it again." : {
+    "Allow Framecho to use the camera in Privacy & Security, then select it again." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请在“隐私与安全性”中允许 Screendrop 使用摄像头，然后重新选择。"
+            "value" : "请在“隐私与安全性”中允许 Framecho 使用摄像头，然后重新选择。"
           }
         }
       }
     },
-    "Allow Screendrop to use the microphone in Privacy & Security, then select it again." : {
+    "Allow Framecho to use the microphone in Privacy & Security, then select it again." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请在“隐私与安全性”中允许 Screendrop 使用麦克风，然后重新选择。"
+            "value" : "请在“隐私与安全性”中允许 Framecho 使用麦克风，然后重新选择。"
           }
         }
       }
@@ -755,12 +755,12 @@
         }
       }
     },
-    "Approve Screendrop in System Settings → General → Login Items." : {
+    "Approve Framecho in System Settings → General → Login Items." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请在“系统设置”→“通用”→“登录项”中允许 Screendrop。"
+            "value" : "请在“系统设置”→“通用”→“登录项”中允许 Framecho。"
           }
         }
       }
@@ -965,6 +965,16 @@
         }
       }
     },
+    "Based on Screendrop by Fayaz Ahmed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基于 Fayaz Ahmed 的 Screendrop"
+          }
+        }
+      }
+    },
     "Black" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1071,16 +1081,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "右下"
-          }
-        }
-      }
-    },
-    "Built by Fayaz Ahmed" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "由 Fayaz Ahmed 开发"
           }
         }
       }
@@ -1373,32 +1373,32 @@
         }
       }
     },
-    "Captures a region you drag out and adds it to Screendrop's history." : {
+    "Captures a region you drag out and adds it to Framecho's history." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "截取你拖移出的区域，并添加到 Screendrop 的历史记录中。"
+            "value" : "截取你拖移出的区域，并添加到 Framecho 的历史记录中。"
           }
         }
       }
     },
-    "Captures a window you click and adds it to Screendrop's history." : {
+    "Captures a window you click and adds it to Framecho's history." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "截取你点按的窗口，并添加到 Screendrop 的历史记录中。"
+            "value" : "截取你点按的窗口，并添加到 Framecho 的历史记录中。"
           }
         }
       }
     },
-    "Captures the entire screen and adds it to Screendrop's history." : {
+    "Captures the entire screen and adds it to Framecho's history." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "截取整个屏幕，并添加到 Screendrop 的历史记录中。"
+            "value" : "截取整个屏幕，并添加到 Framecho 的历史记录中。"
           }
         }
       }
@@ -3423,16 +3423,6 @@
         }
       }
     },
-    "Follow on Twitter" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在 Twitter 上关注"
-          }
-        }
-      }
-    },
     "Follows pointer" : {
       "localizations" : {
         "zh-Hans" : {
@@ -3489,6 +3479,146 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "帧率"
+          }
+        }
+      }
+    },
+    "Framecho" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Framecho"
+          }
+        }
+      }
+    },
+    "Framecho Annotate" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Framecho 标注"
+          }
+        }
+      }
+    },
+    "Framecho can't record until it's allowed under Privacy & Security > Screen & System Audio Recording. After turning it on, quit and reopen Framecho - macOS applies the permission on relaunch." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要在“隐私与安全性”>“录屏与系统录音”中允许后，Framecho 才能录制。打开后，请退出并重新打开 Framecho - macOS 会在重新启动时应用该权限。"
+          }
+        }
+      }
+    },
+    "Framecho can't use the camera because access is restricted on this Mac." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 Mac 限制了访问权限，因此 Framecho 无法使用摄像头。"
+          }
+        }
+      }
+    },
+    "Framecho can't use the microphone because access is restricted on this Mac." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 Mac 限制了访问权限，因此 Framecho 无法使用麦克风。"
+          }
+        }
+      }
+    },
+    "Framecho is a lightweight opensource app for capturing screenshots and screen recordings on macOS." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Framecho 是一款轻量的开源应用，用于在 macOS 上截图和录屏。"
+          }
+        }
+      }
+    },
+    "Framecho is already recording." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Framecho 已在录制。"
+          }
+        }
+      }
+    },
+    "Framecho isn't currently recording." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Framecho 当前没有在录制。"
+          }
+        }
+      }
+    },
+    "Framecho Library" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Framecho 资料库"
+          }
+        }
+      }
+    },
+    "Framecho Recording Editor" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Framecho 录制编辑器"
+          }
+        }
+      }
+    },
+    "Framecho will finish and save the recording before quitting. This can take a moment for a long recording." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Framecho 会在退出前完成并存储录制。较长的录制可能需要一些时间。"
+          }
+        }
+      }
+    },
+    "Framecho will finish and save the recording before quitting. You also have %lld unsaved captures that will be discarded." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Framecho 会在退出前完成并存储录制。另有 %lld 项未存储的内容将被丢弃。"
+          }
+        }
+      }
+    },
+    "Framecho will finish and save the recording before quitting. You also have 1 unsaved capture that will be discarded." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Framecho 会在退出前完成并存储录制。另有 1 项未存储的内容将被丢弃。"
+          }
+        }
+      }
+    },
+    "Framecho windows will be captured" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Framecho 窗口会出现在截图和录屏中"
           }
         }
       }
@@ -3833,12 +3963,12 @@
         }
       }
     },
-    "Include Screendrop windows in captures" : {
+    "Include Framecho windows in captures" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在截图和录屏中包含 Screendrop 窗口"
+            "value" : "在截图和录屏中包含 Framecho 窗口"
           }
         }
       }
@@ -3963,12 +4093,12 @@
         }
       }
     },
-    "Keyboard shortcuts could not be initialized. Try reopening Screendrop." : {
+    "Keyboard shortcuts could not be initialized. Try reopening Framecho." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "无法初始化键盘快捷键。请尝试重新打开 Screendrop。"
+            "value" : "无法初始化键盘快捷键。请尝试重新打开 Framecho。"
           }
         }
       }
@@ -5479,12 +5609,12 @@
         }
       }
     },
-    "Quit Screendrop" : {
+    "Quit Framecho" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "退出 Screendrop"
+            "value" : "退出 Framecho"
           }
         }
       }
@@ -6519,142 +6649,12 @@
         }
       }
     },
-    "Screendrop" : {
+    "Screendrop on GitHub" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Screendrop"
-          }
-        }
-      }
-    },
-    "Screendrop Annotate" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Screendrop 标注"
-          }
-        }
-      }
-    },
-    "Screendrop can't record until it's allowed under Privacy & Security > Screen & System Audio Recording. After turning it on, quit and reopen Screendrop - macOS applies the permission on relaunch." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "需要在“隐私与安全性”>“录屏与系统录音”中允许后，Screendrop 才能录制。打开后，请退出并重新打开 Screendrop - macOS 会在重新启动时应用该权限。"
-          }
-        }
-      }
-    },
-    "Screendrop can't use the camera because access is restricted on this Mac." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此 Mac 限制了访问权限，因此 Screendrop 无法使用摄像头。"
-          }
-        }
-      }
-    },
-    "Screendrop can't use the microphone because access is restricted on this Mac." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此 Mac 限制了访问权限，因此 Screendrop 无法使用麦克风。"
-          }
-        }
-      }
-    },
-    "Screendrop is a lightweight opensource app for capturing screenshots and screen recordings on macOS." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Screendrop 是一款轻量的开源应用，用于在 macOS 上截图和录屏。"
-          }
-        }
-      }
-    },
-    "Screendrop is already recording." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Screendrop 已在录制。"
-          }
-        }
-      }
-    },
-    "Screendrop isn't currently recording." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Screendrop 当前没有在录制。"
-          }
-        }
-      }
-    },
-    "Screendrop Library" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Screendrop 资料库"
-          }
-        }
-      }
-    },
-    "Screendrop Recording Editor" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Screendrop 录制编辑器"
-          }
-        }
-      }
-    },
-    "Screendrop will finish and save the recording before quitting. This can take a moment for a long recording." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Screendrop 会在退出前完成并存储录制。较长的录制可能需要一些时间。"
-          }
-        }
-      }
-    },
-    "Screendrop will finish and save the recording before quitting. You also have %lld unsaved captures that will be discarded." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Screendrop 会在退出前完成并存储录制。另有 %lld 项未存储的内容将被丢弃。"
-          }
-        }
-      }
-    },
-    "Screendrop will finish and save the recording before quitting. You also have 1 unsaved capture that will be discarded." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Screendrop 会在退出前完成并存储录制。另有 1 项未存储的内容将被丢弃。"
-          }
-        }
-      }
-    },
-    "Screendrop windows will be captured" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Screendrop 窗口会出现在截图和录屏中"
+            "value" : "GitHub 上的 Screendrop"
           }
         }
       }
@@ -7035,12 +7035,12 @@
         }
       }
     },
-    "Show preview cards, recording controls, Settings, and other Screendrop windows in screenshots and screen recordings." : {
+    "Show preview cards, recording controls, Settings, and other Framecho windows in screenshots and screen recordings." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在截图和屏幕录制中显示预览卡片、录制控制、设置以及其他 Screendrop 窗口。"
+            "value" : "在截图和屏幕录制中显示预览卡片、录制控制、设置以及其他 Framecho 窗口。"
           }
         }
       }
@@ -7315,6 +7315,16 @@
         }
       }
     },
+    "Start Framecho automatically when you sign in." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录时自动启动 Framecho。"
+          }
+        }
+      }
+    },
     "Start over" : {
       "localizations" : {
         "zh-Hans" : {
@@ -7335,32 +7345,22 @@
         }
       }
     },
-    "Start Screendrop automatically when you sign in." : {
+    "Starts a full screen recording if Framecho is idle, or stops the current one." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "登录时自动启动 Screendrop。"
+            "value" : "若 Framecho 处于空闲状态则开始全屏录制，否则停止当前录制。"
           }
         }
       }
     },
-    "Starts a full screen recording if Screendrop is idle, or stops the current one." : {
+    "Starts recording the active display in Framecho." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "若 Screendrop 处于空闲状态则开始全屏录制，否则停止当前录制。"
-          }
-        }
-      }
-    },
-    "Starts recording the active display in Screendrop." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在 Screendrop 中开始录制当前显示器。"
+            "value" : "在 Framecho 中开始录制当前显示器。"
           }
         }
       }
@@ -7395,12 +7395,12 @@
         }
       }
     },
-    "Stops the current Screendrop screen recording." : {
+    "Stops the current Framecho screen recording." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "停止当前的 Screendrop 屏幕录制。"
+            "value" : "停止当前的 Framecho 屏幕录制。"
           }
         }
       }
@@ -7755,12 +7755,12 @@
         }
       }
     },
-    "The playable footage was preserved in History and can be reopened in Screendrop Studio." : {
+    "The playable footage was preserved in History and can be reopened in Framecho Studio." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "可播放的录像已保留在历史记录中，可在 Screendrop Studio 中重新打开。"
+            "value" : "可播放的录像已保留在历史记录中，可在 Framecho Studio 中重新打开。"
           }
         }
       }
@@ -7945,22 +7945,22 @@
         }
       }
     },
-    "This is not a valid Screendrop preset file." : {
+    "This is not a valid Framecho preset file." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这不是有效的 Screendrop 预设文件。"
+            "value" : "这不是有效的 Framecho 预设文件。"
           }
         }
       }
     },
-    "This JSON file is not a Screendrop screenshot preset." : {
+    "This JSON file is not a Framecho screenshot preset." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此 JSON 文件不是 Screendrop 截图预设。"
+            "value" : "此 JSON 文件不是 Framecho 截图预设。"
           }
         }
       }
@@ -8315,12 +8315,12 @@
         }
       }
     },
-    "Turn off to hide Screendrop windows from screenshots and recordings" : {
+    "Turn off to hide Framecho windows from screenshots and recordings" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "关闭后，截图和录制中将隐藏 Screendrop 窗口"
+            "value" : "关闭后，截图和录制中将隐藏 Framecho 窗口"
           }
         }
       }
@@ -8861,12 +8861,12 @@
         }
       }
     },
-    "When hidden, reopen Screendrop to get back to Settings." : {
+    "When hidden, reopen Framecho to get back to Settings." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "隐藏后，重新打开 Screendrop 即可回到“设置”。"
+            "value" : "隐藏后，重新打开 Framecho 即可回到“设置”。"
           }
         }
       }
@@ -9063,12 +9063,12 @@
         }
       }
     },
-    "Your screen, camera, and audio masters are safe in the recording project, but Screendrop could not create the combined video: %@" : {
+    "Your screen, camera, and audio masters are safe in the recording project, but Framecho could not create the combined video: %@" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "屏幕、摄像头和音频的原始文件已安全保存在录制项目中，但 Screendrop 无法生成合成视频：%@"
+            "value" : "屏幕、摄像头和音频的原始文件已安全保存在录制项目中，但 Framecho 无法生成合成视频：%@"
           }
         }
       }

@@ -92,7 +92,7 @@ struct MenuBarView: View {
             
             Divider()
             
-            Button("Quit Screendrop") {
+            Button("Quit Framecho") {
                 NSApplication.shared.terminate(nil)
             }
             .keyboardShortcut("q")

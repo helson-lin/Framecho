@@ -326,9 +326,9 @@ enum AnnotationBackgroundPresetTransferError: LocalizedError {
         case .presetNotFound:
             String(localized: "The selected preset no longer exists.")
         case .invalidJSON:
-            String(localized: "This is not a valid Screendrop preset file.")
+            String(localized: "This is not a valid Framecho preset file.")
         case .invalidFormat:
-            String(localized: "This JSON file is not a Screendrop screenshot preset.")
+            String(localized: "This JSON file is not a Framecho screenshot preset.")
         case .unsupportedVersion(let version):
             String(localized: "This preset uses unsupported format version \(version).")
         case .emptyFile:

@@ -592,9 +592,9 @@ final class ScreenRecordingManager {
         alert.alertStyle = .warning
         alert.messageText = String(localized: "Screen Recording permission needed")
         alert.informativeText = String(localized: """
-        Screendrop can't record until it's allowed under Privacy & Security > \
+        Framecho can't record until it's allowed under Privacy & Security > \
         Screen & System Audio Recording. After turning it on, quit and reopen \
-        Screendrop - macOS applies the permission on relaunch.
+        Framecho - macOS applies the permission on relaunch.
         """)
         alert.addButton(withTitle: String(localized: "Open System Settings"))
         alert.addButton(withTitle: String(localized: "Cancel"))

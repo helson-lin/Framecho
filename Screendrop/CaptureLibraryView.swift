@@ -54,7 +54,7 @@ struct CaptureLibraryView: View {
             }
             .modifier(LibraryDetailCorners(showsSidebar: columnVisibility != .detailOnly))
             .navigationTitle(activeFilter.title)
-            .navigationSubtitle("Screendrop")
+            .navigationSubtitle("Framecho")
         }
         .navigationSplitViewStyle(.balanced)
         .searchable(text: $model.searchText, placement: .toolbar, prompt: "Search captures")

@@ -38,18 +38,18 @@ enum RecordingInputAuthorization {
         fileprivate var restrictedMessage: String {
             switch self {
             case .camera:
-                String(localized: "Screendrop can't use the camera because access is restricted on this Mac.")
+                String(localized: "Framecho can't use the camera because access is restricted on this Mac.")
             case .microphone:
-                String(localized: "Screendrop can't use the microphone because access is restricted on this Mac.")
+                String(localized: "Framecho can't use the microphone because access is restricted on this Mac.")
             }
         }
 
         fileprivate var deniedMessage: String {
             switch self {
             case .camera:
-                String(localized: "Allow Screendrop to use the camera in Privacy & Security, then select it again.")
+                String(localized: "Allow Framecho to use the camera in Privacy & Security, then select it again.")
             case .microphone:
-                String(localized: "Allow Screendrop to use the microphone in Privacy & Security, then select it again.")
+                String(localized: "Allow Framecho to use the microphone in Privacy & Security, then select it again.")
             }
         }
 

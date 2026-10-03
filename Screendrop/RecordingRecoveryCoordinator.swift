@@ -44,7 +44,7 @@ enum RecordingRecoveryCoordinator {
             alert.messageText = recoveredCount == 1
                 ? String(localized: "Recovered an interrupted recording")
                 : String(localized: "Recovered \(recoveredCount) interrupted recordings")
-            alert.informativeText = String(localized: "The playable footage was preserved in History and can be reopened in Screendrop Studio.")
+            alert.informativeText = String(localized: "The playable footage was preserved in History and can be reopened in Framecho Studio.")
             alert.addButton(withTitle: String(localized: "OK"))
             alert.runModal()
         }

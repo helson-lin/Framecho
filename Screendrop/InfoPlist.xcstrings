@@ -8,7 +8,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Screendrop"
+            "value" : "Framecho"
           }
         }
       }
@@ -20,7 +20,17 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Screendrop"
+            "value" : "Framecho"
+          }
+        }
+      }
+    },
+    "Framecho Screenshot Preset" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Framecho 截图预设"
           }
         }
       }
@@ -32,13 +42,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Screendrop records your camera alongside the screen so you can add a camera bubble to recordings."
+            "value" : "Framecho records your camera alongside the screen so you can add a camera bubble to recordings."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "Screendrop 会在录制屏幕的同时录制摄像头，以便在录制中加入摄像头画面。"
+            "state" : "needs_review",
+            "value" : "Framecho 会在录制屏幕的同时录制摄像头，以便在录制中加入摄像头画面。"
           }
         }
       }
@@ -62,23 +72,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Screendrop captures your microphone so recordings can include narration."
+            "value" : "Framecho captures your microphone so recordings can include narration."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "Screendrop 会录制麦克风，以便录制中包含旁白。"
-          }
-        }
-      }
-    },
-    "Screendrop Screenshot Preset" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Screendrop 截图预设"
+            "state" : "needs_review",
+            "value" : "Framecho 会录制麦克风，以便录制中包含旁白。"
           }
         }
       }

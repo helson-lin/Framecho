@@ -190,7 +190,7 @@ enum RecordingSessionRenderer {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = String(localized: "The camera video could not be added")
-        alert.informativeText = String(localized: "Your screen, camera, and audio masters are safe in the recording project, but Screendrop could not create the combined video: \(error.localizedDescription)")
+        alert.informativeText = String(localized: "Your screen, camera, and audio masters are safe in the recording project, but Framecho could not create the combined video: \(error.localizedDescription)")
         alert.addButton(withTitle: String(localized: "OK"))
         alert.runModal()
     }

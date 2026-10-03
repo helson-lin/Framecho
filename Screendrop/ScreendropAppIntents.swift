@@ -34,9 +34,9 @@ nonisolated enum ScreendropIntentError: Error, CustomLocalizedStringResourceConv
         case .noTextRecognized:
             "No text was recognized in the captured area."
         case .recordingAlreadyActive:
-            "Screendrop is already recording."
+            "Framecho is already recording."
         case .noActiveRecording:
-            "Screendrop isn't currently recording."
+            "Framecho isn't currently recording."
         case .noDisplayAvailable:
             "No display was available to record."
         }
@@ -48,7 +48,7 @@ nonisolated enum ScreendropIntentError: Error, CustomLocalizedStringResourceConv
 nonisolated struct TakeFullScreenScreenshotIntent: AppIntent {
     static var title: LocalizedStringResource = "Take Full Screen Screenshot"
     static var description = IntentDescription(
-        "Captures the entire screen and adds it to Screendrop's history."
+        "Captures the entire screen and adds it to Framecho's history."
     )
 
     @MainActor
@@ -63,7 +63,7 @@ nonisolated struct TakeFullScreenScreenshotIntent: AppIntent {
 nonisolated struct TakeWindowScreenshotIntent: AppIntent {
     static var title: LocalizedStringResource = "Take Window Screenshot"
     static var description = IntentDescription(
-        "Captures a window you click and adds it to Screendrop's history."
+        "Captures a window you click and adds it to Framecho's history."
     )
 
     @MainActor
@@ -78,7 +78,7 @@ nonisolated struct TakeWindowScreenshotIntent: AppIntent {
 nonisolated struct TakeAreaScreenshotIntent: AppIntent {
     static var title: LocalizedStringResource = "Take Area Screenshot"
     static var description = IntentDescription(
-        "Captures a region you drag out and adds it to Screendrop's history."
+        "Captures a region you drag out and adds it to Framecho's history."
     )
 
     @MainActor
@@ -131,7 +131,7 @@ private func startFullScreenRecording() async throws {
 nonisolated struct StartScreenRecordingIntent: AppIntent {
     static var title: LocalizedStringResource = "Start Screen Recording"
     static var description = IntentDescription(
-        "Starts recording the active display in Screendrop."
+        "Starts recording the active display in Framecho."
     )
 
     @MainActor
@@ -144,7 +144,7 @@ nonisolated struct StartScreenRecordingIntent: AppIntent {
 nonisolated struct StopScreenRecordingIntent: AppIntent {
     static var title: LocalizedStringResource = "Stop Screen Recording"
     static var description = IntentDescription(
-        "Stops the current Screendrop screen recording."
+        "Stops the current Framecho screen recording."
     )
 
     @MainActor
@@ -160,7 +160,7 @@ nonisolated struct StopScreenRecordingIntent: AppIntent {
 nonisolated struct ToggleScreenRecordingIntent: AppIntent {
     static var title: LocalizedStringResource = "Toggle Screen Recording"
     static var description = IntentDescription(
-        "Starts a full screen recording if Screendrop is idle, or stops the current one."
+        "Starts a full screen recording if Framecho is idle, or stops the current one."
     )
 
     @MainActor
