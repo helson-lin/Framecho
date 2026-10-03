@@ -783,14 +783,27 @@ private struct StudioCanvasComposition: View {
 
 // MARK: - Pose adjustment
 
-/// Direct 3D manipulation of the card on the canvas. Dragging the card turns
-/// and tilts it like a trackball, the corner squares scale it, the outer
-/// arrows rotate it in the screen plane, and the center handle moves it.
-/// Every drag is one undo step; the inspector keeps exact numeric entry.
+/// Direct 3D manipulation of the card on the canvas, built around a
+/// rotation ball at the card's center. The ball's horizontal ring turns the
+/// card left and right, its vertical ring tilts it, its outer ring rotates it
+/// in the screen plane, and dragging inside the ball rotates freely like a
+/// trackball. Dragging the card outside the ball moves it; the corner
+/// squares scale it. Every drag is one undo step; the inspector keeps exact
+/// numeric entry.
 private struct StudioPoseAdjustOverlay: View {
     @Bindable var model: RecordingStudioModel
     let layout: RecordingStudioLayout
     let canvasSize: CGSize
+
+    /// What a drag changes, decided where it starts.
+    private enum DragMode: Equatable {
+        case trackball
+        case turn
+        case tilt
+        case rotate
+        case move
+        case scale
+    }
 
     /// The pose and pointer when a drag began, so each event is measured
     /// against a fixed start instead of compounding.
@@ -798,14 +811,20 @@ private struct StudioPoseAdjustOverlay: View {
         let pose: RecordingCardPose
         let location: CGPoint
         let center: CGPoint
+        let mode: DragMode
     }
 
     @State private var dragStart: DragStart?
+    @State private var hoverMode: DragMode?
 
-    /// A drag across the card's longer side turns it this far.
-    private static let fullDragDegrees: Double = 90
+    /// Dragging across the ball's diameter turns the card this far.
+    private static let diameterDegrees: Double = 120
+    /// Vertical squash of the turn and tilt rings, which is what makes the
+    /// ball read as a sphere rather than a flat target.
+    private static let ringDepth: CGFloat = 0.34
+    /// How close to a ring a press must land to grab it.
+    private static let ringGrabDistance: CGFloat = 7
     private static let handleSize: CGFloat = 9
-    private static let rotateHandleOffset: CGFloat = 20
     private static let coordinateSpace = CoordinateSpace.named(VideoCropOverlay.coordinateSpaceName)
 
     var body: some View {
@@ -818,129 +837,286 @@ private struct StudioPoseAdjustOverlay: View {
         )
         let quad = projection.quad(for: layout.cardRect)
         let center = projection.project(CGPoint(x: layout.cardRect.midX, y: layout.cardRect.midY))
+        let radius = ballRadius(for: projection.bounds(of: layout.cardRect))
         let outline = Path { path in
             path.addLines(quad)
             path.closeSubpath()
         }
 
         ZStack(alignment: .topLeading) {
+            // The card face: moving outside the ball, rotating inside it.
             outline
-                .fill(Color.accentColor.opacity(0.06))
+                .fill(Color.accentColor.opacity(0.05))
                 .overlay {
-                    outline.stroke(Color.accentColor, lineWidth: 1.5)
+                    outline.stroke(Color.accentColor.opacity(0.9), lineWidth: 1.5)
                 }
-                .contentShape(outline)
-                .gesture(turnGesture(center: center))
-                .pointerStyle(.grabIdle)
-                .help("Drag to turn and tilt the card. Hold Shift to keep to one direction, Option to move it.")
-                .accessibilityElement()
-                .accessibilityLabel("Card pose")
-                .accessibilityValue(Text(Self.summary(pose)))
-                .accessibilityAdjustableAction { direction in
-                    var updated = pose
-                    updated.yawDegrees += direction == .increment ? 5 : -5
-                    model.setAdjustedPose(updated)
-                }
+
+            ball(pose: pose, center: center, radius: radius)
 
             ForEach(0..<4, id: \.self) { index in
-                rotateHandle(at: rotateHandlePosition(for: quad[index], center: center), center: center)
-                scaleHandle(at: quad[index], center: center)
+                scaleHandle(at: quad[index])
             }
-
-            moveHandle(at: center)
 
             hud(pose: pose)
                 .frame(width: canvasSize.width, height: canvasSize.height, alignment: .bottom)
                 .padding(.bottom, 10)
         }
         .frame(width: canvasSize.width, height: canvasSize.height, alignment: .topLeading)
+        // One hit surface for the face and the ball, so a press anywhere on
+        // the card picks its mode from where it lands.
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 1, coordinateSpace: Self.coordinateSpace)
+                .onChanged { value in
+                    drag(value, quad: quad, center: center, radius: radius)
+                }
+                .onEnded { _ in end() }
+        )
+        .onContinuousHover(coordinateSpace: Self.coordinateSpace) { phase in
+            switch phase {
+            case .active(let location):
+                hoverMode = mode(at: location, quad: quad, center: center, radius: radius)
+            case .ended:
+                hoverMode = nil
+            }
+        }
+        .pointerStyle(pointerStyle)
+        .help(helpText)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Card pose")
+        .accessibilityValue(Text(Self.summary(pose)))
+        .accessibilityAdjustableAction { direction in
+            var updated = pose
+            updated.yawDegrees += direction == .increment ? 5 : -5
+            model.setAdjustedPose(updated)
+        }
     }
 
-    // MARK: Gestures
+    // MARK: Ball
 
-    private func begin(_ value: DragGesture.Value, center: CGPoint) -> DragStart {
-        if let dragStart { return dragStart }
-        let start = DragStart(
-            pose: model.adjustedPose ?? .identity,
-            location: value.startLocation,
-            center: center
+    private func ballRadius(for cardBounds: CGRect) -> CGFloat {
+        min(max(min(cardBounds.width, cardBounds.height) * 0.26, 48), 120)
+    }
+
+    private func ball(pose: RecordingCardPose, center: CGPoint, radius: CGFloat) -> some View {
+        let active = dragStart?.mode ?? hoverMode
+        let turnRing = Path(ellipseIn: CGRect(
+            x: center.x - radius,
+            y: center.y - radius * Self.ringDepth,
+            width: radius * 2,
+            height: radius * 2 * Self.ringDepth
+        ))
+        let tiltRing = Path(ellipseIn: CGRect(
+            x: center.x - radius * Self.ringDepth,
+            y: center.y - radius,
+            width: radius * 2 * Self.ringDepth,
+            height: radius * 2
+        ))
+        let rotateRing = Path(ellipseIn: CGRect(
+            x: center.x - radius,
+            y: center.y - radius,
+            width: radius * 2,
+            height: radius * 2
+        ))
+
+        return ZStack(alignment: .topLeading) {
+            // A soft shaded sphere so the controls read as 3D.
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.white.opacity(0.28), Color.black.opacity(0.18)],
+                        center: UnitPoint(x: 0.35, y: 0.3),
+                        startRadius: 0,
+                        endRadius: radius * 1.2
+                    )
+                )
+                .frame(width: radius * 2, height: radius * 2)
+                .position(center)
+
+            ring(rotateRing, color: .blue, isActive: active == .rotate, width: 2.5)
+            ring(turnRing, color: .green, isActive: active == .turn)
+            ring(tiltRing, color: .red, isActive: active == .tilt)
+
+            // Where the card's front faces on each ring.
+            marker(at: turnMarker(pose: pose, center: center, radius: radius), color: .green)
+            marker(at: tiltMarker(pose: pose, center: center, radius: radius), color: .red)
+            marker(at: rotateMarker(pose: pose, center: center, radius: radius), color: .blue)
+
+            Circle()
+                .fill(Color.white.opacity(active == .trackball ? 0.9 : 0.6))
+                .frame(width: 6, height: 6)
+                .position(center)
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func ring(_ path: Path, color: Color, isActive: Bool, width: CGFloat = 2) -> some View {
+        path
+            .stroke(color.opacity(isActive ? 1 : 0.75), lineWidth: isActive ? width + 1.5 : width)
+            .shadow(color: .black.opacity(0.35), radius: 1, y: 0.5)
+    }
+
+    private func marker(at point: CGPoint, color: Color) -> some View {
+        Circle()
+            .fill(color)
+            .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
+            .frame(width: 9, height: 9)
+            .position(point)
+    }
+
+    /// Yaw as a point travelling around the horizontal ring's front.
+    private func turnMarker(pose: RecordingCardPose, center: CGPoint, radius: CGFloat) -> CGPoint {
+        let angle = pose.yawDegrees * .pi / 180
+        return CGPoint(
+            x: center.x + radius * CGFloat(sin(angle)),
+            y: center.y + radius * Self.ringDepth * CGFloat(cos(angle))
         )
-        dragStart = start
-        model.beginMotionEdit()
-        return start
+    }
+
+    /// Pitch as a point travelling around the vertical ring's front.
+    private func tiltMarker(pose: RecordingCardPose, center: CGPoint, radius: CGFloat) -> CGPoint {
+        let angle = pose.pitchDegrees * .pi / 180
+        return CGPoint(
+            x: center.x + radius * Self.ringDepth * CGFloat(cos(angle)),
+            y: center.y + radius * CGFloat(sin(angle))
+        )
+    }
+
+    /// Roll as a point on the outer ring, starting at the top.
+    private func rotateMarker(pose: RecordingCardPose, center: CGPoint, radius: CGFloat) -> CGPoint {
+        let angle = pose.rollDegrees * .pi / 180
+        return CGPoint(
+            x: center.x + radius * CGFloat(sin(angle)),
+            y: center.y - radius * CGFloat(cos(angle))
+        )
+    }
+
+    // MARK: Hit testing
+
+    private func mode(
+        at location: CGPoint,
+        quad: [CGPoint],
+        center: CGPoint,
+        radius: CGFloat
+    ) -> DragMode? {
+        if quad.contains(where: { hypot(location.x - $0.x, location.y - $0.y) <= 10 }) {
+            return .scale
+        }
+        let dx = location.x - center.x
+        let dy = location.y - center.y
+        let distance = hypot(dx, dy)
+        if abs(distance - radius) <= Self.ringGrabDistance {
+            return .rotate
+        }
+        if distance < radius {
+            if Self.distance(toEllipseWithRadii: CGSize(width: radius, height: radius * Self.ringDepth),
+                             dx: dx, dy: dy) <= Self.ringGrabDistance {
+                return .turn
+            }
+            if Self.distance(toEllipseWithRadii: CGSize(width: radius * Self.ringDepth, height: radius),
+                             dx: dx, dy: dy) <= Self.ringGrabDistance {
+                return .tilt
+            }
+            return .trackball
+        }
+        let outline = Path { path in
+            path.addLines(quad)
+            path.closeSubpath()
+        }
+        return outline.contains(location) ? .move : nil
+    }
+
+    /// Approximate distance from a point to an axis-aligned ellipse's curve.
+    private static func distance(toEllipseWithRadii radii: CGSize, dx: CGFloat, dy: CGFloat) -> CGFloat {
+        guard radii.width > 0, radii.height > 0 else { return .infinity }
+        let normalized = hypot(dx / radii.width, dy / radii.height)
+        guard normalized > 0 else { return min(radii.width, radii.height) }
+        let gradient = hypot(dx / (radii.width * radii.width), dy / (radii.height * radii.height))
+        return abs(normalized * normalized - 1) / (2 * max(gradient, 0.0001))
+    }
+
+    // MARK: Dragging
+
+    private func drag(
+        _ value: DragGesture.Value,
+        quad: [CGPoint],
+        center: CGPoint,
+        radius: CGFloat
+    ) {
+        if dragStart == nil {
+            guard let mode = mode(at: value.startLocation, quad: quad, center: center, radius: radius) else {
+                return
+            }
+            dragStart = DragStart(
+                pose: model.adjustedPose ?? .identity,
+                location: value.startLocation,
+                center: center,
+                mode: mode
+            )
+            model.beginMotionEdit()
+        }
+        guard let start = dragStart else { return }
+
+        let modifiers = NSEvent.modifierFlags
+        var dx = Double(value.location.x - start.location.x)
+        var dy = Double(value.location.y - start.location.y)
+        let degreesPerPoint = Self.diameterDegrees / Double(max(radius * 2, 1))
+        var pose = start.pose
+
+        switch start.mode {
+        case .trackball:
+            if modifiers.contains(.shift) {
+                if abs(dx) > abs(dy) { dy = 0 } else { dx = 0 }
+            }
+            // Like rolling the ball: dragging right sends the card's right
+            // edge away, dragging down sends its bottom away.
+            pose.yawDegrees = Self.detent(start.pose.yawDegrees + dx * degreesPerPoint)
+            pose.pitchDegrees = Self.detent(start.pose.pitchDegrees - dy * degreesPerPoint)
+        case .turn:
+            pose.yawDegrees = Self.snapped(start.pose.yawDegrees + dx * degreesPerPoint, modifiers)
+        case .tilt:
+            pose.pitchDegrees = Self.snapped(start.pose.pitchDegrees - dy * degreesPerPoint, modifiers)
+        case .rotate:
+            let startAngle = atan2(
+                Double(start.location.y - start.center.y),
+                Double(start.location.x - start.center.x)
+            )
+            let angle = atan2(
+                Double(value.location.y - start.center.y),
+                Double(value.location.x - start.center.x)
+            )
+            var delta = (angle - startAngle) * 180 / .pi
+            if delta > 180 { delta -= 360 }
+            if delta < -180 { delta += 360 }
+            pose.rollDegrees = Self.snapped(start.pose.rollDegrees + delta, modifiers)
+        case .move:
+            if modifiers.contains(.shift) {
+                if abs(dx) > abs(dy) { dy = 0 } else { dx = 0 }
+            }
+            pose.translationX = start.pose.translationX + dx / Double(max(canvasSize.width, 1))
+            pose.translationY = start.pose.translationY + dy / Double(max(canvasSize.height, 1))
+        case .scale:
+            let startDistance = hypot(
+                start.location.x - start.center.x,
+                start.location.y - start.center.y
+            )
+            let distance = hypot(
+                value.location.x - start.center.x,
+                value.location.y - start.center.y
+            )
+            guard startDistance > 1 else { return }
+            pose.scale = start.pose.scale * Double(distance / startDistance)
+        }
+        model.setAdjustedPose(pose)
     }
 
     private func end() {
+        guard dragStart != nil else { return }
         dragStart = nil
         model.endMotionEdit(actionName: String(localized: "Adjust Pose"))
     }
 
-    private func turnGesture(center: CGPoint) -> some Gesture {
-        DragGesture(minimumDistance: 1, coordinateSpace: Self.coordinateSpace)
-            .onChanged { value in
-                let start = begin(value, center: center)
-                let modifiers = NSEvent.modifierFlags
-                var dx = Double(value.location.x - start.location.x)
-                var dy = Double(value.location.y - start.location.y)
-                var pose = start.pose
-                if modifiers.contains(.option) {
-                    pose.translationX = start.pose.translationX + dx / Double(max(canvasSize.width, 1))
-                    pose.translationY = start.pose.translationY + dy / Double(max(canvasSize.height, 1))
-                } else {
-                    if modifiers.contains(.shift) {
-                        if abs(dx) > abs(dy) { dy = 0 } else { dx = 0 }
-                    }
-                    // Like pushing the card's face: dragging right sends its
-                    // right edge away, dragging down sends its bottom away.
-                    let degreesPerPoint = Self.fullDragDegrees
-                        / Double(max(layout.cardRect.width, layout.cardRect.height, 1))
-                    pose.yawDegrees = Self.detent(start.pose.yawDegrees + dx * degreesPerPoint)
-                    pose.pitchDegrees = Self.detent(start.pose.pitchDegrees - dy * degreesPerPoint)
-                }
-                model.setAdjustedPose(pose)
-            }
-            .onEnded { _ in end() }
-    }
-
-    private func rotateHandle(at position: CGPoint, center: CGPoint) -> some View {
-        Image(systemName: "arrow.trianglehead.clockwise.rotate.90")
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(Color.accentColor)
-            .frame(width: 22, height: 22)
-            .background(Circle().fill(.regularMaterial))
-            .overlay(Circle().stroke(Color.accentColor.opacity(0.5), lineWidth: 1))
-            .contentShape(Circle())
-            .position(position)
-            .gesture(
-                DragGesture(minimumDistance: 1, coordinateSpace: Self.coordinateSpace)
-                    .onChanged { value in
-                        let start = begin(value, center: center)
-                        let startAngle = atan2(
-                            Double(start.location.y - start.center.y),
-                            Double(start.location.x - start.center.x)
-                        )
-                        let angle = atan2(
-                            Double(value.location.y - start.center.y),
-                            Double(value.location.x - start.center.x)
-                        )
-                        var delta = (angle - startAngle) * 180 / .pi
-                        if delta > 180 { delta -= 360 }
-                        if delta < -180 { delta += 360 }
-                        var roll = start.pose.rollDegrees + delta
-                        if NSEvent.modifierFlags.contains(.shift) {
-                            roll = (roll / 15).rounded() * 15
-                        }
-                        var pose = start.pose
-                        pose.rollDegrees = Self.detent(roll)
-                        model.setAdjustedPose(pose)
-                    }
-                    .onEnded { _ in end() }
-            )
-            .help("Drag to rotate the card. Hold Shift for 15° steps.")
-            .accessibilityHidden(true)
-    }
-
-    private func scaleHandle(at position: CGPoint, center: CGPoint) -> some View {
+    private func scaleHandle(at position: CGPoint) -> some View {
         RoundedRectangle(cornerRadius: 2, style: .continuous)
             .fill(Color.white)
             .overlay(
@@ -948,71 +1124,31 @@ private struct StudioPoseAdjustOverlay: View {
                     .stroke(Color.accentColor, lineWidth: 1.5)
             )
             .frame(width: Self.handleSize, height: Self.handleSize)
-            .padding(6)
-            .contentShape(Rectangle())
             .position(position)
-            .gesture(
-                DragGesture(minimumDistance: 1, coordinateSpace: Self.coordinateSpace)
-                    .onChanged { value in
-                        let start = begin(value, center: center)
-                        let startDistance = hypot(
-                            start.location.x - start.center.x,
-                            start.location.y - start.center.y
-                        )
-                        let distance = hypot(
-                            value.location.x - start.center.x,
-                            value.location.y - start.center.y
-                        )
-                        guard startDistance > 1 else { return }
-                        var pose = start.pose
-                        pose.scale = start.pose.scale * Double(distance / startDistance)
-                        model.setAdjustedPose(pose)
-                    }
-                    .onEnded { _ in end() }
-            )
-            .pointerStyle(.frameResize(position: .topLeading))
-            .help("Drag to scale the card")
-            .accessibilityHidden(true)
+            .allowsHitTesting(false)
     }
 
-    private func moveHandle(at position: CGPoint) -> some View {
-        Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 26, height: 26)
-            .background(Circle().fill(Color.accentColor))
-            .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
-            .contentShape(Circle())
-            .position(position)
-            .gesture(
-                DragGesture(minimumDistance: 1, coordinateSpace: Self.coordinateSpace)
-                    .onChanged { value in
-                        let start = begin(value, center: position)
-                        var pose = start.pose
-                        pose.translationX = start.pose.translationX
-                            + Double(value.location.x - start.location.x) / Double(max(canvasSize.width, 1))
-                        pose.translationY = start.pose.translationY
-                            + Double(value.location.y - start.location.y) / Double(max(canvasSize.height, 1))
-                        model.setAdjustedPose(pose)
-                    }
-                    .onEnded { _ in end() }
-            )
-            .pointerStyle(.grabIdle)
-            .help("Drag to move the card")
-            .accessibilityHidden(true)
+    private var pointerStyle: PointerStyle? {
+        switch dragStart?.mode ?? hoverMode {
+        case .move: .grabIdle
+        case .scale: .frameResize(position: .topLeading)
+        case .turn: .columnResize
+        case .tilt: .rowResize
+        case .trackball, .rotate: .default
+        case nil: nil
+        }
     }
 
-    /// Rotate handles sit just outside each corner, kept on the canvas so a
-    /// card pushed to the edge stays reachable.
-    private func rotateHandlePosition(for corner: CGPoint, center: CGPoint) -> CGPoint {
-        let dx = corner.x - center.x
-        let dy = corner.y - center.y
-        let length = max(hypot(dx, dy), 1)
-        let inset: CGFloat = 13
-        return CGPoint(
-            x: min(max(corner.x + dx / length * Self.rotateHandleOffset, inset), canvasSize.width - inset),
-            y: min(max(corner.y + dy / length * Self.rotateHandleOffset, inset), canvasSize.height - inset)
-        )
+    private var helpText: String {
+        switch hoverMode {
+        case .turn: String(localized: "Drag the green ring to turn the card left or right")
+        case .tilt: String(localized: "Drag the red ring to tilt the card up or down")
+        case .rotate: String(localized: "Drag the blue ring to rotate the card. Hold Shift for 15° steps.")
+        case .trackball: String(localized: "Drag inside the ball to turn and tilt freely. Hold Shift to keep to one direction.")
+        case .move: String(localized: "Drag the card to move it")
+        case .scale: String(localized: "Drag to scale the card")
+        case nil: ""
+        }
     }
 
     // MARK: HUD
@@ -1060,6 +1196,11 @@ private struct StudioPoseAdjustOverlay: View {
     /// Lands exactly on zero when a drag passes close to it.
     private static func detent(_ degrees: Double) -> Double {
         abs(degrees) < 1.5 ? 0 : degrees
+    }
+
+    /// Shift snaps a single-axis drag to 15° steps.
+    private static func snapped(_ degrees: Double, _ modifiers: NSEvent.ModifierFlags) -> Double {
+        modifiers.contains(.shift) ? (degrees / 15).rounded() * 15 : detent(degrees)
     }
 }
 
