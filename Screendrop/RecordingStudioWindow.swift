@@ -693,6 +693,7 @@ private struct StudioCanvasComposition: View {
                     .clipped()
 
                 StudioPlayerLayerView(player: model.screenPlayer, gravity: .resize)
+                    .allowsHitTesting(false)
                     .frame(
                         width: layout.contentFillSize.width,
                         height: layout.contentFillSize.height
@@ -1987,6 +1988,14 @@ final class StudioPlayerContainerView: NSView {
     }
 
     required init?(coder: NSCoder) {
+        nil
+    }
+
+    /// The video only displays; every click and drag on the card belongs to
+    /// the SwiftUI gestures above it. Left hit-testable, AppKit routed
+    /// mouse-downs inside the (projected) player to this view first, so the
+    /// canvas's pose and crop drags never started.
+    override func hitTest(_ point: NSPoint) -> NSView? {
         nil
     }
 
