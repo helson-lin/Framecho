@@ -27,6 +27,28 @@
     -->
 
     <item>
+      <title>Version 0.34.2</title>
+      <sparkle:version>34</sparkle:version>
+      <sparkle:shortVersionString>0.34.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.4</sparkle:minimumSystemVersion>
+      <pubDate>Sat, 03 Oct 2026 11:10:29 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.34.2</h2>
+        <ul>
+          <li>壁纸资源包迁移至 Framecho 自有 Cloudflare R2 下载源</li>
+          <li>保留原壁纸包标识与目录结构，兼容已下载壁纸和保存的背景引用</li>
+          <li>更新中文 README，补充 Framecho 安装、自动更新与资源托管说明</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Screendrop/releases/download/v0.34.2/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="7uuQuZI78wjdFJ3VwwfOesHF5yxlfehMT/m7fjtDsqPtEcXnBRA8GJVTEXhExdC9YscWWK+TtUyeHtTdPVzrDA=="
+        length="8674837"
+      />
+    </item>
+
+    <item>
       <title>Version 0.34.1</title>
       <sparkle:version>33</sparkle:version>
       <sparkle:shortVersionString>0.34.1</sparkle:shortVersionString>
