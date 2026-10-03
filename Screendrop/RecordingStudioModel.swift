@@ -166,13 +166,19 @@ final class RecordingStudioModel {
     private(set) var keystrokeTimeline = KeystrokeCaptionTimeline.empty
     var selectedCueID: UUID? {
         didSet {
-            if selectedCueID != nil { selectedMotionCueID = nil }
+            guard selectedCueID != nil else { return }
+            selectedMotionCueID = nil
+            // Zoom editing works on the flat picture; a pose adjustment left
+            // open would hide its canvas target.
+            endPoseAdjustment()
         }
     }
     private(set) var clipTimeline = RecordingClipTimeline(segments: [])
     var selectedClipID: UUID? {
         didSet {
-            if selectedClipID != nil { selectedMotionCueID = nil }
+            guard selectedClipID != nil else { return }
+            selectedMotionCueID = nil
+            endPoseAdjustment()
         }
     }
     var timelineHoverTime: TimeInterval?
@@ -697,6 +703,10 @@ final class RecordingStudioModel {
 
     func selectMotionCue(id: UUID) {
         guard motion.cues.contains(where: { $0.id == id }) else { return }
+        // Picking another motion leaves the pose being adjusted.
+        if let target = poseAdjustmentTarget, target != .cue(id) {
+            endPoseAdjustment()
+        }
         selectedMotionCueID = id
         selectedCueID = nil
         selectedClipID = nil
