@@ -24,15 +24,33 @@ struct AfterCaptureActionsSection: View {
 
 private struct AfterCaptureToggleRow: View {
     @AppStorage private var isOn: Bool
+    /// The same capture type's upload toggle: copying the share link only
+    /// applies when uploads are on.
+    @AppStorage private var uploadIsOn: Bool
     private let title: String
     private let subtitle: String
     private let action: AfterCaptureAction
 
     init(action: AfterCaptureAction, type: AfterCaptureType) {
         _isOn = AppStorage(wrappedValue: action.defaultValue, action.storageKey(for: type))
+        _uploadIsOn = AppStorage(
+            wrappedValue: AfterCaptureAction.upload.defaultValue,
+            AfterCaptureAction.upload.storageKey(for: type)
+        )
         self.action = action
         title = action.title
         subtitle = action.subtitle
+    }
+
+    private var isDisabled: Bool {
+        switch action {
+        case .upload:
+            !isOn && !CloudCredentialStore.shared.isConfigured
+        case .copyShareLink:
+            !uploadIsOn
+        default:
+            false
+        }
     }
 
     var body: some View {
@@ -40,7 +58,7 @@ private struct AfterCaptureToggleRow: View {
             SettingsControlLabel(title, detail: subtitle)
         }
         .toggleStyle(.switch)
-        .disabled(action == .upload && !isOn && !CloudCredentialStore.shared.isConfigured)
+        .disabled(isDisabled)
 
         if action == .upload && !CloudCredentialStore.shared.isConfigured {
             HStack {
