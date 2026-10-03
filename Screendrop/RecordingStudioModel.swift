@@ -2097,7 +2097,8 @@ final class RecordingStudioModel {
             audioVolume: Double(audioVolume),
             reframe: reframe,
             fitContentAspect: fitContentAspect,
-            usesUniformPadding: exportAspect == .original
+            usesUniformPadding: exportAspect == .original,
+            motionTimeline: motionTimeline
         )
     }
 

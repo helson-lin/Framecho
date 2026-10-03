@@ -19,6 +19,8 @@
 import AppKit
 import AVFoundation
 import CoreGraphics
+import CoreImage
+import CoreImage.CIFilterBuiltins
 import CoreText
 import Foundation
 import ImageIO
@@ -66,6 +68,8 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
         /// `reframe`.
         let fitContentAspect: CGFloat?
         let usesUniformPadding: Bool
+        /// 3D pose of the video card over the output timeline.
+        let motionTimeline: RecordingMotionTimeline
 
         init(
             screenURL: URL,
@@ -88,7 +92,8 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             audioVolume: Double = 1,
             reframe: ReframeTrack? = nil,
             fitContentAspect: CGFloat? = nil,
-            usesUniformPadding: Bool = false
+            usesUniformPadding: Bool = false,
+            motionTimeline: RecordingMotionTimeline = .disabled
         ) {
             self.screenURL = screenURL
             self.cameraURL = cameraURL
@@ -111,6 +116,7 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             self.reframe = reframe
             self.fitContentAspect = fitContentAspect
             self.usesUniformPadding = usesUniformPadding
+            self.motionTimeline = motionTimeline
         }
     }
 
@@ -343,7 +349,8 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             timing: timing,
             reframe: configuration.reframe,
             fitContentAspect: configuration.fitContentAspect,
-            usesUniformPadding: configuration.usesUniformPadding
+            usesUniformPadding: configuration.usesUniformPadding,
+            motionTimeline: configuration.motionTimeline
         )
 
         let screenAudioOutput = audioOutput
@@ -667,6 +674,11 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
     private let subtitleStyle: SubtitleBarStyle
     private let karaokeTimeline: KaraokeTimeline?
     private let reframe: ReframeTrack?
+    private let motionTimeline: RecordingMotionTimeline
+    /// True when any frame tilts or moves the card. Such exports draw the
+    /// card into its own layer and project it; flat ones keep the 2D path.
+    private let projectsCard: Bool
+    private let cardShadowStrength: CGFloat
     private var artworkImageCache: [String: CGImage] = [:]
     private let pointerScale: CGFloat
     private let colorSpace: CGColorSpace
@@ -705,7 +717,8 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         timing: RecordingExportTiming,
         reframe: ReframeTrack? = nil,
         fitContentAspect: CGFloat? = nil,
-        usesUniformPadding: Bool = false
+        usesUniformPadding: Bool = false,
+        motionTimeline: RecordingMotionTimeline = .disabled
     ) {
         self.canvasSize = canvasSize
         self.videoCropRect = RecordingVideoCropGeometry.normalized(videoCropRect)
@@ -727,6 +740,10 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         self.subtitleStyle = subtitleStyle
         self.karaokeTimeline = karaokeTimeline
         self.reframe = reframe
+        self.motionTimeline = motionTimeline
+        let projectsCard = !motionTimeline.isIdentity
+        self.projectsCard = projectsCard
+        self.cardShadowStrength = style.shadow > 0.01 && style.background != .none ? style.shadow : 0
         self.timing = timing
         self.pointerScale = style.cursorScale
         self.colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
@@ -734,7 +751,8 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
             canvasSize: canvasSize,
             layout: layout,
             style: style,
-            colorSpace: colorSpace
+            colorSpace: colorSpace,
+            includesCardShadow: !projectsCard
         )
     }
 
@@ -774,6 +792,22 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         let sampleRects = timing.screenSampleRects(at: editorTime) { time in
             layout.frameRect(for: viewportFrame(at: time))
         }
+        if projectsCard {
+            // The projected path composes every frame on the CPU and Core
+            // Image; neither the Metal pass nor the flat screen cache apply.
+            plannedCacheKey = nil
+            return PendingFrame(
+                screenFrame: screenFrame,
+                cameraFrame: cameraFrame,
+                editorTime: editorTime,
+                sourceTime: sourceTime,
+                sampleRects: sampleRects,
+                shouldCacheScreen: false,
+                plansRestore: false,
+                submission: nil,
+                destination: destination
+            )
+        }
         let sampleCount = sampleRects.count
         let plansRestore = !bypassScreenCache && sampleCount == 1
             && plannedCacheKey.map { $0.source === screenFrame && $0.rect == sampleRects[0] } == true
@@ -810,6 +844,10 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
     /// Completes a frame begun earlier: waits for its screen pass, then draws
     /// the CPU overlays into its destination.
     func finish(_ frame: PendingFrame) throws {
+        if projectsCard {
+            try finishProjected(frame)
+            return
+        }
         let destination = frame.destination
         let screenFrame = frame.screenFrame
         let sampleRects = frame.sampleRects
@@ -862,22 +900,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
 
         var renderedScreen = reusedScreen || renderedWithMetal
         if !reusedScreen, !renderedWithMetal, let screenImage = Self.makeImage(from: screenFrame, colorSpace: colorSpace) {
-            // Motion blur by temporal supersampling: while the virtual camera
-            // is moving, average several sub-frame camera states across the
-            // frame's shutter interval. Pans smear linearly, zooms radially,
-            // and settled frames pay for a single draw. The viewport timeline
-            // runs on the gapless output clock, so the shutter is always
-            // exactly one output frame - no per-call time tracking needed.
-            context.saveGState()
-            context.addPath(roundedPath(for: layout.cardRect, radius: layout.cardCornerRadius))
-            context.clip()
-            for (sample, drawRect) in sampleRects.enumerated() {
-                // Drawing sample i at alpha 1/(i+1) keeps the buffer equal to
-                // the running average of all samples so far.
-                context.setAlpha(1 / CGFloat(sample + 1))
-                context.draw(screenImage, in: flipped(drawRect))
-            }
-            context.restoreGState()
+            drawScreenSamples(screenImage, sampleRects: sampleRects, in: context)
             renderedScreen = true
         }
 
@@ -905,6 +928,229 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         // The subtitle bar lives in canvas space - over the background too,
         // not just the card - and above everything else, camera included.
         drawSubtitleBar(at: sourceTime, in: context)
+    }
+
+    /// Motion blur by temporal supersampling: while the virtual camera is
+    /// moving, average several sub-frame camera states across the frame's
+    /// shutter interval. Pans smear linearly, zooms radially, and settled
+    /// frames pay for a single draw. The viewport timeline runs on the
+    /// gapless output clock, so the shutter is always exactly one output
+    /// frame - no per-call time tracking needed.
+    private func drawScreenSamples(_ screenImage: CGImage, sampleRects: [CGRect], in context: CGContext) {
+        context.saveGState()
+        context.addPath(roundedPath(for: layout.cardRect, radius: layout.cardCornerRadius))
+        context.clip()
+        for (sample, drawRect) in sampleRects.enumerated() {
+            // Drawing sample i at alpha 1/(i+1) keeps the buffer equal to
+            // the running average of all samples so far.
+            context.setAlpha(1 / CGFloat(sample + 1))
+            context.draw(screenImage, in: flipped(drawRect))
+        }
+        context.restoreGState()
+    }
+
+    // MARK: Projected card
+
+    /// The card plane drawn and projected each frame: the card plus room for
+    /// a keystroke caption wider than the card.
+    private lazy var cardPlaneRect: CGRect = layout.cardRect
+        .insetBy(dx: -layout.cardRect.width * 0.25, dy: -layout.cardRect.height * 0.25)
+        .intersection(CGRect(origin: .zero, size: canvasSize))
+        .integral
+
+    /// Flat card content - video, pointer, keystroke caption - in canvas
+    /// space before projection. Reused for every frame.
+    private lazy var cardForeground: CVPixelBuffer? = {
+        var buffer: CVPixelBuffer?
+        CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            Int(canvasSize.width),
+            Int(canvasSize.height),
+            kCVPixelFormatType_32BGRA,
+            [
+                kCVPixelBufferIOSurfacePropertiesKey as String: [:],
+                kCVPixelBufferMetalCompatibilityKey as String: true
+            ] as CFDictionary,
+            &buffer
+        )
+        return buffer
+    }()
+
+    /// No color management: values pass through exactly as Core Graphics
+    /// drew them, so the projected card matches the flat path's colors.
+    private lazy var ciContext = CIContext(options: [
+        .workingColorSpace: NSNull(),
+        .outputColorSpace: NSNull(),
+        .cacheIntermediates: false
+    ])
+
+    /// Background plus the card's shadow for one pose. Static poses render
+    /// it once; moving ones every frame.
+    private var projectedBackdropCache: (pose: RecordingCardPose, image: CGImage)?
+
+    private func finishProjected(_ frame: PendingFrame) throws {
+        let pose = motionTimeline.pose(at: frame.editorTime)
+        let projection = RecordingCardProjection(
+            cardRect: layout.cardRect,
+            canvasSize: canvasSize,
+            pose: pose,
+            projectionVersion: motionTimeline.projectionVersion
+        )
+        guard let foreground = cardForeground else {
+            throw RecordingStudioExporter.ExportError.writerFailed(nil)
+        }
+
+        try withBitmapContext(foreground) { context in
+            context.clear(CGRect(origin: .zero, size: canvasSize))
+            if let screenImage = Self.makeImage(from: frame.screenFrame, colorSpace: colorSpace) {
+                drawScreenSamples(screenImage, sampleRects: frame.sampleRects, in: context)
+            }
+            drawPointer(editorTime: frame.editorTime, in: context)
+            drawKeystrokeCaption(at: frame.sourceTime, in: context)
+        }
+
+        try withBitmapContext(frame.destination) { context in
+            if let image = projectedBackdrop(for: projection) {
+                context.draw(image, in: CGRect(origin: .zero, size: canvasSize))
+            } else {
+                context.setFillColor(CGColor(gray: 0, alpha: 1))
+                context.fill(CGRect(origin: .zero, size: canvasSize))
+            }
+        }
+
+        try renderProjectedCard(foreground, projection: projection, into: frame.destination)
+
+        try withBitmapContext(frame.destination) { context in
+            if let cameraFrame = frame.cameraFrame, layout.bubbleRect.width > 0 {
+                drawCameraBubble(cameraFrame, in: context)
+            }
+            drawSubtitleBar(at: frame.sourceTime, in: context)
+        }
+    }
+
+    private func withBitmapContext(_ buffer: CVPixelBuffer, _ draw: (CGContext) -> Void) throws {
+        CVPixelBufferLockBaseAddress(buffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(buffer, []) }
+        guard let base = CVPixelBufferGetBaseAddress(buffer),
+              let context = CGContext(
+                data: base,
+                width: CVPixelBufferGetWidth(buffer),
+                height: CVPixelBufferGetHeight(buffer),
+                bitsPerComponent: 8,
+                bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
+                space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+              ) else {
+            throw RecordingStudioExporter.ExportError.writerFailed(nil)
+        }
+        context.interpolationQuality = .high
+        draw(context)
+        context.flush()
+    }
+
+    private func projectedBackdrop(for projection: RecordingCardProjection) -> CGImage? {
+        if let cached = projectedBackdropCache, cached.pose == projection.pose {
+            return cached.image
+        }
+        guard let backdrop else { return nil }
+        guard cardShadowStrength > 0 else { return backdrop }
+        let image = renderLayer(covering: CGRect(origin: .zero, size: canvasSize)) { context in
+            let canvasRect = CGRect(origin: .zero, size: canvasSize)
+            context.draw(backdrop, in: canvasRect)
+            // Same shadow as the flat backdrop, cast by the projected card
+            // outline. The outline is drawn off-canvas and only its shadow
+            // is offset back in, so nothing paints under the card's
+            // antialiased edge.
+            let minDimension = min(canvasSize.width, canvasSize.height)
+            let blur = minDimension * 0.045 * cardShadowStrength
+            let away = canvasSize.width * 2 + blur * 4
+            context.saveGState()
+            context.setShadow(
+                offset: CGSize(width: -away, height: -blur * 0.35),
+                blur: blur,
+                color: CGColor(gray: 0, alpha: 0.55 * cardShadowStrength)
+            )
+            context.translateBy(x: away, y: 0)
+            context.addPath(projectedCardPath(projection))
+            context.setFillColor(CGColor(gray: 0, alpha: 1))
+            context.fillPath()
+            context.restoreGState()
+        }
+        if let image {
+            projectedBackdropCache = (projection.pose, image)
+        }
+        return image
+    }
+
+    /// The rounded card outline through the projection, bottom-up.
+    private func projectedCardPath(_ projection: RecordingCardProjection) -> CGPath {
+        let rect = layout.cardRect
+        let radius = min(layout.cardCornerRadius, min(rect.width, rect.height) / 2)
+        var outline: [CGPoint] = []
+        if radius > 0.5 {
+            let steps = 8
+            let corners: [(center: CGPoint, startAngle: CGFloat)] = [
+                (CGPoint(x: rect.maxX - radius, y: rect.minY + radius), -.pi / 2),
+                (CGPoint(x: rect.maxX - radius, y: rect.maxY - radius), 0),
+                (CGPoint(x: rect.minX + radius, y: rect.maxY - radius), .pi / 2),
+                (CGPoint(x: rect.minX + radius, y: rect.minY + radius), .pi)
+            ]
+            for corner in corners {
+                for step in 0...steps {
+                    let angle = corner.startAngle + CGFloat(step) / CGFloat(steps) * .pi / 2
+                    outline.append(CGPoint(
+                        x: corner.center.x + cos(angle) * radius,
+                        y: corner.center.y + sin(angle) * radius
+                    ))
+                }
+            }
+        } else {
+            outline = [
+                CGPoint(x: rect.minX, y: rect.minY),
+                CGPoint(x: rect.maxX, y: rect.minY),
+                CGPoint(x: rect.maxX, y: rect.maxY),
+                CGPoint(x: rect.minX, y: rect.maxY)
+            ]
+        }
+        let path = CGMutablePath()
+        path.addLines(between: outline.map { point in
+            let projected = projection.project(point)
+            return CGPoint(x: projected.x, y: canvasSize.height - projected.y)
+        })
+        path.closeSubpath()
+        return path
+    }
+
+    private func renderProjectedCard(
+        _ foreground: CVPixelBuffer,
+        projection: RecordingCardProjection,
+        into destination: CVPixelBuffer
+    ) throws {
+        let plane = cardPlaneRect
+        guard plane.width >= 1, plane.height >= 1 else { return }
+        let canvasRect = CGRect(origin: .zero, size: canvasSize)
+        // Core Image is bottom-up: the crop is the flipped plane, and its
+        // top-left corner is the plane's canvas top-left.
+        let flat = CIImage(cvPixelBuffer: foreground).cropped(to: flipped(plane))
+        let corners = projection.quad(for: plane).map {
+            CGPoint(x: $0.x, y: canvasSize.height - $0.y)
+        }
+        let filter = CIFilter.perspectiveTransform()
+        filter.inputImage = flat
+        filter.topLeft = corners[0]
+        filter.topRight = corners[1]
+        filter.bottomRight = corners[2]
+        filter.bottomLeft = corners[3]
+        guard let projected = filter.outputImage?.cropped(to: canvasRect) else { return }
+
+        let target = CIRenderDestination(pixelBuffer: destination)
+        target.colorSpace = nil
+        target.blendKernel = .sourceOver
+        do {
+            try ciContext.startTask(toRender: projected, to: target).waitUntilCompleted()
+        } catch {
+            throw RecordingStudioExporter.ExportError.writerFailed(error)
+        }
     }
 
     private func submitMetal(
@@ -1429,7 +1675,8 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         canvasSize: CGSize,
         layout: RecordingStudioLayout,
         style: RecordingStudioStyle,
-        colorSpace: CGColorSpace
+        colorSpace: CGColorSpace,
+        includesCardShadow: Bool = true
     ) -> CGImage? {
         guard let context = CGContext(
             data: nil,
@@ -1504,7 +1751,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
 
         // Card shadow: static, so it lives in the backdrop. The filled shape
         // is fully covered by video pixels every frame.
-        if style.shadow > 0.01, style.background != .none {
+        if includesCardShadow, style.shadow > 0.01, style.background != .none {
             let minDimension = min(canvasSize.width, canvasSize.height)
             let blur = minDimension * 0.045 * style.shadow
             let cardRect = CGRect(

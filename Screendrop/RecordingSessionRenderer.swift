@@ -181,7 +181,11 @@ enum RecordingSessionRenderer {
             audioVolume: document?.audioVolume ?? 1,
             reframe: reframe,
             fitContentAspect: fitContentAspect,
-            usesUniformPadding: aspect == .original
+            usesUniformPadding: aspect == .original,
+            motionTimeline: RecordingMotionTimeline.build(
+                settings: document?.motion ?? .disabled,
+                clipTimeline: clipTimeline
+            )
         )
     }
 
