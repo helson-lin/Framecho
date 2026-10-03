@@ -17,6 +17,10 @@ import Sparkle
 final class UpdaterManager: NSObject, ObservableObject {
     static let shared = UpdaterManager()
 
+    /// Off in this fork: the feed in Info.plist is upstream's appcast, and an
+    /// update from it would replace this build with the official release.
+    static let isEnabled = false
+
     private let controller: SPUStandardUpdaterController
 
     @Published var canCheckForUpdates = false
@@ -42,6 +46,7 @@ final class UpdaterManager: NSObject, ObservableObject {
         #if DEBUG
         return
         #else
+        guard Self.isEnabled else { return }
         controller.startUpdater()
         #endif
     }
@@ -50,6 +55,7 @@ final class UpdaterManager: NSObject, ObservableObject {
         #if DEBUG
         return
         #else
+        guard Self.isEnabled else { return }
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         controller.checkForUpdates(nil)

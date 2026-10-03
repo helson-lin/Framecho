@@ -81,12 +81,14 @@ struct MenuBarView: View {
             }
             .keyboardShortcut(",", modifiers: [.command])
 
-            Button {
-                updaterManager.checkForUpdates()
-            } label: {
-                Label("Check for Updates...", systemImage: "arrow.down.circle")
+            if UpdaterManager.isEnabled {
+                Button {
+                    updaterManager.checkForUpdates()
+                } label: {
+                    Label("Check for Updates...", systemImage: "arrow.down.circle")
+                }
+                .disabled(!updaterManager.canCheckForUpdates)
             }
-            .disabled(!updaterManager.canCheckForUpdates)
             
             Divider()
             

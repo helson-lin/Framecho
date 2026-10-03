@@ -47,18 +47,20 @@ struct SettingsAboutPane: View {
                 }
             }
 
-            Section("Updates") {
-                Toggle(isOn: Binding(
-                    get: { updaterManager.automaticallyChecksForUpdates },
-                    set: { updaterManager.automaticallyChecksForUpdates = $0 }
-                )) {
-                    Text("Automatically check for updates")
-                }
+            if UpdaterManager.isEnabled {
+                Section("Updates") {
+                    Toggle(isOn: Binding(
+                        get: { updaterManager.automaticallyChecksForUpdates },
+                        set: { updaterManager.automaticallyChecksForUpdates = $0 }
+                    )) {
+                        Text("Automatically check for updates")
+                    }
 
-                Button("Check for Updates...") {
-                    updaterManager.checkForUpdates()
+                    Button("Check for Updates...") {
+                        updaterManager.checkForUpdates()
+                    }
+                    .disabled(!updaterManager.canCheckForUpdates)
                 }
-                .disabled(!updaterManager.canCheckForUpdates)
             }
 
             Section("Project") {
