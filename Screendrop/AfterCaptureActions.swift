@@ -20,6 +20,7 @@ enum AfterCaptureAction: String, CaseIterable, Identifiable {
     case copy
     case save
     case upload
+    case copyShareLink
     case annotate
     case pin
     case openVideoEditor
@@ -31,7 +32,8 @@ enum AfterCaptureAction: String, CaseIterable, Identifiable {
         case .showOverlay: String(localized: "Show preview overlay")
         case .copy: String(localized: "Copy to clipboard")
         case .save: String(localized: "Save to folder")
-        case .upload: String(localized: "Upload to Cloud & copy link")
+        case .upload: String(localized: "Upload to Cloud")
+        case .copyShareLink: String(localized: "Copy share link after upload")
         case .annotate: String(localized: "Open annotation editor")
         case .pin: String(localized: "Pin to screen")
         case .openVideoEditor: String(localized: "Open recording editor")
@@ -43,7 +45,8 @@ enum AfterCaptureAction: String, CaseIterable, Identifiable {
         case .showOverlay: String(localized: "Show the floating preview card after capturing.")
         case .copy: String(localized: "Copy the capture to the clipboard.")
         case .save: String(localized: "Automatically save the capture to the export folder.")
-        case .upload: String(localized: "Upload to your cloud and copy the share link.")
+        case .upload: String(localized: "Upload to your cloud. The share URL is saved in History.")
+        case .copyShareLink: String(localized: "Replace the clipboard with the share URL after a successful upload. Turn this off to keep Copy to clipboard.")
         case .annotate: String(localized: "Jump straight into the annotation editor.")
         case .pin: String(localized: "Pin the screenshot on top of everything for reference.")
         case .openVideoEditor: String(localized: "Edit the clip, background, camera, audio, and zooms in one place.")
@@ -54,9 +57,9 @@ enum AfterCaptureAction: String, CaseIterable, Identifiable {
     static func actions(for type: AfterCaptureType) -> [AfterCaptureAction] {
         switch type {
         case .screenshot:
-            [.showOverlay, .copy, .save, .upload, .annotate, .pin]
+            [.showOverlay, .copy, .save, .upload, .copyShareLink, .annotate, .pin]
         case .recording:
-            [.showOverlay, .copy, .save, .upload, .openVideoEditor]
+            [.showOverlay, .copy, .save, .upload, .copyShareLink, .openVideoEditor]
         }
     }
 
@@ -75,8 +78,10 @@ enum AfterCaptureAction: String, CaseIterable, Identifiable {
 
     /// Default when the user hasn't chosen yet. The overlay defaults on, and
     /// recordings open in the studio so zooms/backgrounds are discoverable.
+    /// `copyShareLink` defaults on so existing "Upload & copy link" behaviour
+    /// is preserved until the user turns it off.
     var defaultValue: Bool {
-        self == .showOverlay || self == .openVideoEditor
+        self == .showOverlay || self == .openVideoEditor || self == .copyShareLink
     }
 }
 
