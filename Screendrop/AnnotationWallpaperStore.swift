@@ -19,7 +19,7 @@ struct AnnotationWallpaperPack: Identifiable, Equatable, Hashable {
             id: "uihssn",
             title: "UIHSSN",
             subtitle: String(localized: "Wallpaper Pack"),
-            remoteURL: URL(string: "https://static.fayazahmed.com/uihssn-wallpaper-pack.zip")!,
+            remoteURL: URL(string: "https://r2.jarin.me/Frameecho/uihssn-wallpaper-pack.zip")!,
             authorName: "Ahmed Hassan",
             authorURL: URL(string: "https://x.com/uihssn")!
         ),
@@ -27,7 +27,7 @@ struct AnnotationWallpaperPack: Identifiable, Equatable, Hashable {
             id: "fayaz",
             title: "Fayazara",
             subtitle: String(localized: "Author Picks"),
-            remoteURL: URL(string: "https://static.fayazahmed.com/fayaz-wallpaper-pack.zip")!,
+            remoteURL: URL(string: "https://r2.jarin.me/Frameecho/fayaz-wallpaper-pack.zip")!,
             authorName: "Fayaz Ahmed",
             authorURL: URL(string: "https://x.com/fayazara")!
         )
