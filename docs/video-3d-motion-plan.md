@@ -1,6 +1,6 @@
 # Framecho 视频 3D 运镜开发方案
 
-状态：设计草案，待评审；本阶段不修改应用代码。
+状态：阶段 A–C 已在 `video-3d-motion` 分支实现；阶段 D（透视运动模糊与性能优化）待开发。实现记录见第 11 节。
 
 ## 1. 目标与首版边界
 
@@ -162,7 +162,7 @@ nonisolated struct RecordingMotionCue: Identifiable, Codable, Equatable, Sendabl
 - 从截图几何中提取纯数学公共部分时，保留历史 `projectionVersion` 路径，并验证截图输出未变化。视频模型不直接持有截图设置类型。
 - 数学与时间线类型显式 `nonisolated` / `Sendable`；SwiftUI 状态仍留在 MainActor。
 
-预览不依赖 SwiftUI 的 `projectionEffect`：播放器是 `NSViewRepresentable` 承载的 `AVPlayerLayer`，SwiftUI 的投影修饰符作用在 AppKit 宿主视图上很可能不生效或只应用仿射部分。首选方案：
+**原型结论（已验证）**：SwiftUI 的 `projectionEffect` 会把完整的透视矩阵（非仿射，`m14 ≠ 0`）写到承载 `AVPlayerLayer` 的宿主图层上，因此预览直接对整个卡片组（播放器、鼠标、点击效果、按键字幕）应用由 `RecordingCardProjection` 生成的同一矩阵，阴影加在投影之后。以下 layer 树方案保留为备选，仅在后续发现圆角、透明边缘或性能问题时启用：
 
 - 在 `StudioPlayerContainerView` 中建立卡片 layer 树：视频、鼠标与点击效果、按键字幕都作为同一容器 layer 的子 layer，容器应用由共享矩阵生成的 `CATransform3D`（含 `m34` 透视项）。Core Animation 原生支持透视，`AVPlayerLayer` 在 3D 变换下工作良好。
 - 鼠标、点击效果和按键字幕从 SwiftUI overlay 迁入这棵 layer 树，避免把同一矩阵分别交给 SwiftUI 和 CALayer 时出现不同步。未启用运镜时可继续使用现有 SwiftUI overlay。
@@ -255,3 +255,26 @@ nonisolated struct RecordingMotionCue: Identifiable, Codable, Equatable, Sendabl
 - [Apple：SwiftUI projectionEffect](https://developer.apple.com/documentation/swiftui/view/projectioneffect(_:))
 - [Apple：Core Image CIPerspectiveTransform](https://developer.apple.com/documentation/coreimage/ciperspectivetransform)
 - [现有视频导出性能说明](export-performance.md)
+
+## 11. 实现记录
+
+分支 `video-3d-motion` 的提交顺序：
+
+1. 抽出 `ProjectiveHomography`，截图投影行为不变。
+2. `RecordingCardMotion.swift`：姿态、预设、源时间运镜片段、确定性时间线与投影；`scripts/check-card-motion.swift` 覆盖投影一致性、轴向、极端输入、适配画布和第 5 节全部剪辑规则。
+3. 编辑文档格式 6 增加可选 `motion` 字段；模型提供可撤销的姿态与片段编辑。
+4. 导出：运镜非恒等时，卡片内容绘制到独立前景缓冲，经 `CIPerspectiveTransform` 投影，阴影由投影轮廓在画布空间生成；平面项目仍走原 Metal / 缓存路径。Studio 导出和无窗口渲染共用同一时间线。
+5. 预览：卡片组整体 `projectionEffect`，裁剪与缩放目标编辑时正面显示，画布裁切与导出一致。
+6. 检查器「3D 运镜」分组、所选运镜编辑、运镜轨道（拖动、调整、进出渐变显示），滑块编辑合并为单个撤销步骤。
+7. 简体中文文案。
+
+验证结果：
+
+- 使用真实录屏的离线导出抽帧确认倾斜、阴影和鼠标随卡片投影正确；6.3 秒 1080p 样本导出耗时与平面路径相当（约 20.5 s 对 19.7 s）。
+- 预览投影通过检查宿主图层变换确认；尚未在交互界面中人工逐项走查。
+
+待办（阶段 D）：
+
+- 姿态变化时的透视运动模糊（当前只对卡片内的缩放平移做模糊）。
+- 运动中每帧重新生成阴影背景的开销优化，以及 Metal 逆透视采样。
+- 预览与导出四角的像素级比对脚本、4K / 60 fps / 竖屏样本测试。
