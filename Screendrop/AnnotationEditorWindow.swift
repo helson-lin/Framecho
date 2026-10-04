@@ -255,6 +255,8 @@ struct AnnotationEditorWindow: View {
                     image: previewImage,
                     onEditorInteraction: clearInspectorFocus
                 )
+                // A fitted image starts below the floating tool strip.
+                .padding(.top, AnnotationToolStrip.reservedHeight)
             } else if let errorMessage = model.errorMessage {
                 // A load failure (missing/unreadable source file, e.g. a stale
                 // URL replayed by macOS window restoration) should never sit
@@ -267,6 +269,16 @@ struct AnnotationEditorWindow: View {
         }
         .frame(minWidth: 760, minHeight: 580)
         .clipped()
+        .overlay(alignment: .top) {
+            if model.previewImage != nil, model.imageSize != .zero, !model.isCropping {
+                AnnotationToolStrip(selectedTool: model.selectedTool) { tool in
+                    clearInspectorFocus()
+                    model.selectTool(tool)
+                }
+                .padding(.top, 12)
+                .transition(.opacity)
+            }
+        }
         .overlay(alignment: .bottomLeading) {
             if model.previewImage != nil, model.imageSize != .zero {
                 HStack(spacing: 8) {

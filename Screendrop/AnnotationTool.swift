@@ -53,11 +53,11 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
     var systemImage: String {
         switch self {
         case .select:
-            "hand.point.up.left"
+            "cursorarrow"
         case .rectangle:
             "rectangle"
         case .filledRectangle:
-            "square.fill"
+            "rectangle.fill"
         case .ellipse:
             "circle"
         case .line:
@@ -67,15 +67,34 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
         case .freehand:
             "scribble"
         case .numberedCircle:
-            "1.circle.fill"
+            "1.circle"
         case .pixelate:
-            "app.background.dotted"
+            "checkerboard.rectangle"
         case .blur:
-            "drop.fill"
+            "aqi.medium"
         case .text:
             "textformat"
         case .highlight:
-            "square.dashed.inset.filled"
+            "rectangle.center.inset.filled"
+        }
+    }
+
+    /// The single-key shortcut that picks this tool, shown in its tooltip.
+    /// The keyboard handler reads this too, so the two cannot disagree.
+    var shortcut: AnnotationToolShortcut {
+        switch self {
+        case .select: AnnotationToolShortcut(key: "h")
+        case .rectangle: AnnotationToolShortcut(key: "r")
+        case .filledRectangle: AnnotationToolShortcut(key: "r", shift: true)
+        case .ellipse: AnnotationToolShortcut(key: "o")
+        case .line: AnnotationToolShortcut(key: "l")
+        case .arrow: AnnotationToolShortcut(key: "a")
+        case .freehand: AnnotationToolShortcut(key: "f")
+        case .numberedCircle: AnnotationToolShortcut(key: "n", alternateKey: "1")
+        case .text: AnnotationToolShortcut(key: "t")
+        case .highlight: AnnotationToolShortcut(key: "s")
+        case .pixelate: AnnotationToolShortcut(key: "p")
+        case .blur: AnnotationToolShortcut(key: "b")
         }
     }
 
@@ -84,6 +103,22 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
             return String(localized: "Draw an area to keep visible; everything outside is dimmed")
         }
         return title
+    }
+
+    /// "Rectangle (R)": the tooltip on the tool strip.
+    var tooltip: String {
+        "\(helpText) (\(shortcut.label))"
+    }
+
+    /// The tool a plain key press picks, if any. Command, Option and Control
+    /// presses are never tool shortcuts; Shift picks the shifted variant.
+    static func forShortcut(key: String, shift: Bool) -> AnnotationTool? {
+        let key = key.lowercased()
+        return allCases.first { tool in
+            let shortcut = tool.shortcut
+            return shortcut.shift == shift
+                && (shortcut.key == key || (!shift && shortcut.alternateKey == key))
+        }
     }
 
     var isFilledShape: Bool {
@@ -131,5 +166,17 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
 
     var createsAnnotation: Bool {
         self != .select
+    }
+}
+
+struct AnnotationToolShortcut: Equatable {
+    let key: String
+    var shift = false
+    /// A second unshifted key kept for an older binding (numbered circle's "1").
+    var alternateKey: String?
+
+    /// "R", "⇧R".
+    var label: String {
+        (shift ? "⇧" : "") + key.uppercased()
     }
 }

@@ -7,12 +7,42 @@
     " / %@" : {
 
     },
+    "1 annotation selected" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已选择 1 个标注"
+          }
+        }
+      }
+    },
+    "Annotation tools" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标注工具"
+          }
+        }
+      }
+    },
     "AVIF (smaller)" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "AVIF（更小）"
+          }
+        }
+      }
+    },
+    "Current" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前"
           }
         }
       }
@@ -10179,6 +10209,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "放大"
+          }
+        }
+      }
+    },
+    "⌫ to delete" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌫ 删除"
           }
         }
       }

@@ -142,11 +142,10 @@ struct AnnotationEditorInspector: View {
 
     @ViewBuilder
     private var annotateTab: some View {
-        InspectorSection("Tools") {
-            AnnotationInspectorToolGrid(selectedTool: model.selectedTool) { tool in
-                onEditorAction()
-                model.selectTool(tool)
-            }
+        // The tools themselves live on the canvas; this says what the style
+        // controls below will act on.
+        InspectorSection("Current") {
+            AnnotationInspectorContextRow(model: model)
         }
 
         InspectorSectionDivider()
@@ -471,12 +470,6 @@ struct AnnotationEditorInspector: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         } else {
-            if model.selectionCount > 1 {
-                Text("\(model.selectionCount) annotations selected")
-                    .font(.inspectorLabel)
-                    .foregroundStyle(.secondary)
-            }
-
             if model.isTextStyleAvailable {
                 AnnotationTextStyleControls(model: model)
             } else {
@@ -558,81 +551,39 @@ private enum AnnotationInspectorSummary {
 
 // MARK: - Tools
 
-private struct AnnotationInspectorToolGrid: View {
-    let selectedTool: AnnotationTool
-    let onSelect: (AnnotationTool) -> Void
-
-    private let columns: [GridItem] = Array(
-        repeating: GridItem(.flexible(), spacing: 4), count: 6
-    )
-    @Environment(\.colorScheme) private var colorScheme
+/// What the style controls act on: the active tool, or the current selection.
+private struct AnnotationInspectorContextRow: View {
+    @Bindable var model: AnnotationEditorModel
 
     var body: some View {
-        // Nested radius: the tray wraps tiles inset by `controlInset`.
-        let shape = RoundedRectangle(
-            cornerRadius: InspectorMetrics.tileRadius + InspectorMetrics.controlInset,
-            style: .continuous
-        )
-
-        LazyVGrid(columns: columns, spacing: 4) {
-            ForEach(AnnotationTool.allCases) { tool in
-                AnnotationToolCell(
-                    tool: tool,
-                    isSelected: selectedTool == tool,
-                    action: { onSelect(tool) }
-                )
-            }
+        // The engine isn't observable; reading `revision` refreshes the row
+        // when the selection changes.
+        let _ = model.revision
+        HStack(spacing: 8) {
+            Image(systemName: model.selectedTool.systemImage)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 18)
+            Text(title)
+                .font(.inspectorLabel)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            Text(detail)
+                .font(.inspectorLabel)
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
         }
-        .frame(maxWidth: 280)
-        .frame(maxWidth: .infinity)
-        .padding(InspectorMetrics.controlInset)
-        .background(shape.fill(InspectorControlPalette.trackFill(for: colorScheme)))
-        .clipShape(shape)
-    }
-}
-
-private struct AnnotationToolCell: View {
-    let tool: AnnotationTool
-    let isSelected: Bool
-    let action: () -> Void
-
-    @State private var isHovering = false
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        Button(action: action) {
-            ZStack {
-                Color.clear
-
-                Image(systemName: tool.systemImage)
-                    .font(.system(size: 13, weight: .medium))
-            }
-            .aspectRatio(1, contentMode: .fit)
-            .contentShape(RoundedRectangle(cornerRadius: InspectorMetrics.tileRadius, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .focusEffectDisabled()
-        .foregroundStyle(isSelected ? InspectorControlPalette.selectedForeground : Color.secondary)
-        .background {
-            RoundedRectangle(cornerRadius: InspectorMetrics.tileRadius, style: .continuous)
-                .fill(background)
-                .shadow(
-                    color: isSelected ? InspectorControlPalette.selectedChipShadow(for: colorScheme) : .clear,
-                    radius: 1,
-                    y: 0.5
-                )
-        }
-        .help(tool.helpText)
-        .onHover { isHovering = $0 }
-        .accessibilityLabel(tool.title)
-        .accessibilityHint(tool.helpText)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityElement(children: .combine)
     }
 
-    private var background: Color {
-        if isSelected {
-            return InspectorControlPalette.selectedChipFill(for: colorScheme)
-        }
-        return isHovering ? InspectorControlPalette.hoverFill : .clear
+    private var title: String {
+        let count = model.selectionCount
+        if count > 1 { return String(localized: "\(count) annotations selected") }
+        if count == 1 { return String(localized: "1 annotation selected") }
+        return model.selectedTool.title
+    }
+
+    private var detail: String {
+        model.selectionCount > 0 ? String(localized: "⌫ to delete") : model.selectedTool.shortcut.label
     }
 }
