@@ -61,6 +61,20 @@ struct TextRecognitionChecks {
             ("截图文字识别测试 Hello 世界", CGRect(x: 40, y: 40, width: 1100, height: 60)),
         ])) { $0 == "截图文字识别测试 Hello 世界" }
 
+        // CJK words in an English-led line: automatic detection alone reads
+        // them with the Latin model ("Settings wE"). Pinned to an English
+        // system language, as on CI, which is the case that needs the second
+        // pass most.
+        for line in ["Settings 设置", "Click 保存 to save your changes"] {
+            let url = try render("mixed-\(line.count)", [(line, CGRect(x: 40, y: 40, width: 1100, height: 60))])
+            let text = await ImageTextRecognizer.recognizeText(at: url, preferredLanguages: ["en-US"])
+            guard text == line else {
+                print("FAIL English-led mixed line: \(text.debugDescription)")
+                exit(1)
+            }
+            print("ok   English-led mixed line: \(text.debugDescription)")
+        }
+
         // Separate fragments on one visual line become one line of text.
         await expect("label and value", try render("row", [
             ("Name", CGRect(x: 40, y: 40, width: 200, height: 60)),
