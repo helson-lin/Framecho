@@ -10,6 +10,8 @@ struct AnnotationKeyCommandHandler: NSViewRepresentable {
     let isEnabled: () -> Bool
     let onDelete: () -> Void
     let onSave: () -> Void
+    let onSaveAs: () -> Void
+    let onCopy: () -> Void
     let onUndo: () -> Void
     let onRedo: () -> Void
     let onSelectAll: () -> Void
@@ -37,6 +39,8 @@ struct AnnotationKeyCommandHandler: NSViewRepresentable {
         view.isEnabled = isEnabled
         view.onDelete = onDelete
         view.onSave = onSave
+        view.onSaveAs = onSaveAs
+        view.onCopy = onCopy
         view.onUndo = onUndo
         view.onRedo = onRedo
         view.onSelectAll = onSelectAll
@@ -56,6 +60,8 @@ final class AnnotationKeyCommandHandlerView: NSView {
     var isEnabled: (() -> Bool)?
     var onDelete: (() -> Void)?
     var onSave: (() -> Void)?
+    var onSaveAs: (() -> Void)?
+    var onCopy: (() -> Void)?
     var onUndo: (() -> Void)?
     var onRedo: (() -> Void)?
     var onSelectAll: (() -> Void)?
@@ -101,6 +107,11 @@ final class AnnotationKeyCommandHandlerView: NSView {
                 return event
             }
 
+            if Self.isSaveAs(event) {
+                self.onSaveAs?()
+                return nil
+            }
+
             // Crop mode is modal: Return applies, Escape cancels, and all other
             // editing shortcuts are swallowed so they can't act on the hidden
             // annotation layer.
@@ -121,6 +132,13 @@ final class AnnotationKeyCommandHandlerView: NSView {
 
             if Self.isCropToggle(event) {
                 self.onToggleCrop?()
+                return nil
+            }
+
+            // Annotations have no clipboard of their own, so Command-C
+            // always copies the image.
+            if Self.isCopy(event) {
+                self.onCopy?()
                 return nil
             }
 
@@ -186,9 +204,21 @@ final class AnnotationKeyCommandHandlerView: NSView {
         event.keyCode == 53
     }
 
+    /// Shift-Command-C. A bare C used to toggle crop, which a stray key
+    /// press could trigger in the middle of annotating.
     private static func isCropToggle(_ event: NSEvent) -> Bool {
-        event.modifierFlags.intersection([.command, .option, .control]).isEmpty
+        event.modifierFlags.intersection([.command, .shift, .option, .control]) == [.command, .shift]
             && event.charactersIgnoringModifiers?.lowercased() == "c"
+    }
+
+    private static func isCopy(_ event: NSEvent) -> Bool {
+        event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command
+            && event.charactersIgnoringModifiers?.lowercased() == "c"
+    }
+
+    private static func isSaveAs(_ event: NSEvent) -> Bool {
+        event.modifierFlags.intersection([.command, .shift, .option, .control]) == [.command, .shift]
+            && event.charactersIgnoringModifiers?.lowercased() == "s"
     }
 
     private static func isEditingText(in window: NSWindow?) -> Bool {

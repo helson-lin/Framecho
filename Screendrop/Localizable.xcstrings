@@ -37,6 +37,26 @@
         }
       }
     },
+    "Copy the image (⌘C)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拷贝图片（⌘C）"
+          }
+        }
+      }
+    },
+    "Crop the screenshot (⇧⌘C)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "裁剪截图（⇧⌘C）"
+          }
+        }
+      }
+    },
     "Current" : {
       "localizations" : {
         "zh-Hans" : {
@@ -47,12 +67,62 @@
         }
       }
     },
+    "Failed to copy the image: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法拷贝图片：%@"
+          }
+        }
+      }
+    },
     "Image Uploads" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "图片上传"
+          }
+        }
+      }
+    },
+    "Save and close (⌘↩)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存储并关闭（⌘↩）"
+          }
+        }
+      }
+    },
+    "Save As…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存储为…"
+          }
+        }
+      }
+    },
+    "Save, export or upload" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存储、导出或上传"
+          }
+        }
+      }
+    },
+    "Saving…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在存储…"
           }
         }
       }
@@ -83,6 +153,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "截图将按资料库中保存的原样上传。"
+          }
+        }
+      }
+    },
+    "Upload and Copy Link…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上传并拷贝链接…"
           }
         }
       }

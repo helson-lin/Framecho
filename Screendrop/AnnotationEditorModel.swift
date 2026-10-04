@@ -294,6 +294,18 @@ final class AnnotationEditorModel {
         return resultURL
     }
 
+    /// Renders what the editor shows right now to a temporary file, without
+    /// saving anything. Copy uses it so the clipboard gets the edits even
+    /// when they haven't been committed.
+    func renderCurrentImage() async throws -> URL {
+        guard let sourceURL else { throw CocoaError(.fileNoSuchFile) }
+        return try await AnnotationRenderer.renderToTemporaryFileInBackground(
+            sourceURL: baseImageURL ?? sourceURL,
+            shapes: shapes,
+            backgroundSettings: backgroundSettings
+        )
+    }
+
     // MARK: - Unsaved changes
 
     /// Everything a commit would persist. The crop rides along as the base

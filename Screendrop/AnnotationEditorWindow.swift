@@ -21,6 +21,9 @@ struct AnnotationEditorWindow: View {
     @State private var isUploading = false
     @State private var closeGuard = EditorCloseGuard()
     @State private var didCopyLink = false
+    @State private var isCopying = false
+    @State private var didCopyImage = false
+    @State private var isShowingUploadOptions = false
     @FocusState private var focusedField: AnnotationEditorFocusedField?
     @Environment(\.dismiss) private var dismissWindow
 
@@ -31,7 +34,8 @@ struct AnnotationEditorWindow: View {
             .disabled(model.isCommitting)
             .allowsHitTesting(!model.isCommitting)
             .modifier(CaptureLibraryEditorRegistration(url: url))
-            .navigationTitle("Framecho Annotate")
+            .navigationTitle(windowTitle)
+            .navigationSubtitle(windowSubtitle)
             .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
@@ -87,6 +91,8 @@ struct AnnotationEditorWindow: View {
                 isEnabled: { !model.isCommitting },
                 onDelete: model.deleteSelectedAnnotation,
                 onSave: saveEdits,
+                onSaveAs: saveAs,
+                onCopy: copyImage,
                 onUndo: model.undo,
                 onRedo: model.redo,
                 onSelectAll: model.selectAllAnnotations,
@@ -115,64 +121,43 @@ struct AnnotationEditorWindow: View {
 
     // MARK: Toolbar actions
 
-    /// The standard trailing actions shown when not cropping.
+    /// The standard trailing actions shown when not cropping: Crop, the
+    /// Share menu (upload, save, save as), Copy, then Done as the one
+    /// prominent action.
     @ViewBuilder
     private var editingActions: some View {
         Button(action: enterCrop) {
             Label("Crop", systemImage: "crop")
                 .labelStyle(.titleAndIcon)
         }
-        .help("Crop the screenshot")
+        .help("Crop the screenshot (⇧⌘C)")
         .disabled(model.previewImage == nil || model.imageSize == .zero)
 
-        if CloudUploader.shared.isConfigured {
-            CloudUploadButton(
-                suggestedTitle: model.sourceURL?.deletingPathExtension().lastPathComponent ?? "",
-                onUpload: uploadAnnotation
-            ) {
-                if isUploading {
-                    HStack(spacing: 6) {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text("Uploading...")
-                    }
-                    .padding(.horizontal, 6)
-                } else if didCopyLink {
-                    Label("Link copied", systemImage: "checkmark.circle.fill")
-                        .labelStyle(.titleAndIcon)
-                        .padding(.horizontal, 6)
+        shareMenu
+
+        Button(action: copyImage) {
+            Group {
+                if isCopying {
+                    ProgressView().controlSize(.small)
+                } else if didCopyImage {
+                    Label("Copied", systemImage: "checkmark")
                 } else {
-                    Label("Upload", systemImage: "arrow.up.circle")
-                        .labelStyle(.titleAndIcon)
-                        .padding(.horizontal, 6)
+                    Label("Copy", systemImage: "doc.on.doc")
                 }
             }
-            .tint(.accentColor)
-            .help("Upload to the cloud and copy the link")
-            .disabled(isUploading)
+            .labelStyle(.titleAndIcon)
+            .frame(minWidth: 64)
         }
-
-        Button(action: saveAs) {
-            Label("Save As", systemImage: "arrow.down.circle")
-                .labelStyle(.titleAndIcon)
-        }
-        .help("Save a copy to a location of your choice")
-
-        Button(action: saveEdits) {
-            if isSaving {
-                ProgressView().controlSize(.small)
-            } else {
-                Image(systemName: "square.and.arrow.down")
-            }
-        }
-        .keyboardShortcut("s", modifiers: .command)
-        .disabled(!model.hasUnsavedChanges || isSaving || isFinishing)
-        .help("Save annotations (⌘S)")
+        .help("Copy the image (⌘C)")
+        .disabled(model.previewImage == nil || isCopying)
 
         Button(action: finishEditing) {
-            Image(systemName: "checkmark.circle")
+            Text("Done")
+                .padding(.horizontal, 6)
         }
-        .help("Finish editing and save")
+        .buttonStyle(.borderedProminent)
+        .keyboardShortcut(.return, modifiers: .command)
+        .help("Save and close (⌘↩)")
 
         Button {
             clearInspectorFocus()
@@ -181,6 +166,76 @@ struct AnnotationEditorWindow: View {
             Image(systemName: "sidebar.right")
         }
         .help(isInspectorPresented ? "Hide Inspector" : "Show Inspector")
+    }
+
+    /// Saving, exporting and uploading, grouped behind one button. Its label
+    /// carries the progress of whichever of them is running.
+    private var shareMenu: some View {
+        Menu {
+            if CloudUploader.shared.isConfigured {
+                Button {
+                    clearInspectorFocus()
+                    isShowingUploadOptions = true
+                } label: {
+                    Label("Upload and Copy Link…", systemImage: "icloud.and.arrow.up")
+                }
+                .disabled(isUploading)
+
+                Divider()
+            }
+
+            Button(action: saveEdits) {
+                Label("Save", systemImage: "square.and.arrow.down")
+            }
+            .keyboardShortcut("s", modifiers: .command)
+            .disabled(!model.hasUnsavedChanges || isSaving || isFinishing)
+
+            Button(action: saveAs) {
+                Label("Save As…", systemImage: "square.and.arrow.down.on.square")
+            }
+            .keyboardShortcut("s", modifiers: [.command, .shift])
+        } label: {
+            Group {
+                if isUploading {
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.small)
+                        Text("Uploading...")
+                    }
+                } else if isSaving {
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.small)
+                        Text("Saving…")
+                    }
+                } else if didCopyLink {
+                    Label("Link copied", systemImage: "checkmark.circle.fill")
+                } else {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+            }
+            .labelStyle(.titleAndIcon)
+        }
+        .help("Save, export or upload")
+        .popover(isPresented: $isShowingUploadOptions, arrowEdge: .bottom) {
+            CloudUploadOptionsPopover(
+                suggestedTitle: model.sourceURL?.deletingPathExtension().lastPathComponent ?? "",
+                onConfirm: uploadAnnotation
+            )
+        }
+    }
+
+    /// The file being edited, so several editor windows stay distinguishable.
+    private var windowTitle: String {
+        model.sourceURL?.deletingPathExtension().lastPathComponent ?? String(localized: "Framecho Annotate")
+    }
+
+    /// "3854 × 2566 · Edited": the size the export will have.
+    private var windowSubtitle: String {
+        let size = model.canvasPixelSize
+        guard size.width > 0, size.height > 0 else { return "" }
+        let dimensions = "\(Int(size.width.rounded())) × \(Int(size.height.rounded()))"
+        return model.hasUnsavedChanges
+            ? "\(dimensions) · \(String(localized: "Edited"))"
+            : dimensions
     }
 
     /// The crop controls that replace the trailing actions while cropping.
@@ -319,6 +374,26 @@ struct AnnotationEditorWindow: View {
     private func closeAfterLoadFailure() {
         model.releaseEditorResources()
         dismissWindow()
+    }
+
+    /// Copies what the editor shows. Unsaved edits are rendered to a
+    /// temporary file rather than saved, so Copy never commits anything.
+    private func copyImage() {
+        clearInspectorFocus()
+        guard !isCopying, let sourceURL = model.sourceURL, model.previewImage != nil else { return }
+        isCopying = true
+        Task {
+            defer { isCopying = false }
+            do {
+                let url = model.hasUnsavedChanges ? try await model.renderCurrentImage() : sourceURL
+                try ScreenshotFileActions.copyImageToClipboard(from: url)
+                withAnimation(.snappy(duration: 0.2)) { didCopyImage = true }
+                try? await Task.sleep(for: .seconds(1.6))
+                withAnimation(.snappy(duration: 0.2)) { didCopyImage = false }
+            } catch {
+                model.errorMessage = String(localized: "Failed to copy the image: \(error.localizedDescription)")
+            }
+        }
     }
 
     private func saveAs() {
