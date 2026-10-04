@@ -356,6 +356,37 @@ enum ScreenshotExportFormat: String, CaseIterable, Identifiable {
     }
 }
 
+/// Encodes the TIFF flavor of a copied image only when a paste target asks
+/// for it. Kept alive by `active` until the pasteboard is done with it.
+private final class ClipboardTIFFProvider: NSObject, NSPasteboardItemDataProvider {
+    static var active: ClipboardTIFFProvider?
+
+    private let imageData: Data
+
+    init(imageData: Data) {
+        self.imageData = imageData
+    }
+
+    func pasteboard(
+        _ pasteboard: NSPasteboard?,
+        item: NSPasteboardItem,
+        provideDataForType type: NSPasteboard.PasteboardType
+    ) {
+        guard type == .tiff,
+              let tiffData = NSBitmapImageRep(data: imageData)?.tiffRepresentation
+                ?? NSImage(data: imageData)?.tiffRepresentation else {
+            return
+        }
+        item.setData(tiffData, forType: .tiff)
+    }
+
+    func pasteboardFinishedWithDataProvider(_ pasteboard: NSPasteboard) {
+        if Self.active === self {
+            Self.active = nil
+        }
+    }
+}
+
 enum ScreenshotFileActions {
     static func copyImageToClipboard(from url: URL) throws {
         let contentType = UTType(filenameExtension: url.pathExtension)
@@ -387,12 +418,16 @@ enum ScreenshotFileActions {
         //
         // Only providing image data is why pasting worked in Gmail but not in
         // terminal apps - those read the file URL flavor instead.
+        //
+        // TIFF is only promised: an uncompressed TIFF of a 6K capture is ~80 MB
+        // and took hundreds of milliseconds to encode on the main thread on
+        // every copy, while most targets take the PNG/JPEG flavor instead.
         let item = NSPasteboardItem()
         item.setString(url.absoluteString, forType: .fileURL)
         item.setData(imageData, forType: dataType)
-        if let tiffData = NSBitmapImageRep(data: imageData)?.tiffRepresentation
-            ?? NSImage(data: imageData)?.tiffRepresentation {
-            item.setData(tiffData, forType: .tiff)
+        let tiffProvider = ClipboardTIFFProvider(imageData: imageData)
+        if item.setDataProvider(tiffProvider, forTypes: [.tiff]) {
+            ClipboardTIFFProvider.active = tiffProvider
         }
 
         pasteboard.writeObjects([item])
