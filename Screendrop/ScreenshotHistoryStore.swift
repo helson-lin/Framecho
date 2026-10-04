@@ -94,6 +94,15 @@ struct ScreenshotHistoryItem: Identifiable, Codable, Equatable {
     }
 }
 
+/// Decodes one history row, yielding nil instead of failing the whole array.
+private struct LossyHistoryRow: Decodable {
+    let item: ScreenshotHistoryItem?
+
+    init(from decoder: any Decoder) throws {
+        item = try? ScreenshotHistoryItem(from: decoder)
+    }
+}
+
 @MainActor
 @Observable
 final class ScreenshotHistoryStore {
@@ -459,15 +468,46 @@ final class ScreenshotHistoryStore {
     }
 
     private func load() {
-        guard let data = try? Data(contentsOf: Self.metadataURL),
-              let decoded = try? JSONDecoder().decode([ScreenshotHistoryItem].self, from: data) else {
+        guard let data = try? Data(contentsOf: Self.metadataURL) else {
             items = []
             return
         }
 
-        items = decoded
+        // Rows decode one at a time so a single unreadable entry (say, a
+        // media kind written by a newer build) can't drop the whole list.
+        // Whenever anything fails to decode, the original file is set aside
+        // first: the next save rewrites history.json from `items`, and would
+        // otherwise erase what this build couldn't read.
+        let rows: [LossyHistoryRow]
+        do {
+            rows = try JSONDecoder().decode([LossyHistoryRow].self, from: data)
+        } catch {
+            print("Failed to read screenshot history: \(error)")
+            preserveUnreadableMetadata()
+            items = []
+            return
+        }
+        if rows.contains(where: { $0.item == nil }) {
+            preserveUnreadableMetadata()
+        }
+
+        items = rows
+            .compactMap(\.item)
             .filter { FileManager.default.fileExists(atPath: $0.url.path) }
             .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    private func preserveUnreadableMetadata() {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        let backupURL = Self.applicationSupportDirectory
+            .appendingPathComponent("history.unreadable-\(formatter.string(from: Date())).json")
+        do {
+            try FileManager.default.copyItem(at: Self.metadataURL, to: backupURL)
+        } catch {
+            print("Failed to back up unreadable screenshot history: \(error)")
+        }
     }
 
     private func saveMetadata() {
