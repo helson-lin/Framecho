@@ -7,6 +7,66 @@
     " / %@" : {
 
     },
+    "AVIF (smaller)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AVIF（更小）"
+          }
+        }
+      }
+    },
+    "Image Uploads" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片上传"
+          }
+        }
+      }
+    },
+    "Scale Retina screenshots to 1x" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将 Retina 截图缩放为 1x"
+          }
+        }
+      }
+    },
+    "Screenshots are converted before uploading; the copy in your Library stays lossless. 1x makes files about four times smaller but looks softer on Retina displays." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "截图会在上传前转换格式，资料库中的副本仍保持无损。缩放为 1x 可让文件缩小约四倍，但在 Retina 屏幕上会略显模糊。"
+          }
+        }
+      }
+    },
+    "Screenshots upload exactly as stored in your Library." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "截图将按资料库中保存的原样上传。"
+          }
+        }
+      }
+    },
+    "Upload quality" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上传质量"
+          }
+        }
+      }
+    },
     "· %lld selected" : {
       "localizations" : {
         "zh-Hans" : {
