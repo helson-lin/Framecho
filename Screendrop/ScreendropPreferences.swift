@@ -356,6 +356,37 @@ enum ScreenshotExportFormat: String, CaseIterable, Identifiable {
     }
 }
 
+/// Encodes the TIFF flavor of a copied image only when a paste target asks
+/// for it. Kept alive by `active` until the pasteboard is done with it.
+private final class ClipboardTIFFProvider: NSObject, NSPasteboardItemDataProvider {
+    static var active: ClipboardTIFFProvider?
+
+    private let imageData: Data
+
+    init(imageData: Data) {
+        self.imageData = imageData
+    }
+
+    func pasteboard(
+        _ pasteboard: NSPasteboard?,
+        item: NSPasteboardItem,
+        provideDataForType type: NSPasteboard.PasteboardType
+    ) {
+        guard type == .tiff,
+              let tiffData = NSBitmapImageRep(data: imageData)?.tiffRepresentation
+                ?? NSImage(data: imageData)?.tiffRepresentation else {
+            return
+        }
+        item.setData(tiffData, forType: .tiff)
+    }
+
+    func pasteboardFinishedWithDataProvider(_ pasteboard: NSPasteboard) {
+        if Self.active === self {
+            Self.active = nil
+        }
+    }
+}
+
 enum ScreenshotFileActions {
     static func copyImageToClipboard(from url: URL) throws {
         let contentType = UTType(filenameExtension: url.pathExtension)
@@ -387,12 +418,16 @@ enum ScreenshotFileActions {
         //
         // Only providing image data is why pasting worked in Gmail but not in
         // terminal apps - those read the file URL flavor instead.
+        //
+        // TIFF is only promised: an uncompressed TIFF of a 6K capture is ~80 MB
+        // and took hundreds of milliseconds to encode on the main thread on
+        // every copy, while most targets take the PNG/JPEG flavor instead.
         let item = NSPasteboardItem()
         item.setString(url.absoluteString, forType: .fileURL)
         item.setData(imageData, forType: dataType)
-        if let tiffData = NSBitmapImageRep(data: imageData)?.tiffRepresentation
-            ?? NSImage(data: imageData)?.tiffRepresentation {
-            item.setData(tiffData, forType: .tiff)
+        let tiffProvider = ClipboardTIFFProvider(imageData: imageData)
+        if item.setDataProvider(tiffProvider, forTypes: [.tiff]) {
+            ClipboardTIFFProvider.active = tiffProvider
         }
 
         pasteboard.writeObjects([item])
@@ -414,6 +449,32 @@ enum ScreenshotFileActions {
         return destinationURL
     }
     
+    /// The capture path's auto save. A JPEG/HEIC export re-encodes the whole
+    /// image, so that part runs off the main actor; the destination name is
+    /// reserved first so concurrent saves never pick the same file.
+    static func saveToDefaultLocationInBackground(from url: URL) async throws -> URL {
+        let format = ScreendropPreferences.exportFormat
+        guard format.usesLossyQuality else { return try saveToDefaultLocation(from: url) }
+
+        let destinationDirectory = ScreendropPreferences.exportDirectory
+        try FileManager.default.createDirectory(at: destinationDirectory, withIntermediateDirectories: true)
+        let destinationURL = uniqueDestinationURL(for: exportFileName(for: url), in: destinationDirectory)
+        guard FileManager.default.createFile(atPath: destinationURL.path, contents: nil) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        let contentType = format.contentType
+        let quality = ScreendropPreferences.compressionQuality
+        do {
+            try await Task.detached(priority: .userInitiated) {
+                try encodeImage(from: url, to: destinationURL, contentType: contentType, quality: quality)
+            }.value
+        } catch {
+            try? FileManager.default.removeItem(at: destinationURL)
+            throw error
+        }
+        return destinationURL
+    }
+
     static func save(from sourceURL: URL, to destinationURL: URL) throws {
         if ScreendropPreferences.exportFormat == .png {
             if FileManager.default.fileExists(atPath: destinationURL.path) {
@@ -465,6 +526,20 @@ enum ScreenshotFileActions {
     }
     
     private static func exportImage(from sourceURL: URL, to destinationURL: URL, contentType: UTType) throws {
+        try encodeImage(
+            from: sourceURL,
+            to: destinationURL,
+            contentType: contentType,
+            quality: ScreendropPreferences.compressionQuality
+        )
+    }
+
+    private nonisolated static func encodeImage(
+        from sourceURL: URL,
+        to destinationURL: URL,
+        contentType: UTType,
+        quality: Double
+    ) throws {
         if FileManager.default.fileExists(atPath: destinationURL.path) {
             try FileManager.default.removeItem(at: destinationURL)
         }
@@ -486,7 +561,7 @@ enum ScreenshotFileActions {
         }
         
         let options: [CFString: Any] = contentType == .png ? [:] : [
-            kCGImageDestinationLossyCompressionQuality: ScreendropPreferences.compressionQuality
+            kCGImageDestinationLossyCompressionQuality: quality
         ]
         
         CGImageDestinationAddImageFromSource(destination, source, 0, options as CFDictionary)

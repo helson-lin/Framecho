@@ -1003,11 +1003,13 @@ nonisolated private final class ScreenRecordingWriter: @unchecked Sendable {
     private var outputURL: URL?
     private var isSessionStarted = false
     private var sessionStartTime: CMTime?
-    private var isPaused = false
-    private var pauseStartTime: CMTime?
-    private var totalPauseDuration: CMTime = .zero
+    private var pauseTimeline = RecordingPauseTimeline()
     private var latestAdjustedTime: CMTime = .zero
-    private var needsPauseDurationUpdate = false
+    private var lastVideoPTS: CMTime?
+    /// End of the last appended buffer per audio input. A buffer that began
+    /// just before a pause can run past its start, so the first one after
+    /// Resume may overlap it; AVAssetWriter fails on overlapping audio.
+    private var audioEndTimes: [ScreenRecordingAudioKind: CMTime] = [:]
     private var failureError: Error?
     private var didReportFailure = false
 
@@ -1081,11 +1083,10 @@ nonisolated private final class ScreenRecordingWriter: @unchecked Sendable {
             self.outputURL = outputURL
             isSessionStarted = false
             sessionStartTime = nil
-            isPaused = false
-            pauseStartTime = nil
-            totalPauseDuration = .zero
+            pauseTimeline.reset()
             latestAdjustedTime = .zero
-            needsPauseDurationUpdate = false
+            lastVideoPTS = nil
+            audioEndTimes = [:]
             failureError = nil
             didReportFailure = false
         }
@@ -1101,20 +1102,18 @@ nonisolated private final class ScreenRecordingWriter: @unchecked Sendable {
     }
 
     func pause() {
+        // Stamped now, not when the queue gets to it, so the pause matches
+        // the pointer recorder's interval to the microsecond.
+        let time = RecordingPauseTimeline.hostTimeNow()
         writingQueue.async { [weak self] in
-            guard let self, !isPaused else { return }
-
-            isPaused = true
-            pauseStartTime = nil
+            self?.pauseTimeline.pause(at: time)
         }
     }
 
     func resume() {
+        let time = RecordingPauseTimeline.hostTimeNow()
         writingQueue.async { [weak self] in
-            guard let self, isPaused else { return }
-
-            isPaused = false
-            needsPauseDurationUpdate = true
+            self?.pauseTimeline.resume(at: time)
         }
     }
 
@@ -1137,20 +1136,22 @@ nonisolated private final class ScreenRecordingWriter: @unchecked Sendable {
                 guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
                 let time = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
 
+                guard let pausedDuration = self.pauseTimeline.pausedDuration(before: time) else { return }
+
                 if !self.isSessionStarted {
                     self.sessionStartTime = time
                     self.assetWriter?.startSession(atSourceTime: .zero)
                     self.isSessionStarted = true
                 }
 
-                guard self.handlePauseState(sampleTime: time) else { return }
-
-                let adjustedPTS = self.adjustedTime(time)
+                let adjustedPTS = self.adjustedTime(time, pausedDuration: pausedDuration)
                 guard adjustedPTS >= .zero, self.checkWriterHealth() else { return }
+                guard self.lastVideoPTS.map({ adjustedPTS > $0 }) ?? true else { return }
                 guard videoInput.isReadyForMoreMediaData else { return }
 
                 if pixelBufferAdaptor.append(pixelBuffer, withPresentationTime: adjustedPTS) {
                     self.latestAdjustedTime = adjustedPTS
+                    self.lastVideoPTS = adjustedPTS
                 } else {
                     _ = self.checkWriterHealth()
                 }
@@ -1172,18 +1173,25 @@ nonisolated private final class ScreenRecordingWriter: @unchecked Sendable {
                     input = self.microphoneInput
                 }
                 // Audio before the first video frame has no timeline home yet.
-                guard let input, self.isSessionStarted, !self.isPaused else { return }
+                guard let input, self.isSessionStarted else { return }
 
                 let sampleBuffer = sendableSampleBuffer.sampleBuffer
                 let time = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-                let adjustedPTS = self.adjustedTime(time)
+                guard let pausedDuration = self.pauseTimeline.pausedDuration(before: time) else { return }
+                let adjustedPTS = self.adjustedTime(time, pausedDuration: pausedDuration)
                 guard adjustedPTS >= .zero,
+                      self.audioEndTimes[kind].map({ adjustedPTS >= $0 }) ?? true,
                       self.checkWriterHealth(),
                       input.isReadyForMoreMediaData,
                       let retimed = Self.retime(sampleBuffer, to: adjustedPTS) else {
                     return
                 }
-                if !input.append(retimed) {
+                if input.append(retimed) {
+                    let duration = CMSampleBufferGetDuration(sampleBuffer)
+                    self.audioEndTimes[kind] = duration.isNumeric
+                        ? CMTimeAdd(adjustedPTS, duration)
+                        : adjustedPTS
+                } else {
                     _ = self.checkWriterHealth()
                 }
             }
@@ -1275,34 +1283,12 @@ nonisolated private final class ScreenRecordingWriter: @unchecked Sendable {
         }
     }
 
-    private func adjustedTime(_ originalTime: CMTime) -> CMTime {
+    private func adjustedTime(_ originalTime: CMTime, pausedDuration: CMTime) -> CMTime {
         var adjusted = originalTime
         if let sessionStartTime {
             adjusted = CMTimeSubtract(adjusted, sessionStartTime)
         }
-        if totalPauseDuration > .zero {
-            adjusted = CMTimeSubtract(adjusted, totalPauseDuration)
-        }
-        return adjusted
-    }
-
-    private func handlePauseState(sampleTime: CMTime) -> Bool {
-        if isPaused {
-            if pauseStartTime == nil {
-                pauseStartTime = sampleTime
-            }
-            return false
-        }
-
-        if needsPauseDurationUpdate, let pauseStartTime {
-            totalPauseDuration = CMTimeAdd(totalPauseDuration, CMTimeSubtract(sampleTime, pauseStartTime))
-            self.pauseStartTime = nil
-            needsPauseDurationUpdate = false
-        } else if needsPauseDurationUpdate {
-            needsPauseDurationUpdate = false
-        }
-
-        return true
+        return CMTimeSubtract(adjusted, pausedDuration)
     }
 
     private static func retime(_ sampleBuffer: CMSampleBuffer, to newPTS: CMTime) -> CMSampleBuffer? {
@@ -1332,11 +1318,10 @@ nonisolated private final class ScreenRecordingWriter: @unchecked Sendable {
         outputURL = nil
         isSessionStarted = false
         sessionStartTime = nil
-        isPaused = false
-        pauseStartTime = nil
-        totalPauseDuration = .zero
+        pauseTimeline.reset()
         latestAdjustedTime = .zero
-        needsPauseDurationUpdate = false
+        lastVideoPTS = nil
+        audioEndTimes = [:]
         failureError = nil
         didReportFailure = false
     }

@@ -94,6 +94,15 @@ struct ScreenshotHistoryItem: Identifiable, Codable, Equatable {
     }
 }
 
+/// Decodes one history row, yielding nil instead of failing the whole array.
+private struct LossyHistoryRow: Decodable {
+    let item: ScreenshotHistoryItem?
+
+    init(from decoder: any Decoder) throws {
+        item = try? ScreenshotHistoryItem(from: decoder)
+    }
+}
+
 @MainActor
 @Observable
 final class ScreenshotHistoryStore {
@@ -153,8 +162,11 @@ final class ScreenshotHistoryStore {
         load()
     }
 
+    /// - Parameter movingSource: Moves rather than copies the file. Fresh
+    ///   captures pass true: their temporary PNG has no other owner, and a
+    ///   copy left a full-size duplicate in the temporary directory.
     @discardableResult
-    func importScreenshot(from sourceURL: URL) -> URL {
+    func importScreenshot(from sourceURL: URL, movingSource: Bool = false) -> URL {
         do {
             try FileManager.default.createDirectory(at: Self.historyDirectory, withIntermediateDirectories: true)
             let destinationURL = uniqueHistoryURL(for: sourceURL)
@@ -163,7 +175,11 @@ final class ScreenshotHistoryStore {
                 if FileManager.default.fileExists(atPath: destinationURL.path) {
                     try FileManager.default.removeItem(at: destinationURL)
                 }
-                try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+                if movingSource {
+                    try FileManager.default.moveItem(at: sourceURL, to: destinationURL)
+                } else {
+                    try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+                }
             }
 
             let imageSize = ScreenshotImageLoader.imageSize(at: destinationURL) ?? .zero
@@ -387,20 +403,28 @@ final class ScreenshotHistoryStore {
 
     @discardableResult
     func delete(url: URL) -> Bool {
-        let standardizedURL = url.standardizedFileURL
-        guard let item = items.first(where: { $0.url.standardizedFileURL == standardizedURL }) else {
-            return false
-        }
-
-        delete(item)
+        guard let index = itemIndex(for: url) else { return false }
+        delete(items[index])
         return true
     }
 
-    func setCloudURL(for fileURL: URL, cloudURL: String) {
-        let standardized = fileURL.standardizedFileURL
-        guard let index = items.firstIndex(where: { $0.url.standardizedFileURL == standardized }) else {
-            return
+    /// Finds the row a media URL belongs to. A recording's `url` moves from
+    /// its screen master to the flattened deliverable once one is rendered,
+    /// so callers holding the URL from before the render (preview cards,
+    /// uploads) are matched by their package rather than by file.
+    private func itemIndex(for mediaURL: URL) -> Int? {
+        let standardized = mediaURL.standardizedFileURL
+        let packagePath = standardized.deletingLastPathComponent().path
+        if let index = items.firstIndex(where: {
+            $0.recordingSessionPath == packagePath || $0.recordingSessionPath == standardized.path
+        }) {
+            return index
         }
+        return items.firstIndex { $0.url.standardizedFileURL == standardized }
+    }
+
+    func setCloudURL(for fileURL: URL, cloudURL: String) {
+        guard let index = itemIndex(for: fileURL) else { return }
         items[index].cloudURL = cloudURL
         items[index].updatedAt = Date()
         saveMetadata()
@@ -408,10 +432,7 @@ final class ScreenshotHistoryStore {
 
     /// Clears a previously-set cloud URL, e.g. after deleting the upload from the cloud.
     func clearCloudURL(for fileURL: URL) {
-        let standardized = fileURL.standardizedFileURL
-        guard let index = items.firstIndex(where: { $0.url.standardizedFileURL == standardized }) else {
-            return
-        }
+        guard let index = itemIndex(for: fileURL) else { return }
         items[index].cloudURL = nil
         items[index].updatedAt = Date()
         saveMetadata()
@@ -427,9 +448,7 @@ final class ScreenshotHistoryStore {
     /// package. Every editor entry point uses this so overlay cards, History,
     /// and after-capture actions cannot accidentally open different editors.
     func editorURL(for mediaURL: URL) -> URL {
-        let standardizedURL = mediaURL.standardizedFileURL
-        return items.first(where: { $0.url.standardizedFileURL == standardizedURL })?.editorURL
-            ?? mediaURL
+        itemIndex(for: mediaURL).map { items[$0].editorURL } ?? mediaURL
     }
 
     func reload() {
@@ -459,15 +478,46 @@ final class ScreenshotHistoryStore {
     }
 
     private func load() {
-        guard let data = try? Data(contentsOf: Self.metadataURL),
-              let decoded = try? JSONDecoder().decode([ScreenshotHistoryItem].self, from: data) else {
+        guard let data = try? Data(contentsOf: Self.metadataURL) else {
             items = []
             return
         }
 
-        items = decoded
+        // Rows decode one at a time so a single unreadable entry (say, a
+        // media kind written by a newer build) can't drop the whole list.
+        // Whenever anything fails to decode, the original file is set aside
+        // first: the next save rewrites history.json from `items`, and would
+        // otherwise erase what this build couldn't read.
+        let rows: [LossyHistoryRow]
+        do {
+            rows = try JSONDecoder().decode([LossyHistoryRow].self, from: data)
+        } catch {
+            print("Failed to read screenshot history: \(error)")
+            preserveUnreadableMetadata()
+            items = []
+            return
+        }
+        if rows.contains(where: { $0.item == nil }) {
+            preserveUnreadableMetadata()
+        }
+
+        items = rows
+            .compactMap(\.item)
             .filter { FileManager.default.fileExists(atPath: $0.url.path) }
             .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    private func preserveUnreadableMetadata() {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        let backupURL = Self.applicationSupportDirectory
+            .appendingPathComponent("history.unreadable-\(formatter.string(from: Date())).json")
+        do {
+            try FileManager.default.copyItem(at: Self.metadataURL, to: backupURL)
+        } catch {
+            print("Failed to back up unreadable screenshot history: \(error)")
+        }
     }
 
     private func saveMetadata() {

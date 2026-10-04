@@ -403,11 +403,8 @@ nonisolated private final class CameraMovieWriter: @unchecked Sendable {
     private var outputURL: URL?
     private var isSessionStarted = false
     private var sessionStartTime: CMTime?
-    private var isPaused = false
-    private var pauseStartTime: CMTime?
-    private var totalPauseDuration: CMTime = .zero
-    private var needsPauseDurationUpdate = false
-    private var latestSampleTime: CMTime?
+    private var pauseTimeline = RecordingPauseTimeline()
+    private var lastWrittenPTS: CMTime?
     private var pixelWidth = 0
     private var pixelHeight = 0
 
@@ -441,29 +438,26 @@ nonisolated private final class CameraMovieWriter: @unchecked Sendable {
             self.outputURL = outputURL
             isSessionStarted = false
             sessionStartTime = nil
-            isPaused = false
-            pauseStartTime = nil
-            totalPauseDuration = .zero
-            needsPauseDurationUpdate = false
-            latestSampleTime = nil
+            pauseTimeline.reset()
+            lastWrittenPTS = nil
             pixelWidth = width
             pixelHeight = height
         }
     }
 
+    /// Same host-clock pause stamps as the screen writer, so the camera
+    /// bubble stays in sync with the screen across pauses.
     func pause() {
+        let time = RecordingPauseTimeline.hostTimeNow()
         writingQueue.async { [weak self] in
-            guard let self, !isPaused else { return }
-            isPaused = true
-            pauseStartTime = latestSampleTime
+            self?.pauseTimeline.pause(at: time)
         }
     }
 
     func resume() {
+        let time = RecordingPauseTimeline.hostTimeNow()
         writingQueue.async { [weak self] in
-            guard let self, isPaused else { return }
-            isPaused = false
-            needsPauseDurationUpdate = true
+            self?.pauseTimeline.resume(at: time)
         }
     }
 
@@ -483,23 +477,7 @@ nonisolated private final class CameraMovieWriter: @unchecked Sendable {
                 let sampleBuffer = sendable.sampleBuffer
                 let time = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
 
-                if self.isPaused {
-                    if self.pauseStartTime == nil {
-                        self.pauseStartTime = time
-                    }
-                    return
-                }
-
-                if self.needsPauseDurationUpdate {
-                    if let pauseStartTime = self.pauseStartTime {
-                        self.totalPauseDuration = CMTimeAdd(
-                            self.totalPauseDuration,
-                            CMTimeSubtract(time, pauseStartTime)
-                        )
-                        self.pauseStartTime = nil
-                    }
-                    self.needsPauseDurationUpdate = false
-                }
+                guard let pausedDuration = self.pauseTimeline.pausedDuration(before: time) else { return }
 
                 if !self.isSessionStarted {
                     self.sessionStartTime = time
@@ -507,22 +485,21 @@ nonisolated private final class CameraMovieWriter: @unchecked Sendable {
                     self.isSessionStarted = true
                 }
 
-                self.latestSampleTime = time
-
                 var adjusted = time
                 if let sessionStartTime = self.sessionStartTime {
                     adjusted = CMTimeSubtract(adjusted, sessionStartTime)
                 }
-                if self.totalPauseDuration > .zero {
-                    adjusted = CMTimeSubtract(adjusted, self.totalPauseDuration)
-                }
+                adjusted = CMTimeSubtract(adjusted, pausedDuration)
                 guard adjusted >= .zero,
+                      self.lastWrittenPTS.map({ adjusted > $0 }) ?? true,
                       videoInput.isReadyForMoreMediaData,
                       assetWriter.status == .writing,
                       let retimed = Self.retime(sampleBuffer, to: adjusted) else {
                     return
                 }
-                videoInput.append(retimed)
+                if videoInput.append(retimed) {
+                    self.lastWrittenPTS = adjusted
+                }
             }
         }
     }
@@ -579,11 +556,8 @@ nonisolated private final class CameraMovieWriter: @unchecked Sendable {
         outputURL = nil
         isSessionStarted = false
         sessionStartTime = nil
-        isPaused = false
-        pauseStartTime = nil
-        totalPauseDuration = .zero
-        needsPauseDurationUpdate = false
-        latestSampleTime = nil
+        pauseTimeline.reset()
+        lastWrittenPTS = nil
     }
 
     private static func retime(_ sampleBuffer: CMSampleBuffer, to newPTS: CMTime) -> CMSampleBuffer? {

@@ -50,6 +50,31 @@ enum ScreenshotImageLoader {
         return NSImage(cgImage: cgImage, size: CGSize(width: cgImage.width, height: cgImage.height))
     }
 
+    /// Same thumbnail as `downsampledImage`, decoded off the main actor so a
+    /// large capture doesn't hold up the UI while its preview is made.
+    static func downsampledImageInBackground(at url: URL, maxPixelSize: CGFloat) async -> NSImage? {
+        let pixelSize = max(1, Int(maxPixelSize.rounded(.up)))
+        let cgImage = await Task.detached(priority: .userInitiated) {
+            downsampledCGImage(at: url, maxPixelSize: pixelSize)
+        }.value
+        return cgImage.map { NSImage(cgImage: $0, size: CGSize(width: $0.width, height: $0.height)) }
+    }
+
+    private nonisolated static func downsampledCGImage(at url: URL, maxPixelSize: Int) -> CGImage? {
+        guard let source = CGImageSourceCreateWithURL(
+            url as CFURL,
+            [kCGImageSourceShouldCache: false] as CFDictionary
+        ) else {
+            return nil
+        }
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, [
+            kCGImageSourceShouldCache: false,
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+        ] as CFDictionary)
+    }
+
     private static var sourceOptions: CFDictionary {
         [kCGImageSourceShouldCache: false] as CFDictionary
     }

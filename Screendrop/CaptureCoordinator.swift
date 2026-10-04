@@ -229,11 +229,8 @@ final class CaptureCoordinator {
     @discardableResult
     private func showPreview(url: URL, displayID: CGDirectDisplayID?) -> URL {
         guard let onShowPreview else {
-            let historyURL = ScreenshotHistoryStore.shared.importScreenshot(from: url)
-            ScreenshotPreviewStack.shared.add(url: historyURL)
-            if AfterCaptureActions.isEnabled(.showOverlay, for: .screenshot) {
-                PreviewPanelPresenter.shared.show(displayID: displayID)
-            }
+            let historyURL = ScreenshotHistoryStore.shared.importScreenshot(from: url, movingSource: true)
+            ScreenshotPreviewStack.shared.add(url: historyURL, displayID: displayID)
             return historyURL
         }
 

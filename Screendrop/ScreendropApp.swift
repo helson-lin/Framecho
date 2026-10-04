@@ -82,13 +82,8 @@ struct ScreendropApp: App {
             }
             PreviewPanelPresenter.shared.onEditVideo = openVideoEditor
 
-            let historyURL = ScreenshotHistoryStore.shared.importScreenshot(from: url)
-            ScreenshotPreviewStack.shared.add(url: historyURL)
-
-            if AfterCaptureActions.isEnabled(.showOverlay, for: .screenshot) {
-                PreviewPanelPresenter.shared.show(displayID: displayID)
-            }
-
+            let historyURL = ScreenshotHistoryStore.shared.importScreenshot(from: url, movingSource: true)
+            ScreenshotPreviewStack.shared.add(url: historyURL, displayID: displayID)
             return historyURL
         }
 

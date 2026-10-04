@@ -40,9 +40,77 @@ enum RecordingSessionRenderer {
         }
         if let existing = session.freshFinalURL(matching: editDocument) { return existing }
 
+        // Save, Copy and Upload can all ask for the same deliverable at once
+        // (after-capture actions, or a click while an automatic save is
+        // still rendering). They share one render instead of each encoding
+        // the full movie and racing to install it.
+        let key = session.directoryURL.standardizedFileURL.path
+        let pending: PendingRender
+        if let current = pendingRenders[key],
+           current.document == editDocument,
+           current.task?.isCancelled == false {
+            pending = current
+        } else {
+            // A render of superseded edits is left to land first, so it can
+            // never install over this newer one.
+            let superseded = pendingRenders[key]?.task
+            pending = PendingRender(document: editDocument)
+            pending.task = Task { [pending] in
+                defer {
+                    if pendingRenders[key] === pending { pendingRenders[key] = nil }
+                }
+                _ = try? await superseded?.value
+                try Task.checkCancellation()
+                return try await render(session, editDocument: editDocument) { progress in
+                    Task { @MainActor in pending.report(progress) }
+                }
+            }
+            pendingRenders[key] = pending
+        }
+
+        let waiterID = UUID()
+        pending.waiters[waiterID] = onProgress ?? { _ in }
+        defer { pending.waiters[waiterID] = nil }
+        guard let task = pending.task else { throw CancellationError() }
+        return try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: {
+            Task { @MainActor in pending.cancel(waiterID) }
+        }
+    }
+
+    /// One in-flight flatten, shared by every caller that wants the same
+    /// edits rendered.
+    private final class PendingRender {
+        let document: RecordingEditDocument?
+        var task: Task<URL, Error>?
+        var waiters: [UUID: @Sendable (Double) -> Void] = [:]
+
+        init(document: RecordingEditDocument?) {
+            self.document = document
+        }
+
+        func report(_ progress: Double) {
+            for handler in waiters.values { handler(progress) }
+        }
+
+        /// The render stops only once nobody is waiting for it any more.
+        func cancel(_ waiterID: UUID) {
+            waiters[waiterID] = nil
+            if waiters.isEmpty { task?.cancel() }
+        }
+    }
+
+    private static var pendingRenders: [String: PendingRender] = [:]
+
+    private static func render(
+        _ session: RecordingSession,
+        editDocument: RecordingEditDocument?,
+        onProgress: @escaping @Sendable (Double) -> Void
+    ) async throws -> URL {
         let configuration = try await makeConfiguration(for: session)
         let temporaryURL = try await RecordingStudioExporter().export(configuration) { progress in
-            onProgress?(progress)
+            onProgress(progress)
         }
         do {
             return try session.installFinalVideo(
