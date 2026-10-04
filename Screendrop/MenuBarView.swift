@@ -14,6 +14,7 @@ struct MenuBarView: View {
     @ObservedObject private var updaterManager = UpdaterManager.shared
     @State private var historyStore = ScreenshotHistoryStore.shared
     @State private var projectStore = RecordingProjectStore.shared
+    @State private var hotkeyManager = HotkeyManager.shared
 
     var body: some View {
         Group {
@@ -22,36 +23,42 @@ struct MenuBarView: View {
             } label: {
                 Label("Capture Fullscreen", systemImage: "macwindow")
             }
+            .keyboardShortcut(hotkeyManager.activeShortcuts[.fullscreen]?.keyboardShortcut)
             
             Button {
                 CaptureCoordinator.shared.captureWindow()
             } label: {
                 Label("Capture Window", systemImage: "macwindow.on.rectangle")
             }
+            .keyboardShortcut(hotkeyManager.activeShortcuts[.window]?.keyboardShortcut)
             
             Button {
                 CaptureCoordinator.shared.captureArea()
             } label: {
                 Label("Capture Area", systemImage: "rectangle.dashed")
             }
+            .keyboardShortcut(hotkeyManager.activeShortcuts[.area]?.keyboardShortcut)
 
             Button {
                 CaptureCoordinator.shared.captureText()
             } label: {
                 Label("Capture Text", systemImage: "text.viewfinder")
             }
+            .keyboardShortcut(hotkeyManager.activeShortcuts[.textCapture]?.keyboardShortcut)
 
             Button {
                 CaptureCoordinator.shared.captureOnTimer()
             } label: {
                 Label("Capture on Timer", systemImage: "timer")
             }
+            .keyboardShortcut(hotkeyManager.activeShortcuts[.timedCapture]?.keyboardShortcut)
 
             Button {
                 RecordingPickerPresenter.shared.show()
             } label: {
                 Label("Record Screen", systemImage: "record.circle")
             }
+            .keyboardShortcut(hotkeyManager.activeShortcuts[.screenRecording]?.keyboardShortcut)
 
             Divider()
 

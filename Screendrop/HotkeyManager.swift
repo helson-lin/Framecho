@@ -20,6 +20,8 @@ final class HotkeyManager {
     private var eventHandlerRef: EventHandlerRef?
     private var hotKeyRefs: [CaptureHotkeyAction: EventHotKeyRef] = [:]
     private(set) var registrationErrors: [CaptureHotkeyAction: String] = [:]
+    /// Shortcuts that are actually bound, so menus only advertise keys that work.
+    private(set) var activeShortcuts: [CaptureHotkeyAction: HotkeyShortcut] = [:]
     
     private init() {}
 
@@ -50,6 +52,7 @@ final class HotkeyManager {
 
             do {
                 hotKeyRefs[action] = try registerHotKey(action: action, shortcut: shortcut)
+                activeShortcuts[action] = shortcut
             } catch {
                 registrationErrors[action] = error.localizedDescription
             }
@@ -89,6 +92,7 @@ final class HotkeyManager {
         let newRef = try registerHotKey(action: action, shortcut: shortcut)
         if let oldRef = hotKeyRefs[action] { UnregisterEventHotKey(oldRef) }
         hotKeyRefs[action] = newRef
+        activeShortcuts[action] = shortcut
         CaptureHotkeyPreferences.saveShortcut(shortcut, for: action)
         registrationErrors[action] = nil
     }
@@ -119,6 +123,7 @@ final class HotkeyManager {
         }
 
         hotKeyRefs.removeAll()
+        activeShortcuts.removeAll()
     }
     
     func handleHotKey(id: UInt32) {
