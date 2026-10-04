@@ -12,6 +12,14 @@
 import AppKit
 import SwiftUI
 
+/// What the user asked to read, so an empty result names the right thing.
+enum CaptureTextSource {
+    /// A region drawn with Capture Text.
+    case area
+    /// An existing screenshot, from a preview card or a pin.
+    case image
+}
+
 @MainActor
 final class CaptureTextFeedbackPresenter {
     static let shared = CaptureTextFeedbackPresenter()
@@ -45,20 +53,38 @@ final class CaptureTextFeedbackPresenter {
 
     /// The capture succeeded but Vision found nothing. Not a failure worth an
     /// `NSAlert` - the user just picked an empty region and will try again.
-    func showNoTextFound(displayID: CGDirectDisplayID?) {
+    func showNoTextFound(in source: CaptureTextSource, displayID: CGDirectDisplayID?) {
+        let detail = switch source {
+        case .area: String(localized: "Nothing was recognized in that area.")
+        case .image: String(localized: "Nothing was recognized in this image.")
+        }
         present(
             symbol: "text.viewfinder",
             title: String(localized: "No text found"),
-            detail: String(localized: "Nothing was recognized in that area."),
+            detail: detail,
             displayID: displayID
+        )
+    }
+
+    /// Shown only when recognition outlasts a short grace period, so a large
+    /// image does not look like a dead click. Stays up until the result toast
+    /// replaces it.
+    func showRecognizing(displayID: CGDirectDisplayID?) {
+        present(
+            symbol: "text.viewfinder",
+            title: String(localized: "Recognizing text…"),
+            detail: nil,
+            displayID: displayID,
+            dismissesAutomatically: false
         )
     }
 
     private func present(
         symbol: String,
         title: String,
-        detail: String,
-        displayID: CGDirectDisplayID?
+        detail: String?,
+        displayID: CGDirectDisplayID?,
+        dismissesAutomatically: Bool = true
     ) {
         dismissTask?.cancel()
         dismiss()
@@ -105,6 +131,7 @@ final class CaptureTextFeedbackPresenter {
         }
 
         self.panel = panel
+        guard dismissesAutomatically else { return }
         dismissTask = Task { [weak self] in
             try? await Task.sleep(for: Self.visibleDuration)
             guard !Task.isCancelled else { return }
@@ -153,7 +180,7 @@ final class CaptureTextFeedbackPresenter {
 private struct CaptureTextFeedbackView: View {
     let symbol: String
     let title: String
-    let detail: String
+    let detail: String?
     let size: NSSize
 
     var body: some View {
@@ -166,11 +193,13 @@ private struct CaptureTextFeedbackView: View {
                 Text(title)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white)
-                Text(detail)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.white.opacity(0.65))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                if let detail {
+                    Text(detail)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.65))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
             }
 
             Spacer(minLength: 0)

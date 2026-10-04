@@ -5159,6 +5159,16 @@
         }
       }
     },
+    "Nothing was recognized in this image." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未在这张图片中识别到任何内容。"
+          }
+        }
+      }
+    },
     "Numbered circle" : {
       "localizations" : {
         "zh-Hans" : {
@@ -5995,6 +6005,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "识别你拖移出的区域中的文字，将其拷贝到剪贴板并返回。"
+          }
+        }
+      }
+    },
+    "Recognizing text…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在识别文字…"
           }
         }
       }

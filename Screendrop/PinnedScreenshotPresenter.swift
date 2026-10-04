@@ -208,10 +208,7 @@ private struct PinnedScreenshotView: View {
     private func copyText() {
         let url = url
         Task {
-            let text = await ImageTextRecognizer.recognizeText(at: url)
-            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(text, forType: .string)
+            await CaptureCoordinator.shared.copyRecognizedText(at: url, from: .image)
         }
     }
 

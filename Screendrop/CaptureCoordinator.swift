@@ -137,26 +137,44 @@ final class CaptureCoordinator {
         ) else { return .cancelled }
         defer { try? FileManager.default.removeItem(at: url) }
 
+        let outcome = await copyRecognizedText(at: url, from: .area)
+        if ScreendropPreferences.playSounds {
+            switch outcome {
+            case .copied: CaptureFeedbackSound.play()
+            case .noTextFound: NSSound.beep()
+            case .cancelled: break
+            }
+        }
+        return outcome
+    }
+
+    /// Recognizes the text in an image, copies it, and confirms with a toast -
+    /// the one path behind Capture Text, the preview card, and pins, so every
+    /// entry point reports progress and empty results the same way.
+    @discardableResult
+    func copyRecognizedText(at url: URL, from source: CaptureTextSource) async -> CaptureTextOutcome {
         // Resolved before recognition runs, so the toast lands on the display
-        // the user was just drawing on rather than wherever the pointer
+        // the user was just working on rather than wherever the pointer
         // drifted to while Vision worked.
         let displayID = ActiveDisplayResolver.activeDisplayID(preferPointer: true)
+        let feedback = CaptureTextFeedbackPresenter.shared
+
+        let progress = Task {
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled else { return }
+            feedback.showRecognizing(displayID: displayID)
+        }
         let text = await ImageTextRecognizer.recognizeText(at: url)
+        progress.cancel()
 
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            CaptureTextFeedbackPresenter.shared.showNoTextFound(displayID: displayID)
-            if ScreendropPreferences.playSounds {
-                NSSound.beep()
-            }
+            feedback.showNoTextFound(in: source, displayID: displayID)
             return .noTextFound
         }
 
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
-        CaptureTextFeedbackPresenter.shared.showCopied(text: text, displayID: displayID)
-        if ScreendropPreferences.playSounds {
-            CaptureFeedbackSound.play()
-        }
+        feedback.showCopied(text: text, displayID: displayID)
         return .copied(text)
     }
 

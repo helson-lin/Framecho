@@ -507,15 +507,12 @@ final class ScreenshotPreviewStack {
     }
 
     /// Runs OCR on the item's image and copies the recognised text to the
-    /// clipboard. No-op for videos or images without detectable text.
+    /// clipboard. No-op for videos.
     func copyText(id: ScreenshotPreviewItem.ID) {
         guard let item = items.first(where: { $0.id == id }), item.kind == .image else { return }
         let url = item.url
         Task {
-            let text = await ImageTextRecognizer.recognizeText(at: url)
-            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(text, forType: .string)
+            await CaptureCoordinator.shared.copyRecognizedText(at: url, from: .image)
         }
     }
 
