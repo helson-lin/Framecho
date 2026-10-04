@@ -162,8 +162,11 @@ final class ScreenshotHistoryStore {
         load()
     }
 
+    /// - Parameter movingSource: Moves rather than copies the file. Fresh
+    ///   captures pass true: their temporary PNG has no other owner, and a
+    ///   copy left a full-size duplicate in the temporary directory.
     @discardableResult
-    func importScreenshot(from sourceURL: URL) -> URL {
+    func importScreenshot(from sourceURL: URL, movingSource: Bool = false) -> URL {
         do {
             try FileManager.default.createDirectory(at: Self.historyDirectory, withIntermediateDirectories: true)
             let destinationURL = uniqueHistoryURL(for: sourceURL)
@@ -172,7 +175,11 @@ final class ScreenshotHistoryStore {
                 if FileManager.default.fileExists(atPath: destinationURL.path) {
                     try FileManager.default.removeItem(at: destinationURL)
                 }
-                try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+                if movingSource {
+                    try FileManager.default.moveItem(at: sourceURL, to: destinationURL)
+                } else {
+                    try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+                }
             }
 
             let imageSize = ScreenshotImageLoader.imageSize(at: destinationURL) ?? .zero

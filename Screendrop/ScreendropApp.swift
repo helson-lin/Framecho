@@ -82,7 +82,7 @@ struct ScreendropApp: App {
             }
             PreviewPanelPresenter.shared.onEditVideo = openVideoEditor
 
-            let historyURL = ScreenshotHistoryStore.shared.importScreenshot(from: url)
+            let historyURL = ScreenshotHistoryStore.shared.importScreenshot(from: url, movingSource: true)
             ScreenshotPreviewStack.shared.add(url: historyURL, displayID: displayID)
             return historyURL
         }
