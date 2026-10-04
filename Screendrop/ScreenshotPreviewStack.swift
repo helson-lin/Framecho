@@ -101,9 +101,16 @@ final class ScreenshotPreviewStack {
                 finishAddingWithoutPreview(url: url)
                 return
             }
-            var item = ScreenshotPreviewItem(url: url, previewImage: image)
+            let item = ScreenshotPreviewItem(url: url, previewImage: image)
             if AfterCaptureActions.isEnabled(.save, for: .screenshot) {
-                item.autoSavedURL = saveToDefaultLocation(from: url)
+                // Not awaited here, so a slow JPEG/HEIC encode never holds
+                // up the next capture's card.
+                let itemID = item.id
+                Task {
+                    guard let savedURL = await saveToDefaultLocationInBackground(from: url),
+                          let index = items.firstIndex(where: { $0.id == itemID }) else { return }
+                    items[index].autoSavedURL = savedURL
+                }
             }
             prepareForInsertedPreview()
             items.insert(item, at: 0)
@@ -118,7 +125,7 @@ final class ScreenshotPreviewStack {
 
     private func finishAddingWithoutPreview(url: URL) {
         if AfterCaptureActions.isEnabled(.save, for: .screenshot) {
-            _ = saveToDefaultLocation(from: url)
+            Task { _ = await saveToDefaultLocationInBackground(from: url) }
         }
         runAfterCaptureActions(type: .screenshot, url: url, itemID: UUID())
     }
@@ -851,6 +858,15 @@ final class ScreenshotPreviewStack {
         } catch {
             print("Failed to copy screenshot: \(error)")
             return false
+        }
+    }
+
+    private func saveToDefaultLocationInBackground(from url: URL) async -> URL? {
+        do {
+            return try await ScreenshotFileActions.saveToDefaultLocationInBackground(from: url)
+        } catch {
+            print("Failed to auto save: \(error)")
+            return nil
         }
     }
 

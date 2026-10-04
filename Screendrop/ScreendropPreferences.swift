@@ -449,6 +449,32 @@ enum ScreenshotFileActions {
         return destinationURL
     }
     
+    /// The capture path's auto save. A JPEG/HEIC export re-encodes the whole
+    /// image, so that part runs off the main actor; the destination name is
+    /// reserved first so concurrent saves never pick the same file.
+    static func saveToDefaultLocationInBackground(from url: URL) async throws -> URL {
+        let format = ScreendropPreferences.exportFormat
+        guard format.usesLossyQuality else { return try saveToDefaultLocation(from: url) }
+
+        let destinationDirectory = ScreendropPreferences.exportDirectory
+        try FileManager.default.createDirectory(at: destinationDirectory, withIntermediateDirectories: true)
+        let destinationURL = uniqueDestinationURL(for: exportFileName(for: url), in: destinationDirectory)
+        guard FileManager.default.createFile(atPath: destinationURL.path, contents: nil) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        let contentType = format.contentType
+        let quality = ScreendropPreferences.compressionQuality
+        do {
+            try await Task.detached(priority: .userInitiated) {
+                try encodeImage(from: url, to: destinationURL, contentType: contentType, quality: quality)
+            }.value
+        } catch {
+            try? FileManager.default.removeItem(at: destinationURL)
+            throw error
+        }
+        return destinationURL
+    }
+
     static func save(from sourceURL: URL, to destinationURL: URL) throws {
         if ScreendropPreferences.exportFormat == .png {
             if FileManager.default.fileExists(atPath: destinationURL.path) {
@@ -500,6 +526,20 @@ enum ScreenshotFileActions {
     }
     
     private static func exportImage(from sourceURL: URL, to destinationURL: URL, contentType: UTType) throws {
+        try encodeImage(
+            from: sourceURL,
+            to: destinationURL,
+            contentType: contentType,
+            quality: ScreendropPreferences.compressionQuality
+        )
+    }
+
+    private nonisolated static func encodeImage(
+        from sourceURL: URL,
+        to destinationURL: URL,
+        contentType: UTType,
+        quality: Double
+    ) throws {
         if FileManager.default.fileExists(atPath: destinationURL.path) {
             try FileManager.default.removeItem(at: destinationURL)
         }
@@ -521,7 +561,7 @@ enum ScreenshotFileActions {
         }
         
         let options: [CFString: Any] = contentType == .png ? [:] : [
-            kCGImageDestinationLossyCompressionQuality: ScreendropPreferences.compressionQuality
+            kCGImageDestinationLossyCompressionQuality: quality
         ]
         
         CGImageDestinationAddImageFromSource(destination, source, 0, options as CFDictionary)
