@@ -27,6 +27,35 @@
     -->
 
     <item>
+      <title>Version 0.36.0</title>
+      <sparkle:version>39</sparkle:version>
+      <sparkle:shortVersionString>0.36.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.4</sparkle:minimumSystemVersion>
+      <pubDate>Sun, 04 Oct 2026 09:30:23 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.36.0</h2>
+        <ul>
+          <li>截图上传到云端时转为 AVIF，体积约为 PNG 的十分之一；可在「设置 → 云」选择格式和质量，或将 Retina 截图缩放为 1x</li>
+          <li>上传截图时附带 JPEG 封面，分享链接在聊天应用中也能显示预览</li>
+          <li>云分享页全新简约设计（需将 Worker 更新到 1.0.5）；上传选项移除评论与点赞开关</li>
+          <li>菜单栏菜单显示截图快捷键</li>
+          <li>修复录屏暂停后画面冻结、光标和摄像头与画面不同步的问题</li>
+          <li>修复录屏上传后分享链接没有记录到资料库、从预览卡片删除录屏可能损坏工程的问题</li>
+          <li>同时开启复制、保存、上传时，录屏只渲染一次</li>
+          <li>编辑、裁剪和压缩后的截图保留 Retina 像素密度</li>
+          <li>截图后的预览、复制和自动保存更流畅，上传大文件占用更少内存</li>
+          <li>历史记录文件无法读取时先自动备份，不再被清空</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Screendrop/releases/download/v0.36.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="i5lbaHLYNLxVc+gPs4hRaShDq0KGdZ+R75aiQqJJNNlOV01sFrqpwvhqrNqnp4e6Li6GGreLhsTXdFMDInaYDg=="
+        length="9030969"
+      />
+    </item>
+
+    <item>
       <title>Version 0.35.3</title>
       <sparkle:version>38</sparkle:version>
       <sparkle:shortVersionString>0.35.3</sparkle:shortVersionString>
