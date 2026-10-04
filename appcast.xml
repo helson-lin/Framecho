@@ -27,6 +27,32 @@
     -->
 
     <item>
+      <title>Version 0.37.0</title>
+      <sparkle:version>40</sparkle:version>
+      <sparkle:shortVersionString>0.37.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.4</sparkle:minimumSystemVersion>
+      <pubDate>Sun, 04 Oct 2026 10:15:39 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.37.0</h2>
+        <ul>
+          <li>图片编辑器的标注工具移到画布顶部的悬浮工具条，收起检查器后也能使用</li>
+          <li>每个工具都有快捷键，悬停即可看到；新增自由绘制 F、实心矩形 ⇧R、编号 N、高亮 S</li>
+          <li>工具栏改为「完成」「拷贝」「共享」：⌘C 直接拷贝当前画面（含未存储的修改），存储、存储为（⇧⌘S）和上传收进「共享」菜单</li>
+          <li>画布左下角新增撤销 / 重做按钮</li>
+          <li>存储、拷贝或上传失败时在画布顶部提示，可关闭、可重试</li>
+          <li>裁剪快捷键改为 ⇧⌘C，避免误触</li>
+          <li>编辑窗口标题显示文件名和导出尺寸</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Screendrop/releases/download/v0.37.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="ZPWzfjsBpzX/DthiWKuI13GVAl9l2O2r4XBkOje+4+ynJ7wtlfBLjvUIlU1jECmYY8OrsJJ5X0IAT+h1pBVFBg=="
+        length="9084655"
+      />
+    </item>
+
+    <item>
       <title>Version 0.36.0</title>
       <sparkle:version>39</sparkle:version>
       <sparkle:shortVersionString>0.36.0</sparkle:shortVersionString>
