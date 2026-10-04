@@ -36,6 +36,26 @@ enum CloudUploadPreferences {
         }
         set { UserDefaults.standard.set(newValue, forKey: socialEnabledKey) }
     }
+
+    static let imageFormatKey = "cloudUploadImageFormat"
+    static let imageQualityKey = "cloudUploadImageQuality"
+    static let downscalesRetinaImagesKey = "cloudUploadDownscalesRetinaImages"
+    static let defaultImageQuality = 0.8
+
+    /// AVIF unless the user chose to upload originals.
+    static var imageFormat: CloudImageUploadFormat {
+        UserDefaults.standard.string(forKey: imageFormatKey)
+            .flatMap(CloudImageUploadFormat.init(rawValue:)) ?? .avif
+    }
+
+    static var imageQuality: Double {
+        let value = UserDefaults.standard.object(forKey: imageQualityKey) as? Double ?? defaultImageQuality
+        return min(max(value, 0.1), 1)
+    }
+
+    static var downscalesRetinaImages: Bool {
+        UserDefaults.standard.bool(forKey: downscalesRetinaImagesKey)
+    }
 }
 
 /// Small popover form shown from an upload/share button: a title field

@@ -40,4 +40,8 @@ check editor-resources "${strict[@]}" \
 check recording-pause "${strict[@]}" \
   Screendrop/RecordingPauseTimeline.swift scripts/check-recording-pause.swift
 
+check cloud-image-transcode -default-isolation MainActor -parse-as-library \
+  Screendrop/CloudImageTranscoder.swift Screendrop/CloudUploadOptions.swift \
+  scripts/check-cloud-image-transcode.swift
+
 echo "All checks passed."

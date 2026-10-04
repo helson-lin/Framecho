@@ -25,6 +25,10 @@ struct CloudSettingsPane: View {
     @State private var tokenCopied = false
     @State private var setupGuideExpanded = true
 
+    @AppStorage(CloudUploadPreferences.imageFormatKey) private var imageFormat = CloudImageUploadFormat.avif
+    @AppStorage(CloudUploadPreferences.imageQualityKey) private var imageQuality = CloudUploadPreferences.defaultImageQuality
+    @AppStorage(CloudUploadPreferences.downscalesRetinaImagesKey) private var downscalesRetinaImages = false
+
     // Worker version signalling (non-blocking "update available" notice).
     @State private var deployedWorkerVersion: String?
     @State private var latestWorkerVersion: String?
@@ -135,6 +139,42 @@ struct CloudSettingsPane: View {
                     }
                     Text("Paste this token as the **UPLOAD_TOKEN** secret when you deploy the worker to Cloudflare.")
                 }
+            }
+
+            // MARK: - Image uploads
+
+            Section {
+                Picker("Format", selection: $imageFormat) {
+                    ForEach(CloudImageUploadFormat.allCases) { format in
+                        Text(format.title).tag(format)
+                    }
+                }
+
+                if imageFormat == .avif {
+                    LabeledContent("Quality") {
+                        HStack(spacing: 12) {
+                            Slider(value: $imageQuality, in: 0.1...1, step: 0.05)
+                                .frame(width: 180)
+                                .accessibilityLabel("Upload quality")
+                                .accessibilityValue(imageQuality.formatted(.percent.precision(.fractionLength(0))))
+
+                            Text(imageQuality, format: .percent.precision(.fractionLength(0)))
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                                .frame(width: 40, alignment: .trailing)
+                        }
+                    }
+
+                    Toggle("Scale Retina screenshots to 1x", isOn: $downscalesRetinaImages)
+                }
+            } header: {
+                Text("Image Uploads")
+            } footer: {
+                Text(imageFormat == .avif
+                    ? "Screenshots are converted before uploading; the copy in your Library stays lossless. 1x makes files about four times smaller but looks softer on Retina displays."
+                    : "Screenshots upload exactly as stored in your Library.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             // MARK: - Update notice

@@ -72,7 +72,8 @@ final class CloudUploader: NSObject {
         // deliverable first (cached until the edits change).
         var fileURL = fileURL
         let sessionDirectory = fileURL.deletingLastPathComponent()
-        if RecordingSession.isSessionDirectory(sessionDirectory) {
+        let isSessionRecording = RecordingSession.isSessionDirectory(sessionDirectory)
+        if isSessionRecording {
             uploadingItems.insert(itemID)
             uploadProgress[itemID] = 0
             do {
@@ -90,6 +91,34 @@ final class CloudUploader: NSObject {
 
         let creds = CloudCredentialStore.shared.snapshot()
         let fileName = fileURL.lastPathComponent
+        // Screenshots go up as AVIF rather than the History PNG (see
+        // CloudImageTranscoder). The original stays untouched, and if the
+        // encode fails or wouldn't save anything, the original is sent.
+        var transcodedURL: URL?
+        defer {
+            if let transcodedURL { CloudImageTranscoder.removeTemporaryCopy(transcodedURL) }
+        }
+        if !isSessionRecording,
+           let settings = CloudImageTranscoder.currentSettings,
+           CloudImageTranscoder.shouldTranscode(fileURL) {
+            uploadingItems.insert(itemID)
+            uploadProgress[itemID] = 0
+            let sourceURL = fileURL
+            let scaleReferenceURL = ScreenshotHistoryStore.baseImageURL(for: sourceURL)
+            do {
+                transcodedURL = try await Task.detached(priority: .userInitiated) {
+                    try CloudImageTranscoder.transcodeToAVIF(
+                        sourceURL: sourceURL,
+                        scaleReferenceURL: scaleReferenceURL,
+                        settings: settings
+                    )
+                }.value
+            } catch {
+                print("AVIF encode failed, uploading the original: \(error)")
+            }
+            if let transcodedURL { fileURL = transcodedURL }
+        }
+
         // The body is streamed from disk by URLSession, so a long recording
         // never has to fit in memory; just fail early if it's gone.
         do {
@@ -364,6 +393,7 @@ final class CloudUploader: NSObject {
         case "png": return "image/png"
         case "jpg", "jpeg": return "image/jpeg"
         case "heic": return "image/heic"
+        case "avif": return "image/avif"
         case "gif": return "image/gif"
         case "webp": return "image/webp"
         case "mov": return "video/quicktime"
