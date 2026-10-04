@@ -6,6 +6,7 @@
 import AppKit
 import Carbon.HIToolbox
 import Foundation
+import SwiftUI
 
 struct HotkeyShortcut: Codable, Equatable, Hashable {
     struct Modifiers: OptionSet, Codable, Equatable, Hashable {
@@ -46,6 +47,15 @@ struct HotkeyShortcut: Codable, Equatable, Hashable {
             if contains(.command) { result.append("⌘") }
             return result
         }
+
+        var eventModifiers: SwiftUI.EventModifiers {
+            var result: SwiftUI.EventModifiers = []
+            if contains(.command) { result.insert(.command) }
+            if contains(.option) { result.insert(.option) }
+            if contains(.control) { result.insert(.control) }
+            if contains(.shift) { result.insert(.shift) }
+            return result
+        }
     }
 
     let modifiers: Modifiers
@@ -62,6 +72,42 @@ struct HotkeyShortcut: Codable, Equatable, Hashable {
     var isValid: Bool {
         !modifiers.isEmpty
     }
+
+    /// Lets menus display the global hotkey. The Carbon hotkey consumes the
+    /// keystroke first, so the menu item never fires the action a second time.
+    var keyboardShortcut: KeyboardShortcut? {
+        guard let key = Self.keyEquivalent(for: keyCode) else { return nil }
+        return KeyboardShortcut(key, modifiers: modifiers.eventModifiers)
+    }
+
+    private static func keyEquivalent(for keyCode: Int) -> KeyEquivalent? {
+        switch keyCode {
+        case kVK_Return: return .return
+        case kVK_Tab: return .tab
+        case kVK_Space: return .space
+        case kVK_Delete: return .delete
+        case kVK_ForwardDelete: return .deleteForward
+        case kVK_Escape: return .escape
+        case kVK_LeftArrow: return .leftArrow
+        case kVK_RightArrow: return .rightArrow
+        case kVK_UpArrow: return .upArrow
+        case kVK_DownArrow: return .downArrow
+        default:
+            if let index = functionKeyCodes.firstIndex(of: keyCode),
+               let scalar = UnicodeScalar(NSF1FunctionKey + index) {
+                return KeyEquivalent(Character(scalar))
+            }
+            guard let label = ansiKeyLabel(for: keyCode), let character = label.lowercased().first else {
+                return nil
+            }
+            return KeyEquivalent(character)
+        }
+    }
+
+    private static let functionKeyCodes = [
+        kVK_F1, kVK_F2, kVK_F3, kVK_F4, kVK_F5, kVK_F6,
+        kVK_F7, kVK_F8, kVK_F9, kVK_F10, kVK_F11, kVK_F12
+    ]
 
     private static func keyLabel(for keyCode: Int) -> String {
         switch keyCode {
