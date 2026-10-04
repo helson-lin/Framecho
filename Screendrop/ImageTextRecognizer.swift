@@ -4,6 +4,7 @@
 //
 
 import CoreGraphics
+import CoreText
 import Foundation
 import ImageIO
 import Vision
@@ -23,11 +24,7 @@ enum ImageTextRecognizer {
                     return
                 }
 
-                let request = VNRecognizeTextRequest()
-                request.recognitionLevel = .accurate
-                request.usesLanguageCorrection = true
-                configureLanguages(request)
-
+                let request = makeRequest()
                 let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
                 do {
                     try handler.perform([request])
@@ -42,6 +39,73 @@ enum ImageTextRecognizer {
             }
         }
     }
+
+    nonisolated private static func makeRequest() -> VNRecognizeTextRequest {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = true
+        configureLanguages(request)
+        return request
+    }
+
+    // MARK: - Warm-up
+
+    nonisolated private static let warmUpFingerprintKey = "textRecognition.warmedUpFingerprint"
+
+    /// The first accurate recognition in a newly installed binary compiles
+    /// Vision's models for it, which takes 20-45 seconds - so after every
+    /// update the first Copy Text would sit there for half a minute. The
+    /// compiled models are cached on disk per binary, so this pays that cost
+    /// once in the background, only when the app or macOS has changed since
+    /// the last warm-up. Ordinary launches skip it and load nothing.
+    static func warmUpAfterUpdateIfNeeded() {
+        let fingerprint = binaryFingerprint()
+        guard UserDefaults.standard.string(forKey: warmUpFingerprintKey) != fingerprint else { return }
+
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 5) {
+            // One Latin and one CJK sample: automatic language detection
+            // picks a single recognizer per image, and each one compiles
+            // separately.
+            for sample in ["Recognize text", "识别文字"] {
+                guard let image = warmUpImage(sample) else { return }
+                let handler = VNImageRequestHandler(cgImage: image, options: [:])
+                guard (try? handler.perform([makeRequest()])) != nil else { return }
+            }
+            UserDefaults.standard.set(fingerprint, forKey: warmUpFingerprintKey)
+        }
+    }
+
+    /// Changes whenever the executable or the OS does - both invalidate the
+    /// compiled models.
+    private static func binaryFingerprint() -> String {
+        let modified = (try? Bundle.main.executableURL?
+            .resourceValues(forKeys: [.contentModificationDateKey])
+            .contentModificationDate)?
+            .map { String($0.timeIntervalSinceReferenceDate) } ?? "unknown"
+        return "\(modified)|\(ProcessInfo.processInfo.operatingSystemVersionString)"
+    }
+
+    nonisolated private static func warmUpImage(_ text: String) -> CGImage? {
+        let size = CGSize(width: 320, height: 64)
+        guard let context = CGContext(
+            data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8,
+            bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        context.setFillColor(CGColor(gray: 1, alpha: 1))
+        context.fill(CGRect(origin: .zero, size: size))
+
+        let font = CTFontCreateUIFontForLanguage(.system, 28, nil)
+        let attributed = NSAttributedString(string: text, attributes: [
+            NSAttributedString.Key(kCTFontAttributeName as String): font as Any,
+            NSAttributedString.Key(kCTForegroundColorAttributeName as String): CGColor(gray: 0, alpha: 1),
+        ])
+        context.textPosition = CGPoint(x: 12, y: 20)
+        CTLineDraw(CTLineCreateWithAttributedString(attributed), context)
+        return context.makeImage()
+    }
+
+    // MARK: - Languages
 
     /// Vision recognises only English unless told otherwise, and with a fixed
     /// list the first language's model reads everything - Chinese first turns

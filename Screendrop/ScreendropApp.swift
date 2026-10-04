@@ -147,6 +147,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         HotkeyManager.shared.registerHotkeys()
         updaterManager.start()
         RecordingRecoveryCoordinator.recoverInterruptedRecordings()
+        ImageTextRecognizer.warmUpAfterUpdateIfNeeded()
         let launchEvent = NSAppleEventManager.shared().currentAppleEvent
         let launchReason = launchEvent?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue
         let launchedInBackground = launchReason == keyAELaunchedAsLogInItem
