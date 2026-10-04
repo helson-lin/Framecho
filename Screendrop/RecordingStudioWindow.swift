@@ -3574,44 +3574,21 @@ private extension ZoomAnchorMode {
     }
 }
 
-private enum StudioInspectorSection: String, Hashable, CaseIterable {
-    case background
-    case layout
-    case motion
-    case cardMotion
-    case cursor
-    case keystrokes
-    case transcription
-    case camera
-    case audio
-}
-
-private enum StudioInspectorSectionState {
-    static let expandedSectionsKey = "studioInspector.expandedSections"
-    static let defaultSections: Set<StudioInspectorSection> = [.background, .layout, .motion]
-
-    static func load() -> Set<StudioInspectorSection> {
-        guard let rawValues = UserDefaults.standard.stringArray(forKey: expandedSectionsKey) else {
-            return defaultSections
-        }
-        return Set(rawValues.compactMap(StudioInspectorSection.init(rawValue:)))
-    }
-
-    static func save(_ sections: Set<StudioInspectorSection>) {
-        UserDefaults.standard.set(sections.map(\.rawValue), forKey: expandedSectionsKey)
-    }
-}
-
-private enum StudioTranscriptTab: CaseIterable, Identifiable {
-    case captions
-    case edit
-
-    var id: Self { self }
+/// The Studio inspector splits by what a setting changes: the frame the video
+/// sits in, timed camera effects, things drawn over the video, and the cut
+/// and its sound.
+private enum StudioInspectorTab: Hashable, CaseIterable {
+    case canvas
+    case animation
+    case overlays
+    case editing
 
     var title: String {
         switch self {
-        case .captions: String(localized: "Captions")
-        case .edit: String(localized: "Edit Video")
+        case .canvas: String(localized: "Canvas")
+        case .animation: String(localized: "Animation")
+        case .overlays: String(localized: "Overlays")
+        case .editing: String(localized: "Editing")
         }
     }
 }
@@ -3624,8 +3601,8 @@ private struct StudioInspector: View {
     @Bindable var model: RecordingStudioModel
     @State private var wallpaperStore = AnnotationWallpaperStore.shared
     @State private var stylePresetStore = RecordingStudioStylePresetStore.shared
-    @State private var expandedSections = StudioInspectorSectionState.load()
-    @State private var transcriptTab: StudioTranscriptTab = .captions
+    @State private var selectedTab: StudioInspectorTab = .canvas
+    @State private var showsBasePoseControls = false
     @State private var isAudioExportOptionsPresented = false
     @State private var scrollPosition = ScrollPosition(edge: .top)
 
@@ -3639,240 +3616,46 @@ private struct StudioInspector: View {
     var body: some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 0) {
-                // Timeline selections edit at the top, where attention lands
-                // after clicking a zoom or clip, instead of pushing the
-                // sections below around mid-panel.
-                if let selected = model.selectedCue {
-                    InspectorSection(
-                        title: "Selected Zoom",
-                        accessory: {
-                            InspectorToggle(
-                                "Use this zoom",
-                                isOn: Binding(
-                                    get: { selected.isEnabled },
-                                    set: { isEnabled in
-                                        var updated = selected
-                                        updated.isEnabled = isEnabled
-                                        model.updateZoomCue(updated)
-                                    }
-                                )
-                            )
-                        }
-                    ) {
-                        selectedZoomControls(for: selected)
-                    }
-                    InspectorSectionDivider()
-                } else if let selectedMotion = model.selectedMotionCue {
-                    InspectorSection(
-                        title: "Selected Motion",
-                        accessory: {
-                            InspectorToggle(
-                                "Use this motion",
-                                isOn: Binding(
-                                    get: { selectedMotion.isEnabled },
-                                    set: { isEnabled in
-                                        var updated = selectedMotion
-                                        updated.isEnabled = isEnabled
-                                        model.updateMotionCue(updated)
-                                    }
-                                )
-                            )
-                        }
-                    ) {
-                        selectedMotionControls(for: selectedMotion)
-                    }
-                    InspectorSectionDivider()
-                } else if let selectedClip = model.selectedClip {
-                    InspectorSection("Selected Clip") {
-                        selectedClipControls(for: selectedClip)
-                    }
-                    InspectorSectionDivider()
-                }
-
-                InspectorDisclosureSection(
-                    title: "Background",
-                    summary: StudioInspectorSummary.background(
-                        model.style.background,
-                        aspect: model.exportAspect
-                    ),
-                    isExpanded: expansionBinding(for: .background),
-                    accessory: {
-                        if model.style.background != .none {
-                            InspectorClearButton(help: "Remove background") {
-                                model.style.background = .none
-                            }
-                        }
-                    }
-                ) {
-                    backgroundControls
-                }
-
-                InspectorDisclosureSection(
-                    title: "Layout",
-                    summary: usesDefaultLayout ? nil : String(localized: "Custom"),
-                    isExpanded: expansionBinding(for: .layout),
-                    accessory: {
-                        if !usesDefaultLayout {
-                            InspectorResetButton(help: "Reset layout") {
-                                model.style.padding = 0.06
-                                model.style.cornerRadius = 0.02
-                                model.style.shadow = 0.45
-                            }
-                        }
-                    }
-                ) {
-                    layoutControls
-                }
-
-                InspectorDisclosureSection(
-                    title: "Zoom & Clicks",
-                    summary: zoomSummary,
-                    isExpanded: expansionBinding(for: .motion),
-                    accessory: {
-                        sectionToggle("Enable zooms", isOn: $model.zoomEnabled, section: .motion)
-                    }
-                ) {
-                    zoomControls
-                }
-
-                InspectorDisclosureSection(
-                    title: "3D Motion",
-                    summary: cardMotionSummary,
-                    isExpanded: expansionBinding(for: .cardMotion),
-                    accessory: {
-                        sectionToggle(
-                            String(localized: "Enable 3D motion"),
-                            isOn: $model.motionEnabled,
-                            section: .cardMotion
-                        )
-                    }
-                ) {
-                    cardMotionControls
-                }
-
-                if model.pointerIsSynthesized {
-                    InspectorDisclosureSection(
-                        title: "Cursor",
-                        summary: model.style.hidesCursor
-                            ? String(localized: "Hidden")
-                            : InspectorValueFormat.magnification(fractionDigits: 1)
-                                .displayString(for: model.style.cursorScale),
-                        isExpanded: expansionBinding(for: .cursor),
-                        accessory: {
-                            HStack(spacing: 5) {
-                                if model.style.cursorScale != RecordingStudioStyle.defaultCursorScale {
-                                    InspectorResetButton(help: "Reset cursor size") {
-                                        model.style.cursorScale = RecordingStudioStyle.defaultCursorScale
-                                    }
-                                }
-                                sectionToggle(
-                                    "Show mouse pointer",
-                                    isOn: Binding(
-                                        get: { !model.style.hidesCursor },
-                                        set: { model.style.hidesCursor = !$0 }
-                                    ),
-                                    section: .cursor
-                                )
-                            }
-                        }
-                    ) {
-                        cursorControls
-                    }
-                }
-
-                if model.hasKeystrokes {
-                    InspectorDisclosureSection(
-                        title: "Keystrokes",
-                        summary: model.showsKeystrokes
-                            ? StudioInspectorSummary.keystrokePlacement(model.keystrokePlacement)
-                            : nil,
-                        isExpanded: expansionBinding(for: .keystrokes),
-                        accessory: {
-                            sectionToggle("Show keystrokes", isOn: $model.showsKeystrokes, section: .keystrokes)
-                        }
-                    ) {
-                        keystrokeControls
-                    }
-                }
-
-                if model.canTranscribe || model.hasSubtitles {
-                    InspectorDisclosureSection(
-                        title: "Transcription",
-                        summary: transcriptionSummary,
-                        isExpanded: expansionBinding(for: .transcription),
-                        accessory: {
-                            if model.transcriptionState.isTranscribing {
-                                ProgressView()
-                                    .controlSize(.mini)
-                                    .frame(width: 24, height: 24)
-                            } else if model.hasSubtitles {
-                                sectionToggle(
-                                    "Show subtitles",
-                                    isOn: $model.showsSubtitles,
-                                    section: .transcription
-                                )
-                            }
-                        }
-                    ) {
-                        transcriptionControls
-                    }
-                }
-
-                if model.hasCameraVideo {
-                    InspectorDisclosureSection(
-                        title: "Camera",
-                        summary: model.style.camera.isVisible
-                            ? InspectorValueFormat.percent().displayString(for: model.style.camera.size)
-                            : nil,
-                        isExpanded: expansionBinding(for: .camera),
-                        accessory: {
-                            sectionToggle("Show camera", isOn: $model.style.camera.isVisible, section: .camera)
-                        }
-                    ) {
-                        cameraControls
-                    }
-                }
-
-                InspectorDisclosureSection(
-                    title: "Audio",
-                    summary: audioSummary,
-                    isExpanded: expansionBinding(for: .audio),
-                    accessory: {
-                        if model.replacementAudio != nil {
-                            if model.hasRecordedAudio {
-                                InspectorResetButton(help: "Use the recorded audio again") {
-                                    model.removeReplacementAudio()
-                                }
-                            } else {
-                                InspectorClearButton(help: "Remove this audio") {
-                                    model.removeReplacementAudio()
-                                }
-                            }
-                        }
-                    }
-                ) {
-                    audioControls
+                switch selectedTab {
+                case .canvas:
+                    canvasTab
+                case .animation:
+                    animationTab
+                case .overlays:
+                    overlaysTab
+                case .editing:
+                    editingTab
                 }
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .padding(.bottom, PreviewPeekTab.pillHeight * 1.1)
         }
         .scrollPosition($scrollPosition)
-        // A new timeline selection puts its controls at the top; bring them
-        // into view even when the panel was scrolled down.
+        // A timeline selection opens the tab that edits it, with its controls
+        // at the top even when the panel was scrolled down.
         .onChange(of: selectionKey) { _, key in
             guard key != nil else { return }
-            if accessibilityReduceMotion {
-                scrollPosition.scrollTo(edge: .top)
+            if model.selectedClipID != nil {
+                selectedTab = .editing
             } else {
-                withAnimation(.easeOut(duration: 0.2)) {
-                    scrollPosition.scrollTo(edge: .top)
-                }
+                selectedTab = .animation
             }
+            scrollToTop(animated: true)
+        }
+        .onChange(of: model.activePoseAdjustment) { _, target in
+            if target != nil {
+                selectedTab = .animation
+            }
+        }
+        .onChange(of: selectedTab) { _, _ in
+            scrollToTop(animated: false)
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
+                // Presets span the Canvas and Overlays tabs, so they sit above both.
                 RecordingStudioStylePresetBar(model: model, presetStore: stylePresetStore)
+
+                tabPicker
 
                 Rectangle()
                     .fill(Color(nsColor: .separatorColor).opacity(0.45))
@@ -3899,9 +3682,290 @@ private struct StudioInspector: View {
         }
     }
 
+    private var tabPicker: some View {
+        InspectorSegmented(
+            options: StudioInspectorTab.allCases,
+            isSelected: { $0 == selectedTab },
+            onTap: { selectedTab = $0 },
+            label: { tab in
+                Text(tab.title)
+                    .font(.inspectorSegment)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+            }
+        )
+        .padding(.horizontal, InspectorMetrics.horizontalPadding)
+        .padding(.bottom, 10)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Inspector")
+    }
+
+    private func scrollToTop(animated: Bool) {
+        if animated, !accessibilityReduceMotion {
+            withAnimation(.easeOut(duration: 0.2)) {
+                scrollPosition.scrollTo(edge: .top)
+            }
+        } else {
+            scrollPosition.scrollTo(edge: .top)
+        }
+    }
+
+    // MARK: Tabs
+
+    @ViewBuilder
+    private var canvasTab: some View {
+        InspectorSection(
+            title: "Composition",
+            accessory: {
+                if !usesDefaultComposition {
+                    InspectorResetButton(help: "Reset composition") {
+                        model.exportAspect = .original
+                        model.exportAspectMode = .fill
+                        model.style.padding = RecordingStudioStyle().padding
+                    }
+                }
+            }
+        ) {
+            compositionControls
+        }
+
+        InspectorSectionDivider()
+
+        InspectorSection(
+            title: "Background",
+            accessory: {
+                if model.style.background != .none {
+                    InspectorClearButton(help: "Remove background") {
+                        model.style.background = .none
+                    }
+                }
+            }
+        ) {
+            backgroundControls
+        }
+
+        InspectorSectionDivider()
+
+        InspectorSection(
+            title: "Video Card",
+            accessory: {
+                if !usesDefaultVideoCard {
+                    InspectorResetButton(help: "Reset video card") {
+                        let defaults = RecordingStudioStyle()
+                        model.style.cornerRadius = defaults.cornerRadius
+                        model.style.shadow = defaults.shadow
+                    }
+                }
+            }
+        ) {
+            videoCardControls
+        }
+    }
+
+    @ViewBuilder
+    private var animationTab: some View {
+        // Timeline selections edit at the top, where attention lands after
+        // clicking a zoom or motion.
+        if let selected = model.selectedCue {
+            InspectorSection(
+                title: "Selected Zoom",
+                accessory: {
+                    InspectorToggle(
+                        "Use this zoom",
+                        isOn: Binding(
+                            get: { selected.isEnabled },
+                            set: { isEnabled in
+                                var updated = selected
+                                updated.isEnabled = isEnabled
+                                model.updateZoomCue(updated)
+                            }
+                        )
+                    )
+                }
+            ) {
+                selectedZoomControls(for: selected)
+            }
+            InspectorSectionDivider()
+        } else if let selectedMotion = model.selectedMotionCue {
+            InspectorSection(
+                title: "Selected Motion",
+                accessory: {
+                    InspectorToggle(
+                        "Use this motion",
+                        isOn: Binding(
+                            get: { selectedMotion.isEnabled },
+                            set: { isEnabled in
+                                var updated = selectedMotion
+                                updated.isEnabled = isEnabled
+                                model.updateMotionCue(updated)
+                            }
+                        )
+                    )
+                }
+            ) {
+                selectedMotionControls(for: selectedMotion)
+            }
+            InspectorSectionDivider()
+        }
+
+        InspectorSection(
+            title: "Zoom",
+            accessory: {
+                InspectorToggle("Enable zooms", isOn: $model.zoomEnabled)
+            }
+        ) {
+            if model.zoomEnabled {
+                zoomControls
+            }
+        }
+
+        InspectorSectionDivider()
+
+        InspectorSection(
+            title: "3D Motion",
+            accessory: {
+                InspectorToggle("Enable 3D motion", isOn: $model.motionEnabled)
+            }
+        ) {
+            if model.motionEnabled {
+                cardMotionControls
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var overlaysTab: some View {
+        if !hasOverlays {
+            InspectorSection("Overlays") {
+                InspectorHint("This recording has no pointer, keystrokes, narration or camera to show.")
+            }
+        }
+
+        if model.pointerIsSynthesized {
+            InspectorSection(
+                title: "Cursor",
+                accessory: {
+                    HStack(spacing: 5) {
+                        if model.style.cursorScale != RecordingStudioStyle.defaultCursorScale {
+                            InspectorResetButton(help: "Reset cursor size") {
+                                model.style.cursorScale = RecordingStudioStyle.defaultCursorScale
+                            }
+                        }
+                        InspectorToggle(
+                            "Show mouse pointer",
+                            isOn: Binding(
+                                get: { !model.style.hidesCursor },
+                                set: { model.style.hidesCursor = !$0 }
+                            )
+                        )
+                    }
+                }
+            ) {
+                if !model.style.hidesCursor {
+                    cursorControls
+                }
+            }
+            InspectorSectionDivider()
+        }
+
+        if model.hasKeystrokes {
+            InspectorSection(
+                title: "Keystrokes",
+                accessory: {
+                    InspectorToggle("Show keystrokes", isOn: $model.showsKeystrokes)
+                }
+            ) {
+                if model.showsKeystrokes {
+                    keystrokeControls
+                }
+            }
+            InspectorSectionDivider()
+        }
+
+        if model.canTranscribe || model.hasSubtitles {
+            InspectorSection(
+                title: "Captions",
+                accessory: {
+                    if model.transcriptionState.isTranscribing {
+                        ProgressView()
+                            .controlSize(.mini)
+                            .frame(width: 24, height: 24)
+                    } else if model.hasSubtitles {
+                        InspectorToggle("Show subtitles", isOn: $model.showsSubtitles)
+                    }
+                }
+            ) {
+                captionSectionControls
+            }
+            InspectorSectionDivider()
+        }
+
+        if model.hasCameraVideo {
+            InspectorSection(
+                title: "Camera",
+                accessory: {
+                    InspectorToggle("Show camera", isOn: $model.style.camera.isVisible)
+                }
+            ) {
+                if model.style.camera.isVisible {
+                    cameraControls
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var editingTab: some View {
+        if let selectedClip = model.selectedClip {
+            InspectorSection("Selected Clip") {
+                selectedClipControls(for: selectedClip)
+            }
+        } else {
+            InspectorSection("Clips") {
+                InspectorHint("Click a clip on the timeline to change its speed or delete it.")
+            }
+        }
+
+        InspectorSectionDivider()
+
+        if model.canTranscribe || model.hasSubtitles {
+            InspectorSection("Edit by Text") {
+                editByTextControls
+            }
+            InspectorSectionDivider()
+        }
+
+        InspectorSection(
+            title: "Audio",
+            accessory: {
+                if model.replacementAudio != nil {
+                    if model.hasRecordedAudio {
+                        InspectorResetButton(help: "Use the recorded audio again") {
+                            model.removeReplacementAudio()
+                        }
+                    } else {
+                        InspectorClearButton(help: "Remove this audio") {
+                            model.removeReplacementAudio()
+                        }
+                    }
+                }
+            }
+        ) {
+            audioControls
+        }
+    }
+
+    private var hasOverlays: Bool {
+        model.pointerIsSynthesized
+            || model.hasKeystrokes
+            || model.canTranscribe
+            || model.hasSubtitles
+            || model.hasCameraVideo
+    }
+
     // MARK: Background
 
-    private var backgroundControls: some View {
+    private var compositionControls: some View {
         VStack(alignment: .leading, spacing: InspectorMetrics.groupSpacing) {
             VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
                 InspectorGroupLabel("Aspect ratio")
@@ -3933,18 +3997,23 @@ private struct StudioInspector: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
-                InspectorGroupLabel("Fill")
-
-                InspectorBackgroundFillPicker(
-                    style: $model.style.background,
-                    rememberedWallpaper: nil,
-                    wallpaperStore: wallpaperStore,
-                    onEditorAction: {},
-                    onPickWallpaper: pickWallpaper
-                )
-            }
+            InspectorSlider(
+                "Padding",
+                value: $model.style.padding,
+                range: 0...0.18,
+                format: .percent()
+            )
         }
+    }
+
+    private var backgroundControls: some View {
+        InspectorBackgroundFillPicker(
+            style: $model.style.background,
+            rememberedWallpaper: nil,
+            wallpaperStore: wallpaperStore,
+            onEditorAction: {},
+            onPickWallpaper: pickWallpaper
+        )
     }
 
     private func pickWallpaper() {
@@ -3961,26 +4030,17 @@ private struct StudioInspector: View {
         }
     }
 
-    // MARK: Layout
+    // MARK: Video card
 
-    private var layoutControls: some View {
-        VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
-            InspectorFieldPair {
-                InspectorSlider(
-                    "Padding",
-                    value: $model.style.padding,
-                    range: 0...0.18,
-                    format: .percent()
-                )
-            } trailing: {
-                InspectorSlider(
-                    "Corners",
-                    value: $model.style.cornerRadius,
-                    range: 0...0.08,
-                    format: .percent()
-                )
-            }
-
+    private var videoCardControls: some View {
+        InspectorFieldPair {
+            InspectorSlider(
+                "Corners",
+                value: $model.style.cornerRadius,
+                range: 0...0.08,
+                format: .percent()
+            )
+        } trailing: {
             InspectorSlider(
                 "Shadow",
                 value: $model.style.shadow,
@@ -4016,8 +4076,6 @@ private struct StudioInspector: View {
                 )
             }
         }
-        .disabled(!model.zoomEnabled)
-        .opacity(model.zoomEnabled ? 1 : 0.48)
     }
 
     private func selectedZoomControls(for selected: ZoomCue) -> some View {
@@ -4140,31 +4198,10 @@ private struct StudioInspector: View {
         acceptedSuffixes: ["seconds", "second", "sec", "s"]
     )
 
-    private var cardMotionSummary: String? {
-        guard model.motion.isEnabled else { return nil }
-        let count = model.motion.cues.count
-        if count > 0 {
-            return String(localized: "\(count) motions")
-        }
-        return model.motion.basePose.isIdentity ? nil : String(localized: "Tilted")
-    }
-
     private var cardMotionControls: some View {
         VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
-            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
-                InspectorGroupLabel("Base pose")
-                adjustOnCanvasButton(for: .base)
-                poseControls(current: { model.motionBasePose }) { pose in
-                    model.motionBasePose = pose
-                }
-            }
-
             HStack(spacing: InspectorMetrics.rowSpacing) {
-                InspectorActionButton("Reset Pose", systemImage: "arrow.counterclockwise") {
-                    model.resetMotionBasePose()
-                }
-                .disabled(model.motion.basePose.isIdentity)
-                .help("Return the card to a flat, centered pose")
+                adjustOnCanvasButton(for: .base)
 
                 InspectorActionButton("Fit to Canvas", systemImage: "arrow.down.right.and.arrow.up.left") {
                     model.fitMotionToCanvas()
@@ -4186,6 +4223,8 @@ private struct StudioInspector: View {
                 .accessibilityElement(children: .combine)
             }
 
+            basePoseDisclosure
+
             VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
                 InspectorGroupLabel("Add motion at playhead")
                 InspectorSegmented(
@@ -4203,8 +4242,51 @@ private struct StudioInspector: View {
                 )
             }
         }
-        .disabled(!model.motionEnabled)
-        .opacity(model.motionEnabled ? 1 : 0.48)
+    }
+
+    /// The base pose sliders fold away: most edits happen on the canvas or
+    /// through motions, so they stay one click from view.
+    private var basePoseDisclosure: some View {
+        VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+            HStack(spacing: 6) {
+                Button {
+                    withAnimation(accessibilityReduceMotion ? nil : .snappy(duration: 0.18)) {
+                        showsBasePoseControls.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .rotationEffect(.degrees(showsBasePoseControls ? 90 : 0))
+                            .frame(width: 12)
+                        InspectorGroupLabel("Base pose")
+                        Text(model.motion.basePose.isIdentity ? String(localized: "Flat") : String(localized: "Tilted"))
+                            .font(.inspectorLabel)
+                            .foregroundStyle(.tertiary)
+                        Spacer(minLength: 0)
+                    }
+                    .frame(minHeight: 24)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Base pose")
+                .accessibilityValue(showsBasePoseControls ? Text("Expanded") : Text("Collapsed"))
+
+                if !model.motion.basePose.isIdentity {
+                    InspectorResetButton(help: "Reset Pose") {
+                        model.resetMotionBasePose()
+                    }
+                }
+            }
+
+            if showsBasePoseControls {
+                poseControls(current: { model.motionBasePose }) { pose in
+                    model.motionBasePose = pose
+                }
+                .transition(.opacity)
+            }
+        }
     }
 
     private func selectedMotionControls(for cue: RecordingMotionCue) -> some View {
@@ -4422,8 +4504,6 @@ private struct StudioInspector: View {
                 InspectorToggleRow("Click highlights", isOn: $model.showsClickEffects)
             }
         }
-        .disabled(model.style.hidesCursor)
-        .opacity(model.style.hidesCursor ? 0.48 : 1)
     }
 
     // MARK: Keystrokes
@@ -4438,8 +4518,6 @@ private struct StudioInspector: View {
             }
         }
         .help("Shortcuts you pressed while recording appear as a caption")
-        .disabled(!model.showsKeystrokes)
-        .opacity(model.showsKeystrokes ? 1 : 0.48)
     }
 
     private func keystrokePlacementRow(
@@ -4455,32 +4533,56 @@ private struct StudioInspector: View {
 
     // MARK: Transcription
 
+    /// Transcribing, failed, or not yet transcribed: shared by Captions and
+    /// Edit by Text, which both need a transcript.
     @ViewBuilder
-    private var transcriptionControls: some View {
-        VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
-            switch model.transcriptionState {
-            case .transcribing:
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .controlSize(.small)
-                    InspectorHint("Transcribing narration…")
-                }
-            case .failed(let message):
-                InspectorHint(message, tint: .orange)
+    private var transcriptionStatus: some View {
+        switch model.transcriptionState {
+        case .transcribing:
+            HStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+                InspectorHint("Transcribing narration…")
+            }
+        case .failed(let message):
+            InspectorHint(message, tint: .orange)
 
-                InspectorActionButton("Try Again", systemImage: "waveform") {
-                    model.transcribe()
+            InspectorActionButton("Try Again", systemImage: "waveform") {
+                model.transcribe()
+            }
+        case .idle:
+            InspectorActionButton("Transcribe Narration", systemImage: "waveform") {
+                model.transcribe()
+            }
+            .help("Turn your microphone narration into subtitles, transcribed on this Mac")
+        }
+    }
+
+    private var hasIdleTranscript: Bool {
+        guard case .idle = model.transcriptionState else { return false }
+        return model.hasSubtitles
+    }
+
+    private var captionSectionControls: some View {
+        VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+            if hasIdleTranscript {
+                if model.showsSubtitles {
+                    captionControls
                 }
-            case .idle:
-                if model.hasSubtitles {
-                    subtitleEditor
-                    transcriptionActions
-                } else {
-                    InspectorActionButton("Transcribe Narration", systemImage: "waveform") {
-                        model.transcribe()
-                    }
-                    .help("Turn your microphone narration into subtitles, transcribed on this Mac")
-                }
+                transcriptionActions
+            } else {
+                transcriptionStatus
+            }
+        }
+    }
+
+    private var editByTextControls: some View {
+        VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+            if hasIdleTranscript {
+                transcriptEditControls
+            } else {
+                transcriptionStatus
+                InspectorHint("Transcribe the narration to cut the video by editing its text.")
             }
         }
     }
@@ -4497,28 +4599,6 @@ private struct StudioInspector: View {
                 model.removeTranscription()
             }
             .help("Remove the subtitles")
-        }
-    }
-
-    private var subtitleEditor: some View {
-        VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
-            InspectorSegmented(
-                options: StudioTranscriptTab.allCases,
-                isSelected: { $0 == transcriptTab },
-                onTap: { transcriptTab = $0 },
-                label: { tab in
-                    Text(tab.title)
-                        .font(.inspectorSegment)
-                        .lineLimit(1)
-                }
-            )
-
-            switch transcriptTab {
-            case .captions:
-                captionControls
-            case .edit:
-                transcriptEditControls
-            }
         }
     }
 
@@ -4558,8 +4638,6 @@ private struct StudioInspector: View {
             subtitleList
                 .help("Click a timestamp to jump there. Edit any line to fix the transcription.")
         }
-        .disabled(!model.showsSubtitles)
-        .opacity(model.showsSubtitles ? 1 : 0.48)
     }
 
     @ViewBuilder
@@ -4652,8 +4730,6 @@ private struct StudioInspector: View {
             )
         }
         .help("Drag the camera directly on the canvas to place it")
-        .disabled(!model.style.camera.isVisible)
-        .opacity(model.style.camera.isVisible ? 1 : 0.48)
     }
 
     // MARK: Audio
@@ -4832,121 +4908,24 @@ private struct StudioInspector: View {
         }
     }
 
-    // MARK: Summaries
-
-    private var zoomSummary: String? {
-        guard model.zoomEnabled else { return nil }
-        let count = model.zoomCues.count
-        return count == 1 ? String(localized: "1 zoom") : String(localized: "\(count) zooms")
-    }
-
-    private var transcriptionSummary: String? {
-        switch model.transcriptionState {
-        case .transcribing:
-            return String(localized: "Transcribing…")
-        case .failed:
-            return String(localized: "Failed")
-        case .idle:
-            guard model.hasSubtitles, model.showsSubtitles else { return nil }
-            let count = model.subtitleCues.count
-            return count == 1 ? String(localized: "1 line") : String(localized: "\(count) lines")
-        }
-    }
-
-    private var audioSummary: String? {
-        if let replacement = model.replacementAudio {
-            return replacement.displayName
-        }
-        guard model.hasAudio, abs(model.audioVolume - 1) > 0.001 else { return nil }
-        return String(localized: "Volume \(InspectorValueFormat.percent().displayString(for: model.audioVolume))")
-    }
-
     // MARK: Helpers
 
-    private var usesDefaultLayout: Bool {
-        abs(model.style.padding - 0.06) < 0.0001
-            && abs(model.style.cornerRadius - 0.02) < 0.0001
-            && abs(model.style.shadow - 0.45) < 0.0001
+    private var usesDefaultComposition: Bool {
+        model.exportAspect == .original
+            && model.exportAspectMode == .fill
+            && abs(model.style.padding - RecordingStudioStyle().padding) < 0.0001
+    }
+
+    private var usesDefaultVideoCard: Bool {
+        let defaults = RecordingStudioStyle()
+        return abs(model.style.cornerRadius - defaults.cornerRadius) < 0.0001
+            && abs(model.style.shadow - defaults.shadow) < 0.0001
     }
 
     private var sidebarBackground: Color {
         InspectorControlPalette.panelBackground(for: colorScheme)
     }
 
-    private var sectionAnimation: Animation? {
-        accessibilityReduceMotion ? nil : .snappy(duration: 0.18)
-    }
-
-    private func expansionBinding(for section: StudioInspectorSection) -> Binding<Bool> {
-        Binding(
-            get: { expandedSections.contains(section) },
-            set: { setExpanded(section, $0, animated: false) }
-        )
-    }
-
-    private func setExpanded(_ section: StudioInspectorSection, _ isExpanded: Bool, animated: Bool = true) {
-        withAnimation(animated ? sectionAnimation : nil) {
-            if isExpanded {
-                expandedSections.insert(section)
-            } else {
-                expandedSections.remove(section)
-            }
-        }
-        StudioInspectorSectionState.save(expandedSections)
-    }
-
-    /// Header switch for a section with an on/off state. Turning one on
-    /// opens its controls; turning it off folds them away.
-    private func sectionToggle(
-        _ title: String,
-        isOn: Binding<Bool>,
-        section: StudioInspectorSection
-    ) -> some View {
-        InspectorToggle(
-            title,
-            isOn: Binding(
-                get: { isOn.wrappedValue },
-                set: { value in
-                    isOn.wrappedValue = value
-                    setExpanded(section, value)
-                }
-            )
-        )
-    }
-}
-
-/// Collapsed-header readouts for the Studio inspector.
-private enum StudioInspectorSummary {
-    static func background(
-        _ style: AnnotationBackgroundStyle,
-        aspect: ExportAspectPreset
-    ) -> String? {
-        let fill: String?
-        switch style {
-        case .none:
-            fill = nil
-        case .solid(let color):
-            fill = color.title
-        case .gradient(let gradient):
-            fill = gradient.title
-        case .customWallpaper(let wallpaper):
-            fill = wallpaper.title
-        }
-        let ratio = aspect == .original ? nil : aspect.title
-        let parts = [fill, ratio].compactMap { $0 }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
-    }
-
-    static func keystrokePlacement(_ placement: RecordingKeystrokePlacement) -> String {
-        switch placement {
-        case .topLeft: String(localized: "Top left")
-        case .topCenter: String(localized: "Top")
-        case .topRight: String(localized: "Top right")
-        case .bottomLeft: String(localized: "Bottom left")
-        case .bottomCenter: String(localized: "Bottom")
-        case .bottomRight: String(localized: "Bottom right")
-        }
-    }
 }
 
 /// Asks for the soundtrack format at export time.
