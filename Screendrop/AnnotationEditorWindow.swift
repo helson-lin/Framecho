@@ -21,6 +21,13 @@ struct AnnotationEditorWindow: View {
     @State private var isUploading = false
     @State private var closeGuard = EditorCloseGuard()
     @State private var didCopyLink = false
+    @State private var isCopying = false
+    @State private var didCopyImage = false
+    @State private var isShowingUploadOptions = false
+    /// What Retry on the error banner repeats, and the message it belongs
+    /// to: an error raised elsewhere afterwards must not inherit it.
+    @State private var retryAction: (() -> Void)?
+    @State private var retryMessage: String?
     @FocusState private var focusedField: AnnotationEditorFocusedField?
     @Environment(\.dismiss) private var dismissWindow
 
@@ -31,7 +38,8 @@ struct AnnotationEditorWindow: View {
             .disabled(model.isCommitting)
             .allowsHitTesting(!model.isCommitting)
             .modifier(CaptureLibraryEditorRegistration(url: url))
-            .navigationTitle("Framecho Annotate")
+            .navigationTitle(windowTitle)
+            .navigationSubtitle(windowSubtitle)
             .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
@@ -87,6 +95,8 @@ struct AnnotationEditorWindow: View {
                 isEnabled: { !model.isCommitting },
                 onDelete: model.deleteSelectedAnnotation,
                 onSave: saveEdits,
+                onSaveAs: saveAs,
+                onCopy: copyImage,
                 onUndo: model.undo,
                 onRedo: model.redo,
                 onSelectAll: model.selectAllAnnotations,
@@ -115,64 +125,43 @@ struct AnnotationEditorWindow: View {
 
     // MARK: Toolbar actions
 
-    /// The standard trailing actions shown when not cropping.
+    /// The standard trailing actions shown when not cropping: Crop, the
+    /// Share menu (upload, save, save as), Copy, then Done as the one
+    /// prominent action.
     @ViewBuilder
     private var editingActions: some View {
         Button(action: enterCrop) {
             Label("Crop", systemImage: "crop")
                 .labelStyle(.titleAndIcon)
         }
-        .help("Crop the screenshot")
+        .help("Crop the screenshot (⇧⌘C)")
         .disabled(model.previewImage == nil || model.imageSize == .zero)
 
-        if CloudUploader.shared.isConfigured {
-            CloudUploadButton(
-                suggestedTitle: model.sourceURL?.deletingPathExtension().lastPathComponent ?? "",
-                onUpload: uploadAnnotation
-            ) {
-                if isUploading {
-                    HStack(spacing: 6) {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text("Uploading...")
-                    }
-                    .padding(.horizontal, 6)
-                } else if didCopyLink {
-                    Label("Link copied", systemImage: "checkmark.circle.fill")
-                        .labelStyle(.titleAndIcon)
-                        .padding(.horizontal, 6)
+        shareMenu
+
+        Button(action: copyImage) {
+            Group {
+                if isCopying {
+                    ProgressView().controlSize(.small)
+                } else if didCopyImage {
+                    Label("Copied", systemImage: "checkmark")
                 } else {
-                    Label("Upload", systemImage: "arrow.up.circle")
-                        .labelStyle(.titleAndIcon)
-                        .padding(.horizontal, 6)
+                    Label("Copy", systemImage: "doc.on.doc")
                 }
             }
-            .tint(.accentColor)
-            .help("Upload to the cloud and copy the link")
-            .disabled(isUploading)
+            .labelStyle(.titleAndIcon)
+            .frame(minWidth: 64)
         }
-
-        Button(action: saveAs) {
-            Label("Save As", systemImage: "arrow.down.circle")
-                .labelStyle(.titleAndIcon)
-        }
-        .help("Save a copy to a location of your choice")
-
-        Button(action: saveEdits) {
-            if isSaving {
-                ProgressView().controlSize(.small)
-            } else {
-                Image(systemName: "square.and.arrow.down")
-            }
-        }
-        .keyboardShortcut("s", modifiers: .command)
-        .disabled(!model.hasUnsavedChanges || isSaving || isFinishing)
-        .help("Save annotations (⌘S)")
+        .help("Copy the image (⌘C)")
+        .disabled(model.previewImage == nil || isCopying)
 
         Button(action: finishEditing) {
-            Image(systemName: "checkmark.circle")
+            Text("Done")
+                .padding(.horizontal, 6)
         }
-        .help("Finish editing and save")
+        .buttonStyle(.borderedProminent)
+        .keyboardShortcut(.return, modifiers: .command)
+        .help("Save and close (⌘↩)")
 
         Button {
             clearInspectorFocus()
@@ -181,6 +170,76 @@ struct AnnotationEditorWindow: View {
             Image(systemName: "sidebar.right")
         }
         .help(isInspectorPresented ? "Hide Inspector" : "Show Inspector")
+    }
+
+    /// Saving, exporting and uploading, grouped behind one button. Its label
+    /// carries the progress of whichever of them is running.
+    private var shareMenu: some View {
+        Menu {
+            if CloudUploader.shared.isConfigured {
+                Button {
+                    clearInspectorFocus()
+                    isShowingUploadOptions = true
+                } label: {
+                    Label("Upload and Copy Link…", systemImage: "icloud.and.arrow.up")
+                }
+                .disabled(isUploading)
+
+                Divider()
+            }
+
+            Button(action: saveEdits) {
+                Label("Save", systemImage: "square.and.arrow.down")
+            }
+            .keyboardShortcut("s", modifiers: .command)
+            .disabled(!model.hasUnsavedChanges || isSaving || isFinishing)
+
+            Button(action: saveAs) {
+                Label("Save As…", systemImage: "square.and.arrow.down.on.square")
+            }
+            .keyboardShortcut("s", modifiers: [.command, .shift])
+        } label: {
+            Group {
+                if isUploading {
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.small)
+                        Text("Uploading...")
+                    }
+                } else if isSaving {
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.small)
+                        Text("Saving…")
+                    }
+                } else if didCopyLink {
+                    Label("Link copied", systemImage: "checkmark.circle.fill")
+                } else {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+            }
+            .labelStyle(.titleAndIcon)
+        }
+        .help("Save, export or upload")
+        .popover(isPresented: $isShowingUploadOptions, arrowEdge: .bottom) {
+            CloudUploadOptionsPopover(
+                suggestedTitle: model.sourceURL?.deletingPathExtension().lastPathComponent ?? "",
+                onConfirm: uploadAnnotation
+            )
+        }
+    }
+
+    /// The file being edited, so several editor windows stay distinguishable.
+    private var windowTitle: String {
+        model.sourceURL?.deletingPathExtension().lastPathComponent ?? String(localized: "Framecho Annotate")
+    }
+
+    /// "3854 × 2566 · Edited": the size the export will have.
+    private var windowSubtitle: String {
+        let size = model.canvasPixelSize
+        guard size.width > 0, size.height > 0 else { return "" }
+        let dimensions = "\(Int(size.width.rounded())) × \(Int(size.height.rounded()))"
+        return model.hasUnsavedChanges
+            ? "\(dimensions) · \(String(localized: "Edited"))"
+            : dimensions
     }
 
     /// The crop controls that replace the trailing actions while cropping.
@@ -255,6 +314,8 @@ struct AnnotationEditorWindow: View {
                     image: previewImage,
                     onEditorInteraction: clearInspectorFocus
                 )
+                // A fitted image starts below the floating tool strip.
+                .padding(.top, AnnotationToolStrip.reservedHeight)
             } else if let errorMessage = model.errorMessage {
                 // A load failure (missing/unreadable source file, e.g. a stale
                 // URL replayed by macOS window restoration) should never sit
@@ -267,9 +328,21 @@ struct AnnotationEditorWindow: View {
         }
         .frame(minWidth: 760, minHeight: 580)
         .clipped()
+        .overlay(alignment: .top) {
+            if model.previewImage != nil, model.imageSize != .zero, !model.isCropping {
+                AnnotationToolStrip(selectedTool: model.selectedTool) { tool in
+                    clearInspectorFocus()
+                    model.selectTool(tool)
+                }
+                .padding(.top, 12)
+                .transition(.opacity)
+            }
+        }
         .overlay(alignment: .bottomLeading) {
             if model.previewImage != nil, model.imageSize != .zero {
                 HStack(spacing: 8) {
+                    AnnotationHistoryControl(model: model, onAction: clearInspectorFocus)
+                        .disabled(model.isCropping)
                     AnnotationZoomControl(model: model)
 
                     if model.isPreviewDownscaled {
@@ -288,25 +361,53 @@ struct AnnotationEditorWindow: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.92, anchor: .bottomTrailing)))
             }
         }
-        .overlay(alignment: .bottomLeading) {
-            // Only inline saves/uploads (which fail with an image already on
-            // screen) land here; a load failure shows the full-canvas state
-            // above instead of stacking a second copy of the same message.
+        .overlay(alignment: .top) {
+            // Only inline saves/copies/uploads (which fail with an image
+            // already on screen) land here; a load failure shows the
+            // full-canvas state above instead of a second copy of the message.
             if let errorMessage = model.errorMessage, model.previewImage != nil {
-                Text(errorMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 10)
-                    .background(.bar)
+                AnnotationErrorBanner(
+                    message: errorMessage,
+                    onRetry: (retryMessage == errorMessage ? retryAction : nil).map { retry in
+                        {
+                            dismissError()
+                            retry()
+                        }
+                    },
+                    onDismiss: dismissError
+                )
+                .padding(.horizontal, 24)
+                // Below the tool strip.
+                .padding(.top, 12 + AnnotationToolStrip.reservedHeight + 12)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
+        .animation(.snappy(duration: 0.2), value: model.errorMessage)
     }
 
     private func closeAfterLoadFailure() {
         model.releaseEditorResources()
         dismissWindow()
+    }
+
+    /// Copies what the editor shows. Unsaved edits are rendered to a
+    /// temporary file rather than saved, so Copy never commits anything.
+    private func copyImage() {
+        clearInspectorFocus()
+        guard !isCopying, let sourceURL = model.sourceURL, model.previewImage != nil else { return }
+        isCopying = true
+        Task {
+            defer { isCopying = false }
+            do {
+                let url = model.hasUnsavedChanges ? try await model.renderCurrentImage() : sourceURL
+                try ScreenshotFileActions.copyImageToClipboard(from: url)
+                withAnimation(.snappy(duration: 0.2)) { didCopyImage = true }
+                try? await Task.sleep(for: .seconds(1.6))
+                withAnimation(.snappy(duration: 0.2)) { didCopyImage = false }
+            } catch {
+                fail(String(localized: "Failed to copy the image: \(error.localizedDescription)"), retry: copyImage)
+            }
+        }
     }
 
     private func saveAs() {
@@ -333,7 +434,7 @@ struct AnnotationEditorWindow: View {
                         contentType: ScreenshotFileActions.exportContentType
                     )
                 } catch {
-                    model.errorMessage = String(localized: "Failed to save annotation: \(error.localizedDescription)")
+                    fail(String(localized: "Failed to save annotation: \(error.localizedDescription)"), retry: saveAs)
                 }
             }
         }
@@ -386,7 +487,7 @@ struct AnnotationEditorWindow: View {
                 ScreenshotHistoryStore.shared.setCloudURL(for: resultURL, cloudURL: result.url)
                 withAnimation(.snappy(duration: 0.2)) { didCopyLink = true }
             } catch {
-                model.errorMessage = String(localized: "Upload failed: \(error.localizedDescription)")
+                fail(String(localized: "Upload failed: \(error.localizedDescription)"), retry: { uploadAnnotation(options: options) })
             }
         }
     }
@@ -410,7 +511,7 @@ struct AnnotationEditorWindow: View {
                     historyURL: resultURL
                 )
             } catch {
-                model.errorMessage = String(localized: "Failed to save annotation: \(error.localizedDescription)")
+                fail(String(localized: "Failed to save annotation: \(error.localizedDescription)"), retry: saveEdits)
             }
         }
     }
@@ -445,7 +546,7 @@ struct AnnotationEditorWindow: View {
                 dismissWindow()
             } catch {
                 isFinishing = false
-                model.errorMessage = String(localized: "Failed to finish annotation: \(error.localizedDescription)")
+                fail(String(localized: "Failed to finish annotation: \(error.localizedDescription)"), retry: finishEditing)
             }
         }
     }
@@ -489,6 +590,18 @@ struct AnnotationEditorWindow: View {
 
     private func clearInspectorFocus() {
         focusedField = nil
+    }
+
+    private func fail(_ message: String, retry: (() -> Void)?) {
+        retryAction = retry
+        retryMessage = message
+        model.errorMessage = message
+    }
+
+    private func dismissError() {
+        model.errorMessage = nil
+        retryAction = nil
+        retryMessage = nil
     }
 }
 

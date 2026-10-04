@@ -294,6 +294,18 @@ final class AnnotationEditorModel {
         return resultURL
     }
 
+    /// Renders what the editor shows right now to a temporary file, without
+    /// saving anything. Copy uses it so the clipboard gets the edits even
+    /// when they haven't been committed.
+    func renderCurrentImage() async throws -> URL {
+        guard let sourceURL else { throw CocoaError(.fileNoSuchFile) }
+        return try await AnnotationRenderer.renderToTemporaryFileInBackground(
+            sourceURL: baseImageURL ?? sourceURL,
+            shapes: shapes,
+            backgroundSettings: backgroundSettings
+        )
+    }
+
     // MARK: - Unsaved changes
 
     /// Everything a commit would persist. The crop rides along as the base
@@ -491,6 +503,17 @@ final class AnnotationEditorModel {
 
     func setText(_ text: String, for id: AnnoShapeID) {
         engine.updateEditingText(id, to: text)
+    }
+
+    /// Whether Undo / Redo would do anything; drives the canvas buttons.
+    var canUndo: Bool {
+        _ = revision
+        return !isCropping && (engine.canUndo || !cropUndoStack.isEmpty)
+    }
+
+    var canRedo: Bool {
+        _ = revision
+        return !isCropping && (engine.canRedo || !cropRedoStack.isEmpty)
     }
 
     func undo() {
