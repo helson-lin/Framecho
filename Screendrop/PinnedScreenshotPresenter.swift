@@ -128,37 +128,43 @@ private struct PinnedScreenshotView: View {
 
     @State private var isHovered = false
     @State private var didCopy = false
+    @State private var hasText = false
+    @State private var isLiveTextActive = false
 
     var body: some View {
-        Image(nsImage: image)
-            .resizable()
-            .aspectRatio(contentMode: .fill)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(.white.opacity(0.25), lineWidth: 1)
+        LiveTextImageView(
+            image: image,
+            url: url,
+            cornerRadius: 10,
+            isLiveTextActive: isLiveTextActive,
+            menuEntries: [
+                .action(String(localized: "Copy"), copy),
+                .action(String(localized: "Copy Text from Image"), copyText),
+                .action(String(localized: "Save…"), save),
+                .separator,
+                .action(String(localized: "Close Pin"), onClose),
+            ],
+            onAnalysisFinished: { hasText = $0 }
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(.white.opacity(0.25), lineWidth: 1)
+                .allowsHitTesting(false)
+        }
+        .overlay(alignment: .top) {
+            // Stays up while Live Text is on, so the way back out is visible.
+            if isHovered || isLiveTextActive {
+                toolbar
+                    .padding(8)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            .overlay(alignment: .top) {
-                if isHovered {
-                    toolbar
-                        .padding(8)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
+        }
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.15)) {
+                isHovered = hovering
             }
-            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .onHover { hovering in
-                withAnimation(.easeOut(duration: 0.15)) {
-                    isHovered = hovering
-                }
-            }
-            .contextMenu {
-                Button("Copy") { copy() }
-                Button("Copy Text from Image") { copyText() }
-                Button("Save…") { save() }
-                Divider()
-                Button("Close Pin") { onClose() }
-            }
+        }
     }
 
     private var toolbar: some View {
@@ -167,6 +173,9 @@ private struct PinnedScreenshotView: View {
 
             Spacer(minLength: 0)
 
+            if hasText {
+                liveTextButton
+            }
             toolbarButton(
                 systemImage: didCopy ? "checkmark" : "doc.on.doc",
                 help: String(localized: "Copy to clipboard"),
@@ -178,6 +187,25 @@ private struct PinnedScreenshotView: View {
         .frame(height: 30)
         .background(.ultraThinMaterial, in: Capsule())
         .environment(\.colorScheme, .dark)
+    }
+
+    /// Switches the pin between moving (drag anywhere) and selecting the text
+    /// in it, so a pin full of text can still be dragged around by default.
+    private var liveTextButton: some View {
+        toolbarButton(
+            systemImage: "text.viewfinder",
+            help: isLiveTextActive
+                ? String(localized: "Stop selecting text")
+                : String(localized: "Select text in the image"),
+            action: { isLiveTextActive.toggle() }
+        )
+        .background {
+            if isLiveTextActive {
+                Circle().fill(.white.opacity(0.25))
+            }
+        }
+        .accessibilityLabel(String(localized: "Live Text"))
+        .accessibilityAddTraits(isLiveTextActive ? .isSelected : [])
     }
 
     private func toolbarButton(systemImage: String, help: String, action: @escaping () -> Void) -> some View {

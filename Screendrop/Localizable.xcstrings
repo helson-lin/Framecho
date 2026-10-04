@@ -4553,6 +4553,16 @@
         }
       }
     },
+    "Live Text" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实况文本"
+          }
+        }
+      }
+    },
     "Loading Library…" : {
       "localizations" : {
         "zh-Hans" : {
@@ -7129,6 +7139,16 @@
         }
       }
     },
+    "Select text in the image" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择图片中的文字"
+          }
+        }
+      }
+    },
     "Select the exported file in Finder once the render finishes." : {
       "localizations" : {
         "zh-Hans" : {
@@ -7811,6 +7831,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "停止屏幕录制"
+          }
+        }
+      }
+    },
+    "Stop selecting text" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止选择文字"
           }
         }
       }
