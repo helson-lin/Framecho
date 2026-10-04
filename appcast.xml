@@ -27,6 +27,27 @@
     -->
 
     <item>
+      <title>Version 0.35.3</title>
+      <sparkle:version>38</sparkle:version>
+      <sparkle:shortVersionString>0.35.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.4</sparkle:minimumSystemVersion>
+      <pubDate>Sun, 04 Oct 2026 02:45:04 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.35.3</h2>
+        <ul>
+          <li>3D 运镜轨道支持拖移添加：在轨道空白处拖出一段即可添加 3D 运镜，与缩放轨道操作一致</li>
+          <li>新添加的运镜会自动选中，侧边栏切到「动效」显示其设置</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Screendrop/releases/download/v0.35.3/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="CMH4n5EBjoLvgsLu+3WtdYjy/jQyV4ak9JkHhc0Ey9vYS37DF6DZS0pQV6gIYrwFCvsRekMnmAh6BOi0bjPYBA=="
+        length="8971469"
+      />
+    </item>
+
+    <item>
       <title>Version 0.35.2</title>
       <sparkle:version>37</sparkle:version>
       <sparkle:shortVersionString>0.35.2</sparkle:shortVersionString>
