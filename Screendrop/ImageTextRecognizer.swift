@@ -45,16 +45,94 @@ enum ImageTextRecognizer {
     /// 5K screenshot.
     nonisolated private static func recognizeText(in image: CGImage, preferredLanguages: [String]) -> String {
         let imageSize = CGSize(width: image.width, height: image.height)
+        // Tiles are regions of interest on one handler rather than cropped
+        // images: Core Image can read past the end of a cropped PNG-backed
+        // image, and Vision then crashes building its buffer. Running them in
+        // parallel would save nothing - Vision queues them on the same
+        // hardware anyway.
+        let passes = tiles(for: imageSize).map { tile in
+            let regionOfInterest = CGRect(
+                x: tile.frame.minX / imageSize.width, y: tile.frame.minY / imageSize.height,
+                width: tile.frame.width / imageSize.width, height: tile.frame.height / imageSize.height
+            )
+            let detected = makeRequest(preferredLanguages: preferredLanguages)
+            let cjkFirst = makeRequest(preferredLanguages: preferredLanguages, cjkFirst: true)
+            detected.regionOfInterest = regionOfInterest
+            cjkFirst.regionOfInterest = regionOfInterest
+            return (tile, detected, cjkFirst)
+        }
         let handler = VNImageRequestHandler(cgImage: image, options: [:])
-        let detected = makeRequest(preferredLanguages: preferredLanguages)
-        let cjkFirst = makeRequest(preferredLanguages: preferredLanguages, cjkFirst: true)
-        guard (try? handler.perform([detected, cjkFirst])) != nil else { return "" }
+        guard (try? handler.perform(passes.map(\.1))) != nil else { return "" }
+        // A tile the first pass found nothing in holds nothing for the second
+        // either; skipping it halves the cost of the empty parts of a screen.
+        let cjkPasses = passes.filter { !($0.1.results ?? []).isEmpty }.map(\.2)
+        if !cjkPasses.isEmpty {
+            try? handler.perform(cjkPasses)
+        }
 
-        let lines = merging(
-            cjkLines: visualLines(fragments(cjkFirst.results ?? [], imageSize: imageSize)),
-            into: visualLines(fragments(detected.results ?? [], imageSize: imageSize))
-        )
+        // Results are relative to each request's region of interest, which is
+        // the tile's frame.
+        let detectedFragments = passes.flatMap { fragments($0.1.results ?? [], in: $0.0) }
+        let cjkFragments = passes.flatMap { fragments($0.2.results ?? [], in: $0.0) }
+
+        let lines = merging(cjkLines: visualLines(cjkFragments), into: visualLines(detectedFragments))
         return paragraphs(lines).map(\.text).joined(separator: "\n")
+    }
+
+    // MARK: - Tiling
+
+    /// Vision scales the whole image down to a fixed working size before it
+    /// looks for text, so on a large screenshot ordinary UI text drops below
+    /// its detection threshold: 13 px text is found in none of 49 lines on a
+    /// 2560 px image, and in all of them on a 1280 px one, and a full 5K
+    /// Retina screenshot of a normal window reads as no text at all. Large
+    /// images are therefore read in overlapping tiles, each small enough that
+    /// the text stays detectable.
+    ///
+    /// Measured, not derived: larger tiles for Retina captures were faster
+    /// but lost whole tiles of dense CJK text, so the length stays fixed.
+    nonisolated private static let tileCoreLength: CGFloat = 1280
+    /// Each tile reaches this far past its core on every side. A word up to
+    /// twice this wide that crosses a core edge is still whole in the tile
+    /// that owns its centre.
+    nonisolated private static let tileMargin: CGFloat = 256
+
+    nonisolated private struct Tile {
+        /// The pixels Vision reads for this tile, in its bottom-left
+        /// coordinates.
+        let frame: CGRect
+        /// The part of the image this tile reports text for. Cores partition
+        /// the image, so every word is kept by exactly one tile.
+        let core: CGRect
+    }
+
+    nonisolated private static func tiles(for imageSize: CGSize) -> [Tile] {
+        let columns = max(1, Int((imageSize.width / tileCoreLength).rounded(.up)))
+        let rows = max(1, Int((imageSize.height / tileCoreLength).rounded(.up)))
+        let coreWidth = imageSize.width / CGFloat(columns)
+        let coreHeight = imageSize.height / CGFloat(rows)
+        let bounds = CGRect(origin: .zero, size: imageSize)
+
+        var tiles: [Tile] = []
+        for row in 0..<rows {
+            for column in 0..<columns {
+                let core = CGRect(
+                    x: CGFloat(column) * coreWidth, y: CGFloat(row) * coreHeight,
+                    width: coreWidth, height: coreHeight
+                )
+                // Cores on the image's outer edges extend past it, so text
+                // that Vision boxes a hair outside the image is still kept.
+                let minX = column == 0 ? -tileMargin : core.minX
+                let minY = row == 0 ? -tileMargin : core.minY
+                let maxX = column == columns - 1 ? imageSize.width + tileMargin : core.maxX
+                let maxY = row == rows - 1 ? imageSize.height + tileMargin : core.maxY
+                tiles.append(Tile(
+                    frame: core.insetBy(dx: -tileMargin, dy: -tileMargin).intersection(bounds).integral,
+                    core: CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+                ))
+            }
+        }
+        return tiles
     }
 
     nonisolated private static func makeRequest(
@@ -165,27 +243,78 @@ enum ImageTextRecognizer {
     /// A recognised run of text in pixel space (origin bottom-left, as Vision
     /// reports it). Normalized boxes scale x and y by different amounts, so
     /// gaps and heights are only comparable once converted.
-    private struct Fragment {
+    nonisolated private struct Fragment {
         var text: String
         var rect: CGRect
     }
 
+    /// Converts a tile's observations to image coordinates and keeps only
+    /// the text its core owns. Observations wholly inside the core are kept
+    /// as they are; ones that cross its edge are cut between words, keeping
+    /// the words whose centres the core contains.
     nonisolated private static func fragments(
-        _ observations: [VNRecognizedTextObservation], imageSize: CGSize
+        _ observations: [VNRecognizedTextObservation], in tile: Tile
     ) -> [Fragment] {
-        observations.compactMap { observation -> Fragment? in
-            guard let text = observation.topCandidates(1).first?.string else { return nil }
-            let box = observation.boundingBox
-            return Fragment(
-                text: text,
-                rect: CGRect(
-                    x: box.minX * imageSize.width,
-                    y: box.minY * imageSize.height,
-                    width: box.width * imageSize.width,
-                    height: box.height * imageSize.height
-                )
+        func imageRect(_ box: CGRect) -> CGRect {
+            CGRect(
+                x: tile.frame.minX + box.minX * tile.frame.width,
+                y: tile.frame.minY + box.minY * tile.frame.height,
+                width: box.width * tile.frame.width,
+                height: box.height * tile.frame.height
             )
         }
+        func owns(_ rect: CGRect) -> Bool {
+            let center = CGPoint(x: rect.midX, y: rect.midY)
+            // Half-open, so a centre on a shared core edge has one owner.
+            return center.x >= tile.core.minX && center.x < tile.core.maxX
+                && center.y >= tile.core.minY && center.y < tile.core.maxY
+        }
+
+        return observations.compactMap { observation -> Fragment? in
+            guard let candidate = observation.topCandidates(1).first else { return nil }
+            let rect = imageRect(observation.boundingBox)
+            if tile.core.contains(rect) {
+                return Fragment(text: candidate.string, rect: rect)
+            }
+            guard tile.core.intersects(rect) else { return nil }
+
+            let text = candidate.string
+            let owned = wordRanges(in: text).compactMap { range -> (Range<String.Index>, CGRect)? in
+                guard let box = try? candidate.boundingBox(for: range)?.boundingBox else { return nil }
+                let wordRect = imageRect(box)
+                return owns(wordRect) ? (range, wordRect) : nil
+            }
+            guard let first = owned.first, let last = owned.last else { return nil }
+            return Fragment(
+                text: String(text[first.0.lowerBound..<last.0.upperBound]),
+                rect: owned.dropFirst().reduce(first.1) { $0.union($1.1) }
+            )
+        }
+    }
+
+    /// Splits text where it may be cut between tiles: at spaces, and around
+    /// every CJK character, since CJK text has no spaces between words.
+    nonisolated private static func wordRanges(in text: String) -> [Range<String.Index>] {
+        var ranges: [Range<String.Index>] = []
+        var wordStart: String.Index?
+        var index = text.startIndex
+        while index < text.endIndex {
+            let next = text.index(after: index)
+            let character = text[index]
+            if character.isWhitespace {
+                if let start = wordStart { ranges.append(start..<index) }
+                wordStart = nil
+            } else if character.unicodeScalars.first.map(isUnspacedScript) == true {
+                if let start = wordStart { ranges.append(start..<index) }
+                ranges.append(index..<next)
+                wordStart = nil
+            } else if wordStart == nil {
+                wordStart = index
+            }
+            index = next
+        }
+        if let start = wordStart { ranges.append(start..<text.endIndex) }
+        return ranges
     }
 
     /// Puts the CJK-first reading of a line in place of the detected one when

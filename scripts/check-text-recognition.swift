@@ -108,6 +108,29 @@ struct TextRecognitionChecks {
             ("This second one starts a new thought", CGRect(x: 40, y: 85, width: 1100, height: 50)),
         ])) { $0.split(separator: "\n").count == 2 }
 
+        // A full 5K Retina screenshot of an ordinary window: read whole, its
+        // 13 pt text falls below Vision's detection threshold and none of it
+        // comes back. Tiling must find every line, including a sentence that
+        // crosses several tile edges without being cut or repeated.
+        let sidebar = ["Library", "Screenshots", "Recordings", "Favorites", "截图", "设置"]
+        let sentence = "Framecho keeps every capture in a library so you can find, annotate, and share screenshots later without digging through the desktop"
+        var screen = sidebar.enumerated().map { index, label in
+            (label, CGRect(x: 30, y: 80 + CGFloat(index) * 40, width: 300, height: 30))
+        }
+        screen.append((sentence, CGRect(x: 420, y: 700, width: 2000, height: 30)))
+        let settings = (1...24).map { "Setting \($0) is on" }
+        screen += settings.enumerated().map { index, label in
+            (label, CGRect(x: 1900, y: 80 + CGFloat(index) * 24, width: 400, height: 22))
+        }
+        await expect("5K screenshot", try render(
+            "screen", size: CGSize(width: 2560, height: 1440), fontSize: 13, screen
+        )) { text in
+            // Labels level with each other share a visual line, so check
+            // that each is present; the sentence stands alone on its line.
+            (sidebar + settings).allSatisfy(text.contains)
+                && text.components(separatedBy: "\n").contains(sentence)
+        }
+
         print("All text recognition checks passed.")
     }
 }
