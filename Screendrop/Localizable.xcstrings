@@ -356,16 +356,6 @@
         }
       }
     },
-    "1 line" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "1 行"
-          }
-        }
-      }
-    },
     "1 local wallpaper was not included and will use no background." : {
       "localizations" : {
         "zh-Hans" : {
@@ -402,16 +392,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "1 秒"
-          }
-        }
-      }
-    },
-    "1 zoom" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "1 个缩放"
           }
         }
       }
@@ -721,6 +701,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "倾斜"
+          }
+        }
+      }
+    },
+    "Animation" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "动效"
           }
         }
       }
@@ -1733,6 +1723,16 @@
         }
       }
     },
+    "Click a clip on the timeline to change its speed or delete it." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在时间线上点按一个片段，可更改速度或删除它。"
+          }
+        }
+      }
+    },
     "Click a timestamp to jump there. Edit any line to fix the transcription." : {
       "localizations" : {
         "zh-Hans" : {
@@ -1759,6 +1759,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "点按高亮"
+          }
+        }
+      }
+    },
+    "Clips" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "片段"
           }
         }
       }
@@ -2973,6 +2983,16 @@
         }
       }
     },
+    "Edit by Text" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按文字剪辑"
+          }
+        }
+      }
+    },
     "Edit recording" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2999,16 +3019,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在一处编辑片段、背景、摄像头、音频和缩放。"
-          }
-        }
-      }
-    },
-    "Edit Video" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "编辑视频"
           }
         }
       }
@@ -3043,6 +3053,16 @@
         }
       }
     },
+    "Editing" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剪辑"
+          }
+        }
+      }
+    },
     "Ember" : {
       "localizations" : {
         "zh-Hans" : {
@@ -3069,6 +3089,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "启用水印"
+          }
+        }
+      }
+    },
+    "Enable zooms" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用缩放"
           }
         }
       }
@@ -3259,16 +3289,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在导出…"
-          }
-        }
-      }
-    },
-    "Failed" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "失败"
           }
         }
       }
@@ -3469,6 +3489,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "固定镜头目标"
+          }
+        }
+      }
+    },
+    "Flat" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平整"
           }
         }
       }
@@ -4259,16 +4289,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "为这段无声录制叠加一个音频文件"
-          }
-        }
-      }
-    },
-    "Layout" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "布局"
           }
         }
       }
@@ -5215,6 +5235,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "悬浮窗口"
+          }
+        }
+      }
+    },
+    "Overlays" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "叠加"
           }
         }
       }
@@ -6259,16 +6289,6 @@
         }
       }
     },
-    "Reset layout" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重置布局"
-          }
-        }
-      }
-    },
     "Reset screenshot appearance" : {
       "localizations" : {
         "zh-Hans" : {
@@ -6305,6 +6325,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "恢复默认"
+          }
+        }
+      }
+    },
+    "Reset video card" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置视频卡片"
           }
         }
       }
@@ -7145,12 +7175,32 @@
         }
       }
     },
+    "Show camera" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示摄像头"
+          }
+        }
+      }
+    },
     "Show Inspector" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "显示检查器"
+          }
+        }
+      }
+    },
+    "Show keystrokes" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示按键"
           }
         }
       }
@@ -7171,6 +7221,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "显示菜单栏图标"
+          }
+        }
+      }
+    },
+    "Show mouse pointer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示鼠标指针"
           }
         }
       }
@@ -7201,6 +7261,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "显示最近的截图与录屏"
+          }
+        }
+      }
+    },
+    "Show subtitles" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示字幕"
           }
         }
       }
@@ -8205,6 +8275,16 @@
         }
       }
     },
+    "This recording has no pointer, keystrokes, narration or camera to show." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这段录制没有可显示的指针、按键、旁白或摄像头画面。"
+          }
+        }
+      }
+    },
     "this screenshot" : {
       "localizations" : {
         "zh-Hans" : {
@@ -8375,32 +8455,22 @@
         }
       }
     },
+    "Transcribe the narration to cut the video by editing its text." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "转写旁白后，即可通过编辑文字来剪辑视频。"
+          }
+        }
+      }
+    },
     "Transcribing narration…" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在转写旁白…"
-          }
-        }
-      }
-    },
-    "Transcribing…" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在转写…"
-          }
-        }
-      }
-    },
-    "Transcription" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "转写"
           }
         }
       }
@@ -8881,6 +8951,16 @@
         }
       }
     },
+    "Video Card" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "视频卡片"
+          }
+        }
+      }
+    },
     "View" : {
       "localizations" : {
         "zh-Hans" : {
@@ -8917,16 +8997,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "音量"
-          }
-        }
-      }
-    },
-    "Volume %@" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "音量 %@"
           }
         }
       }
@@ -9223,16 +9293,6 @@
         }
       }
     },
-    "Zoom & Clicks" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "缩放与点按"
-          }
-        }
-      }
-    },
     "Zoom In" : {
       "localizations" : {
         "zh-Hans" : {
@@ -9269,16 +9329,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "缩小（⌘-）"
-          }
-        }
-      }
-    },
-    "%lld motions" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld 个运镜"
           }
         }
       }
