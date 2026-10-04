@@ -3300,7 +3300,7 @@ private struct StudioMotionLaneBackground: View {
             .fill(Color.primary.opacity(0.055))
             .overlay {
                 if showsHint {
-                    Label("Right-click to add 3D motion", systemImage: "rotate.3d")
+                    Label("Drag here to add 3D motion", systemImage: "rotate.3d")
                         .font(.system(size: 10.5, weight: .medium))
                         .foregroundStyle(.tertiary)
                 }
@@ -3309,12 +3309,25 @@ private struct StudioMotionLaneBackground: View {
     }
 }
 
-/// Timed 3D motion cues. Blank space seeks; blocks move and resize like
-/// zoom blocks, and their ramps show the entrance and exit as they play.
+/// Timed 3D motion cues. Blank space seeks on a click and draws a new motion
+/// on a drag, like the zoom lane; blocks move and resize like zoom blocks,
+/// and their ramps show the entrance and exit as they play.
 private struct StudioMotionLane: View {
     @Bindable var model: RecordingStudioModel
     let scale: StudioTimelineScale
     let visibleRange: ClosedRange<TimeInterval>
+
+    /// Below this many dragged points, a gesture on blank lane space is
+    /// still treated as a click-to-seek rather than a motion-creating drag.
+    private static let dragCreateThreshold: CGFloat = 4
+    /// A drawn motion starts as this preset; the inspector opens on it to
+    /// pick another.
+    private static let drawnPreset: RecordingMotionPreset = .tiltLeft
+
+    /// Held as a time rather than a position so a zoom change mid-drag can't
+    /// reinterpret where the drag began.
+    @State private var dragStartTime: TimeInterval?
+    @State private var pendingMotionRange: ClosedRange<TimeInterval>?
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -3324,10 +3337,51 @@ private struct StudioMotionLane: View {
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
                             guard scale.pointsPerSecond > 0 else { return }
-                            model.pause()
-                            model.seek(to: scale.time(forX: value.location.x))
+                            let time = scale.time(forX: value.location.x)
+
+                            if dragStartTime == nil {
+                                model.pause()
+                                dragStartTime = time
+                            }
+                            guard let startTime = dragStartTime else { return }
+
+                            if pendingMotionRange == nil,
+                               abs(value.location.x - scale.x(for: startTime))
+                                   < Self.dragCreateThreshold {
+                                model.seek(to: time)
+                                return
+                            }
+
+                            pendingMotionRange = pendingRange(from: startTime, to: time)
+                        }
+                        .onEnded { _ in
+                            // A range clamped to nothing means the drag ran
+                            // entirely into a neighboring block.
+                            if let range = pendingMotionRange,
+                               range.upperBound - range.lowerBound > 0.001 {
+                                model.addMotionCue(
+                                    preset: Self.drawnPreset,
+                                    fromEditorTime: range.lowerBound,
+                                    toEditorTime: range.upperBound
+                                )
+                            }
+                            dragStartTime = nil
+                            pendingMotionRange = nil
                         }
                 )
+
+            if let pendingMotionRange {
+                let lowX = scale.x(for: pendingMotionRange.lowerBound)
+                let highX = scale.x(for: pendingMotionRange.upperBound)
+                RoundedRectangle(
+                    cornerRadius: StudioZoomLaneMetrics.blockCornerRadius,
+                    style: .continuous
+                )
+                    .fill(StudioMotionCueBlock.tint.opacity(0.35))
+                    .frame(width: max(2, highX - lowX), height: StudioZoomLaneMetrics.blockHeight)
+                    .offset(x: lowX, y: StudioZoomLaneMetrics.blockInset)
+                    .allowsHitTesting(false)
+            }
 
             ForEach(visibleBlocks) { block in
                 StudioMotionCueBlock(model: model, block: block, scale: scale)
@@ -3346,6 +3400,27 @@ private struct StudioMotionLane: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("3D motion track")
+    }
+
+    /// The range a drag-created motion would cover, stopped at the blocks on
+    /// either side of where the drag began so the preview matches the cue the
+    /// model will actually allow.
+    private func pendingRange(
+        from startTime: TimeInterval,
+        to currentTime: TimeInterval
+    ) -> ClosedRange<TimeInterval> {
+        let blocks = model.motionTimelineBlocks
+        let lowerLimit = blocks
+            .filter { $0.editorEnd <= startTime }
+            .map(\.editorEnd)
+            .max() ?? 0
+        let upperLimit = blocks
+            .filter { $0.editorStart >= startTime }
+            .map(\.editorStart)
+            .min() ?? model.duration
+        let low = max(min(startTime, currentTime), lowerLimit)
+        let high = min(max(startTime, currentTime), upperLimit)
+        return low...max(low, high)
     }
 
     private var visibleBlocks: [RecordingMotionTimelineBlock] {
@@ -3372,7 +3447,7 @@ private struct StudioMotionCueBlock: View {
         model.selectedMotionCueID == block.cue.id
     }
 
-    private static let tint = Color.indigo
+    static let tint = Color.indigo
 
     var body: some View {
         guard scale.pointsPerSecond > 0 else { return AnyView(EmptyView()) }

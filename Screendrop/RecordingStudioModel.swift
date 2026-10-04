@@ -1250,6 +1250,31 @@ final class RecordingStudioModel {
         return true
     }
 
+    /// Adds a cue over a dragged editor range, the way a zoom is drawn on its
+    /// lane. Returns false when no gap is left there.
+    @discardableResult
+    func addMotionCue(
+        preset: RecordingMotionPreset,
+        fromEditorTime editorStart: TimeInterval,
+        toEditorTime editorEnd: TimeInterval
+    ) -> Bool {
+        let sourceStart = clipTimeline.sourceTime(at: min(editorStart, editorEnd))
+        let sourceEnd = clipTimeline.sourceTime(at: max(editorStart, editorEnd))
+        guard let span = freeMotionSpan(from: sourceStart, length: sourceEnd - sourceStart) else { return false }
+        let cue = RecordingMotionCue(
+            start: span.lowerBound,
+            end: span.upperBound,
+            targetPose: preset.targetPose(from: motion.basePose),
+            preset: preset
+        )
+        editMotion(String(localized: "Add Motion")) { settings in
+            settings.isEnabled = true
+            settings.cues.append(cue)
+        }
+        selectMotionCue(id: cue.id)
+        return true
+    }
+
     func removeMotionCue(id: UUID) {
         editMotion(String(localized: "Remove Motion")) { settings in
             settings.cues.removeAll { $0.id == id }
