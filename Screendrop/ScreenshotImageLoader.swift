@@ -79,3 +79,21 @@ enum ScreenshotImageLoader {
         [kCGImageSourceShouldCache: false] as CFDictionary
     }
 }
+
+/// Carries a capture's pixel density (144 DPI on Retina) onto images derived
+/// from it. Without it ImageIO writes 72 DPI, and Preview and other viewers
+/// then show an edited Retina screenshot at twice its on-screen size.
+nonisolated enum ImageDensityMetadata {
+    /// DPI properties to pass when adding a derived image to a destination;
+    /// empty when the source records none.
+    static func properties(of url: URL) -> [CFString: Any] {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] else {
+            return [:]
+        }
+        var density: [CFString: Any] = [:]
+        density[kCGImagePropertyDPIWidth] = properties[kCGImagePropertyDPIWidth]
+        density[kCGImagePropertyDPIHeight] = properties[kCGImagePropertyDPIHeight]
+        return density
+    }
+}
