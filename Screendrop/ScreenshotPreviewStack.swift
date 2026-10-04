@@ -41,6 +41,7 @@ final class ScreenshotPreviewStack {
     var interactiveRects: [CGRect] = []
 
     @ObservationIgnored private var overlayExitTask: Task<Void, Never>?
+    @ObservationIgnored private var pendingScreenshotAdd: Task<Void, Never>?
     @ObservationIgnored private var compressionTasks: [ScreenshotPreviewItem.ID: Task<Void, Never>] = [:]
     @ObservationIgnored private var compressionBadgeTasks: [ScreenshotPreviewItem.ID: Task<Void, Never>] = [:]
     private var visibleCapacity: Int?
@@ -79,25 +80,47 @@ final class ScreenshotPreviewStack {
         isCollapsed = false
     }
 
-    func add(url: URL) {
+    /// Adds a fresh screenshot and, when the overlay is enabled, raises the
+    /// preview panel on `displayID` once its card is in the stack.
+    func add(url: URL, displayID: CGDirectDisplayID?) {
         QuickLookPreviewPresenter.dismiss()
 
-        if AfterCaptureActions.isEnabled(.showOverlay, for: .screenshot),
-           let image = ScreenshotImageLoader.downsampledImage(at: url, maxPixelSize: 520) {
+        guard AfterCaptureActions.isEnabled(.showOverlay, for: .screenshot) else {
+            finishAddingWithoutPreview(url: url)
+            return
+        }
+
+        // The thumbnail is decoded off the main actor. Each capture waits
+        // for the one before it, so quick successive captures still stack in
+        // the order they were taken.
+        let previous = pendingScreenshotAdd
+        pendingScreenshotAdd = Task {
+            let image = await ScreenshotImageLoader.downsampledImageInBackground(at: url, maxPixelSize: 520)
+            await previous?.value
+            guard let image else {
+                finishAddingWithoutPreview(url: url)
+                return
+            }
             var item = ScreenshotPreviewItem(url: url, previewImage: image)
             if AfterCaptureActions.isEnabled(.save, for: .screenshot) {
                 item.autoSavedURL = saveToDefaultLocation(from: url)
             }
             prepareForInsertedPreview()
             items.insert(item, at: 0)
+            // Shown only after the insert: raised earlier, an overlay still
+            // exiting from the previous stack could tear the panel down
+            // before this card arrived.
+            PreviewPanelPresenter.shared.show(displayID: displayID)
             runAfterCaptureActions(type: .screenshot, url: url, itemID: item.id)
             scheduleAutoClose(id: item.id)
-        } else {
-            if AfterCaptureActions.isEnabled(.save, for: .screenshot) {
-                _ = saveToDefaultLocation(from: url)
-            }
-            runAfterCaptureActions(type: .screenshot, url: url, itemID: UUID())
         }
+    }
+
+    private func finishAddingWithoutPreview(url: URL) {
+        if AfterCaptureActions.isEnabled(.save, for: .screenshot) {
+            _ = saveToDefaultLocation(from: url)
+        }
+        runAfterCaptureActions(type: .screenshot, url: url, itemID: UUID())
     }
 
     /// Runs the non-save after-capture actions (copy / upload / annotate / pin /
