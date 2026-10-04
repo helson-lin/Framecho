@@ -37,4 +37,7 @@ check editor-resources "${strict[@]}" \
   Screendrop/BoundedCGImageCache.swift Screendrop/AnnoRedactionPreviewCache.swift \
   Screendrop/StudioScreenLayerCache.swift scripts/check-editor-resources.swift
 
+check recording-pause "${strict[@]}" \
+  Screendrop/RecordingPauseTimeline.swift scripts/check-recording-pause.swift
+
 echo "All checks passed."
