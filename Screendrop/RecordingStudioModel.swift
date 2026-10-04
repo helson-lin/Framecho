@@ -2728,8 +2728,7 @@ final class RecordingStudioModel {
                 let result = try await CloudUploader.shared.upload(
                     itemID: itemID,
                     fileURL: uploadURL,
-                    title: options.trimmedTitleOrNil,
-                    socialEnabled: options.socialEnabled
+                    title: options.trimmedTitleOrNil
                 )
 
                 NSPasteboard.general.clearContents()
