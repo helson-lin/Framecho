@@ -26,6 +26,7 @@ enum ImageTextRecognizer {
                 let request = VNRecognizeTextRequest()
                 request.recognitionLevel = .accurate
                 request.usesLanguageCorrection = true
+                request.recognitionLanguages = recognitionLanguages(for: request)
 
                 let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
                 do {
@@ -39,6 +40,22 @@ enum ImageTextRecognizer {
                 }
             }
         }
+    }
+
+    /// Vision recognises only English unless told otherwise. Prefers the
+    /// user's system languages, then always includes Chinese and English so
+    /// mixed CJK/Latin screenshots work regardless of system locale.
+    nonisolated static func recognitionLanguages(for request: VNRecognizeTextRequest) -> [String] {
+        let supported = (try? request.supportedRecognitionLanguages()) ?? []
+        let preferred = Locale.preferredLanguages.compactMap { identifier in
+            supported.first { identifier.hasPrefix($0) || $0.hasPrefix(identifier) }
+        }
+        var languages: [String] = []
+        for language in preferred + ["zh-Hans", "zh-Hant", "en-US"]
+            where supported.contains(language) && !languages.contains(language) {
+            languages.append(language)
+        }
+        return languages.isEmpty ? ["en-US"] : languages
     }
 
     /// Vision returns observations in no documented order, which scrambles
