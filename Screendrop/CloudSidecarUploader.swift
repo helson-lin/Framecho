@@ -82,6 +82,43 @@ nonisolated enum CloudSidecarUploader {
         }
     }
 
+    /// Fire-and-forget JPEG poster for a screenshot uploaded as AVIF. Share
+    /// pages use it for og:image, since several chat-app crawlers can't
+    /// render AVIF. Made from the History original, which outlives the
+    /// temporary AVIF the upload was sent from.
+    static func uploadImagePoster(uploadID: String, sourceURL: URL, creds: CloudCredentials) async {
+        guard let poster = jpegPoster(forImageAt: sourceURL) else { return }
+        do {
+            try await postAssets(
+                uploadID: uploadID,
+                fields: [],
+                files: [("poster", "poster.jpg", "image/jpeg", poster)],
+                creds: creds
+            )
+        } catch {
+            print("Poster upload failed for \(uploadID): \(error)")
+        }
+    }
+
+    /// Link-preview sized, like the recording poster frame.
+    private static func jpegPoster(forImageAt url: URL) -> Data? {
+        guard let source = CGImageSourceCreateWithURL(
+            url as CFURL,
+            [kCGImageSourceShouldCache: false] as CFDictionary
+        ),
+              let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                  kCGImageSourceCreateThumbnailFromImageAlways: true,
+                  kCGImageSourceCreateThumbnailWithTransform: true,
+                  kCGImageSourceThumbnailMaxPixelSize: 1600
+              ] as CFDictionary) else {
+            return nil
+        }
+        return NSBitmapImageRep(cgImage: image).representation(
+            using: .jpeg,
+            properties: [.compressionFactor: 0.82]
+        )
+    }
+
     // MARK: - Title
 
     /// "Screen Recording - Jul 17 at 9:46 PM": what the share page shows

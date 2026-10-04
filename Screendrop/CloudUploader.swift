@@ -95,6 +95,7 @@ final class CloudUploader: NSObject {
         // CloudImageTranscoder). The original stays untouched, and if the
         // encode fails or wouldn't save anything, the original is sent.
         var transcodedURL: URL?
+        var posterSourceURL: URL?
         defer {
             if let transcodedURL { CloudImageTranscoder.removeTemporaryCopy(transcodedURL) }
         }
@@ -116,7 +117,11 @@ final class CloudUploader: NSObject {
             } catch {
                 print("AVIF encode failed, uploading the original: \(error)")
             }
-            if let transcodedURL { fileURL = transcodedURL }
+            if let transcodedURL {
+                // The share page's og:image needs a JPEG poster to go with it.
+                posterSourceURL = sourceURL
+                fileURL = transcodedURL
+            }
         }
 
         // The body is streamed from disk by URLSession, so a long recording
@@ -184,6 +189,14 @@ final class CloudUploader: NSObject {
             uploadedURLs[itemID] = result.url
             if isVideo {
                 scheduleSidecarUpload(uploadID: result.id, fileURL: fileURL, title: title, creds: creds)
+            } else if let posterSourceURL {
+                Task.detached(priority: .utility) {
+                    await CloudSidecarUploader.uploadImagePoster(
+                        uploadID: result.id,
+                        sourceURL: posterSourceURL,
+                        creds: creds
+                    )
+                }
             }
             return result
         } catch is CancellationError {
