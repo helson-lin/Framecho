@@ -90,9 +90,10 @@ final class CloudUploader: NSObject {
 
         let creds = CloudCredentialStore.shared.snapshot()
         let fileName = fileURL.lastPathComponent
-        let fileData: Data
+        // The body is streamed from disk by URLSession, so a long recording
+        // never has to fit in memory; just fail early if it's gone.
         do {
-            fileData = try Data(contentsOf: fileURL, options: .mappedIfSafe)
+            _ = try fileURL.checkResourceIsReachable()
         } catch {
             DockExportProgressCoordinator.shared.finish(dockProgressID)
             uploadingItems.remove(itemID)
@@ -119,7 +120,7 @@ final class CloudUploader: NSObject {
 
         let uploadTask = Task { [weak self] () throws -> CloudUploadResult in
             let result = try await Self.streamUpload(
-                data: fileData,
+                fileURL: fileURL,
                 filename: fileName,
                 contentType: mimeType,
                 mediaType: isVideo ? "video" : "image",
@@ -255,7 +256,7 @@ final class CloudUploader: NSObject {
     /// Metadata (filename, dimensions, etc.) is passed via headers so the
     /// Worker can stream the body directly to R2 without buffering.
     nonisolated private static func streamUpload(
-        data: Data,
+        fileURL: URL,
         filename: String,
         contentType: String,
         mediaType: String,
@@ -303,7 +304,7 @@ final class CloudUploader: NSObject {
 
         let (responseData, response) = try await URLSession.shared.upload(
             for: request,
-            from: data,
+            fromFile: fileURL,
             delegate: progressDelegate
         )
 
