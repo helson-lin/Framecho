@@ -141,7 +141,11 @@ enum ImageTextRecognizer {
     ) -> VNRecognizeTextRequest {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = true
+        // Measured on prose at 11-16 px in English and Chinese, correction
+        // changed nothing; on code and commands it only did harm, splitting
+        // "push -f" into "push - f" and repeating tokens. Screenshots carry a
+        // lot of code, paths, and URLs, so text is kept as recognized.
+        request.usesLanguageCorrection = false
         if cjkFirst {
             // A fixed list makes the first language's recognizer read every
             // line, so put a CJK one first.

@@ -47,7 +47,9 @@ nonisolated enum SmartRedactionRecognizer {
         guard cancellation.install(request) else { return [] }
         defer { cancellation.clearRequest() }
         request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = true
+        // Emails, URLs, phone and card numbers, and keys are not words;
+        // correction can only bend them away from the patterns below.
+        request.usesLanguageCorrection = false
         ImageTextRecognizer.configureLanguages(request)
 
         let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])

@@ -75,6 +75,18 @@ struct TextRecognitionChecks {
             print("ok   English-led mixed line: \(text.debugDescription)")
         }
 
+        // Code comes back as written: language correction inserted spaces
+        // into both, as in "JSONDecoder() .decode".
+        for line in ["let cfg = try JSONDecoder().decode(Cfg.self, from: data)", "const isOk = arr.filter(x => x.id).length > 0;"] {
+            let url = try render("code-\(line.count)", fontSize: 20, [(line, CGRect(x: 40, y: 40, width: 1100, height: 40))])
+            let text = await ImageTextRecognizer.recognizeText(at: url)
+            guard text == line else {
+                print("FAIL code line: \(text.debugDescription)")
+                exit(1)
+            }
+            print("ok   code line: \(text.debugDescription)")
+        }
+
         // Separate fragments on one visual line become one line of text.
         await expect("label and value", try render("row", [
             ("Name", CGRect(x: 40, y: 40, width: 200, height: 60)),
