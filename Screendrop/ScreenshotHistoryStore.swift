@@ -396,20 +396,28 @@ final class ScreenshotHistoryStore {
 
     @discardableResult
     func delete(url: URL) -> Bool {
-        let standardizedURL = url.standardizedFileURL
-        guard let item = items.first(where: { $0.url.standardizedFileURL == standardizedURL }) else {
-            return false
-        }
-
-        delete(item)
+        guard let index = itemIndex(for: url) else { return false }
+        delete(items[index])
         return true
     }
 
-    func setCloudURL(for fileURL: URL, cloudURL: String) {
-        let standardized = fileURL.standardizedFileURL
-        guard let index = items.firstIndex(where: { $0.url.standardizedFileURL == standardized }) else {
-            return
+    /// Finds the row a media URL belongs to. A recording's `url` moves from
+    /// its screen master to the flattened deliverable once one is rendered,
+    /// so callers holding the URL from before the render (preview cards,
+    /// uploads) are matched by their package rather than by file.
+    private func itemIndex(for mediaURL: URL) -> Int? {
+        let standardized = mediaURL.standardizedFileURL
+        let packagePath = standardized.deletingLastPathComponent().path
+        if let index = items.firstIndex(where: {
+            $0.recordingSessionPath == packagePath || $0.recordingSessionPath == standardized.path
+        }) {
+            return index
         }
+        return items.firstIndex { $0.url.standardizedFileURL == standardized }
+    }
+
+    func setCloudURL(for fileURL: URL, cloudURL: String) {
+        guard let index = itemIndex(for: fileURL) else { return }
         items[index].cloudURL = cloudURL
         items[index].updatedAt = Date()
         saveMetadata()
@@ -417,10 +425,7 @@ final class ScreenshotHistoryStore {
 
     /// Clears a previously-set cloud URL, e.g. after deleting the upload from the cloud.
     func clearCloudURL(for fileURL: URL) {
-        let standardized = fileURL.standardizedFileURL
-        guard let index = items.firstIndex(where: { $0.url.standardizedFileURL == standardized }) else {
-            return
-        }
+        guard let index = itemIndex(for: fileURL) else { return }
         items[index].cloudURL = nil
         items[index].updatedAt = Date()
         saveMetadata()
@@ -436,9 +441,7 @@ final class ScreenshotHistoryStore {
     /// package. Every editor entry point uses this so overlay cards, History,
     /// and after-capture actions cannot accidentally open different editors.
     func editorURL(for mediaURL: URL) -> URL {
-        let standardizedURL = mediaURL.standardizedFileURL
-        return items.first(where: { $0.url.standardizedFileURL == standardizedURL })?.editorURL
-            ?? mediaURL
+        itemIndex(for: mediaURL).map { items[$0].editorURL } ?? mediaURL
     }
 
     func reload() {
