@@ -16,28 +16,33 @@
 import AppKit
 import CoreGraphics
 
-@MainActor
-enum NotchBarTrimmer {
+nonisolated enum NotchBarTrimmer {
     /// Luminance below which a channel is considered "black" (tolerates encoding
     /// noise around the genuinely-black menu-bar strip).
     private static let blackChannelThreshold: UInt8 = 14
     /// Maximum fraction of non-black pixels for the strip to count as empty.
     private static let maxNonBlackFraction = 0.002
 
-    /// Returns `image` with the empty black menu-bar strip removed, or the
-    /// original image when there's nothing to trim.
-    static func trimmingEmptyMenuBar(_ image: CGImage, displayID: CGDirectDisplayID) -> CGImage {
-        guard ScreendropPreferences.trimFullscreenMenuBar else { return image }
-
-        guard let screen = NSScreen.matching(displayID: displayID) else { return image }
+    /// The notch strip's share of the display height, or nil when trimming is
+    /// off or the display has no notch. Reads AppKit state, so it runs on the
+    /// main actor; the pixel work in `trimmingEmptyMenuBar` does not.
+    @MainActor
+    static func stripFraction(displayID: CGDirectDisplayID) -> CGFloat? {
+        guard ScreendropPreferences.trimFullscreenMenuBar,
+              let screen = NSScreen.matching(displayID: displayID) else { return nil }
         let topInset = screen.safeAreaInsets.top
         let screenHeight = screen.frame.height
         // Non-notched displays report a zero top inset.
-        guard topInset > 0, screenHeight > 0 else { return image }
+        guard topInset > 0, screenHeight > 0 else { return nil }
+        return topInset / screenHeight
+    }
 
-        // Map the inset (points) onto the captured image's pixel height. Using
-        // the image's own height keeps this exact regardless of capture scale.
-        let stripHeight = Int((CGFloat(image.height) * topInset / screenHeight).rounded())
+    /// Returns `image` with the empty black menu-bar strip removed, or the
+    /// original image when there's nothing to trim.
+    static func trimmingEmptyMenuBar(_ image: CGImage, stripFraction: CGFloat) -> CGImage {
+        // Map the strip onto the captured image's pixel height. Using the
+        // image's own height keeps this exact regardless of capture scale.
+        let stripHeight = Int((CGFloat(image.height) * stripFraction).rounded())
         guard stripHeight > 0, stripHeight < image.height else { return image }
 
         guard topStripIsBlack(image, stripHeight: stripHeight) else { return image }
@@ -112,6 +117,7 @@ enum NotchBarTrimmer {
     }
 }
 
+@MainActor
 private extension NSScreen {
     /// Finds the screen backing the given Core Graphics display ID.
     static func matching(displayID: CGDirectDisplayID) -> NSScreen? {

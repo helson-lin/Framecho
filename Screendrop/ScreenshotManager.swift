@@ -32,7 +32,12 @@ final class ScreenshotManager {
 
         // On notched Macs, a fullscreen capture with the menu bar hidden leaves a
         // solid black strip across the top. Trim it (no-op when it isn't black).
-        trimEmptyMenuBarIfNeeded(at: url, displayID: displayID)
+        // Decoding and re-encoding a full Retina PNG runs off the main actor.
+        if let displayID, let stripFraction = NotchBarTrimmer.stripFraction(displayID: displayID) {
+            await Task.detached(priority: .userInitiated) {
+                Self.trimEmptyMenuBarIfNeeded(at: url, stripFraction: stripFraction)
+            }.value
+        }
         return url
     }
 
@@ -127,14 +132,13 @@ final class ScreenshotManager {
     /// Preserves the original image properties (e.g. DPI) written by
     /// `screencapture`. A no-op when there's nothing to trim or the feature is
     /// disabled.
-    private func trimEmptyMenuBarIfNeeded(at url: URL, displayID: CGDirectDisplayID?) {
-        guard let displayID,
-              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+    private nonisolated static func trimEmptyMenuBarIfNeeded(at url: URL, stripFraction: CGFloat) {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
             return
         }
 
-        let trimmed = NotchBarTrimmer.trimmingEmptyMenuBar(image, displayID: displayID)
+        let trimmed = NotchBarTrimmer.trimmingEmptyMenuBar(image, stripFraction: stripFraction)
         // Same reference back means nothing was trimmed - leave the file as-is.
         guard trimmed !== image else { return }
 
