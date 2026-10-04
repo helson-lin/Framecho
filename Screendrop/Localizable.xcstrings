@@ -2853,6 +2853,16 @@
         }
       }
     },
+    "Drag here to add 3D motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在此拖移以添加 3D 运镜"
+          }
+        }
+      }
+    },
     "Drag here to add a zoom" : {
       "localizations" : {
         "zh-Hans" : {
@@ -9659,16 +9669,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "让卡片回到平放居中的姿态"
-          }
-        }
-      }
-    },
-    "Right-click to add 3D motion" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "右键点击以添加 3D 运镜"
           }
         }
       }
