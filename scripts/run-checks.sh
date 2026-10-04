@@ -44,4 +44,7 @@ check cloud-image-transcode -default-isolation MainActor -parse-as-library \
   Screendrop/CloudImageTranscoder.swift Screendrop/CloudUploadOptions.swift \
   scripts/check-cloud-image-transcode.swift
 
+check text-recognition -default-isolation MainActor -parse-as-library \
+  Screendrop/ImageTextRecognizer.swift scripts/check-text-recognition.swift
+
 echo "All checks passed."

@@ -31,10 +31,11 @@ enum ImageTextRecognizer {
                 let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
                 do {
                     try handler.perform([request])
-                    let observations = request.results ?? []
-                    let lines = readingOrder(observations)
-                        .compactMap { $0.topCandidates(1).first?.string }
-                    continuation.resume(returning: lines.joined(separator: "\n"))
+                    let text = layoutText(
+                        request.results ?? [],
+                        imageSize: CGSize(width: cgImage.width, height: cgImage.height)
+                    )
+                    continuation.resume(returning: text)
                 } catch {
                     continuation.resume(returning: "")
                 }
@@ -65,43 +66,160 @@ enum ImageTextRecognizer {
         return languages.isEmpty ? ["en-US"] : languages
     }
 
+    /// A recognised run of text in pixel space (origin bottom-left, as Vision
+    /// reports it). Normalized boxes scale x and y by different amounts, so
+    /// gaps and heights are only comparable once converted.
+    private struct Fragment {
+        var text: String
+        var rect: CGRect
+    }
+
+    /// Turns Vision's observations into plain text that reads like the
+    /// original: fragments on one visual line are joined into one line, and
+    /// lines that are clearly a wrapped
+    /// paragraph are rejoined instead of hard-broken.
+    nonisolated private static func layoutText(
+        _ observations: [VNRecognizedTextObservation], imageSize: CGSize
+    ) -> String {
+        let fragments = observations.compactMap { observation -> Fragment? in
+            guard let text = observation.topCandidates(1).first?.string else { return nil }
+            let box = observation.boundingBox
+            return Fragment(
+                text: text,
+                rect: CGRect(
+                    x: box.minX * imageSize.width,
+                    y: box.minY * imageSize.height,
+                    width: box.width * imageSize.width,
+                    height: box.height * imageSize.height
+                )
+            )
+        }
+        let lines = visualLines(fragments)
+        guard var paragraph = lines.first else { return "" }
+
+        var paragraphs: [Fragment] = []
+        for line in lines.dropFirst() {
+            if continuesParagraph(paragraph, with: line) {
+                paragraph.text = joinedAcrossWrap(paragraph.text, line.text)
+                paragraph.rect = paragraph.rect.union(line.rect)
+                // Keep a single line's height: the union now spans several.
+                paragraph.rect.size.height = line.rect.height
+                paragraph.rect.origin.y = line.rect.minY
+            } else {
+                paragraphs.append(paragraph)
+                paragraph = line
+            }
+        }
+        paragraphs.append(paragraph)
+        return paragraphs.map(\.text).joined(separator: "\n")
+    }
+
     /// Vision returns observations in no documented order, which scrambles
     /// anything laid out in columns. Groups them into visual lines top to
-    /// bottom, then orders each line left to right.
+    /// bottom, then orders each line left to right and joins it.
     ///
     /// Done as an explicit grouping pass rather than one clever comparator:
     /// a tolerance-based comparator is not a strict weak ordering, and
     /// `sorted(by:)` gives undefined results when handed one.
-    private static func readingOrder(
-        _ observations: [VNRecognizedTextObservation]
-    ) -> [VNRecognizedTextObservation] {
-        // Vision's normalized origin is bottom-left, so a larger midY sits
-        // higher on the page.
-        let topDown = observations.sorted { $0.boundingBox.midY > $1.boundingBox.midY }
+    nonisolated private static func visualLines(_ fragments: [Fragment]) -> [Fragment] {
+        // The origin is bottom-left, so a larger midY sits higher on the page.
+        let topDown = fragments.sorted { $0.rect.midY > $1.rect.midY }
 
-        var ordered: [VNRecognizedTextObservation] = []
-        var line: [VNRecognizedTextObservation] = []
+        var lines: [Fragment] = []
+        var line: [Fragment] = []
         var lineMidY: CGFloat = 0
 
         func flushLine() {
-            ordered.append(contentsOf: line.sorted { $0.boundingBox.minX < $1.boundingBox.minX })
+            let ordered = line.sorted { $0.rect.minX < $1.rect.minX }
+            guard var merged = ordered.first else { return }
+            for fragment in ordered.dropFirst() {
+                let gap = fragment.rect.minX - merged.rect.maxX
+                merged.text = joinedOnLine(
+                    merged.text, fragment.text,
+                    isTight: gap < max(merged.rect.height, fragment.rect.height)
+                )
+                merged.rect = merged.rect.union(fragment.rect)
+            }
+            lines.append(merged)
             line.removeAll()
         }
 
-        for observation in topDown {
-            let box = observation.boundingBox
+        for fragment in topDown {
             // Two fragments belong to the same visual line when their centres
             // sit within half a line height of each other.
-            if !line.isEmpty, abs(box.midY - lineMidY) > box.height / 2 {
+            if !line.isEmpty, abs(fragment.rect.midY - lineMidY) > fragment.rect.height / 2 {
                 flushLine()
             }
             if line.isEmpty {
-                lineMidY = box.midY
+                lineMidY = fragment.rect.midY
             }
-            line.append(observation)
+            line.append(fragment)
         }
         flushLine()
 
-        return ordered
+        return lines
+    }
+
+    /// Conservative on purpose: wrongly gluing two UI labels together is worse
+    /// than leaving a wrapped paragraph hard-broken. `previous` must look like
+    /// a line that ran out of room - long, flush with `next` on the left, at
+    /// least as wide, and without closing punctuation - and the two must be
+    /// set in the same size at body-text spacing.
+    nonisolated private static func continuesParagraph(_ previous: Fragment, with next: Fragment) -> Bool {
+        let height = max(previous.rect.height, next.rect.height)
+        guard height > 0 else { return false }
+
+        let similarSize = abs(previous.rect.height - next.rect.height) <= height * 0.25
+        let gap = previous.rect.minY - next.rect.maxY
+        let tightlySpaced = gap >= -height * 0.25 && gap <= height * 0.6
+        let leftAligned = abs(previous.rect.minX - next.rect.minX) <= height * 0.6
+        let filledLine = previous.rect.width >= height * 8
+            && previous.rect.maxX >= next.rect.maxX - height
+        let openEnded = previous.text.last.map { !sentenceTerminators.contains($0) } ?? false
+        let startsListItem = next.text.first.map { listMarkers.contains($0) } ?? false
+
+        return similarSize && tightlySpaced && leftAligned && filledLine && openEnded && !startsListItem
+    }
+
+    nonisolated private static let sentenceTerminators: Set<Character> = [
+        ".", "!", "?", ":", ";", "。", "！", "？", "：", "；", "…"
+    ]
+    nonisolated private static let listMarkers: Set<Character> = ["•", "·", "-", "–", "—", "*", "▪", "◦"]
+
+    /// Chinese and Japanese are written without spaces between words, so a
+    /// line that wraps at a CJK character continues directly. Korean does use
+    /// spaces, so Hangul is not treated as unspaced.
+    nonisolated private static func joinedAcrossWrap(_ left: String, _ right: String) -> String {
+        guard let end = left.unicodeScalars.last, let start = right.unicodeScalars.first else {
+            return left + right
+        }
+        let separator = isUnspacedScript(end) || isUnspacedScript(start) ? "" : " "
+        return left + separator + right
+    }
+
+    /// Fragments on one line were split by Vision because something visibly
+    /// separates them, so they keep a space - unless both sides are CJK and
+    /// sit close enough to be one run of text.
+    nonisolated private static func joinedOnLine(_ left: String, _ right: String, isTight: Bool) -> String {
+        guard let end = left.unicodeScalars.last, let start = right.unicodeScalars.first else {
+            return left + right
+        }
+        let separator = isTight && isUnspacedScript(end) && isUnspacedScript(start) ? "" : " "
+        return left + separator + right
+    }
+
+    nonisolated private static func isUnspacedScript(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.value {
+        case 0x3000...0x303F, // CJK symbols and punctuation
+             0x3040...0x30FF, // Hiragana, Katakana
+             0x3400...0x4DBF, // CJK Extension A
+             0x4E00...0x9FFF, // CJK Unified Ideographs
+             0xF900...0xFAFF, // CJK Compatibility Ideographs
+             0xFF00...0xFFEF, // Halfwidth and fullwidth forms
+             0x20000...0x3134F: // CJK Extensions B-G
+            true
+        default:
+            false
+        }
     }
 }
