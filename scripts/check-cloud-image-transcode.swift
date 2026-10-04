@@ -11,9 +11,8 @@ struct CloudImageTranscodeChecks {
         try manager.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? manager.removeItem(at: root) }
 
-        // A noisy 800x600 image: big enough that AVIF beats PNG.
-        func writePNG(_ name: String, dpi: Double?) throws -> URL {
-            let width = 800, height = 600
+        // A noisy image, 800x600 by default: big enough that AVIF beats PNG.
+        func writePNG(_ name: String, dpi: Double?, width: Int = 800, height: Int = 600) throws -> URL {
             let context = CGContext(
                 data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                 space: CGColorSpace(name: CGColorSpace.sRGB)!,
@@ -103,9 +102,26 @@ struct CloudImageTranscodeChecks {
         precondition(info(unknown).width == 800)
         CloudImageTranscoder.removeTemporaryCopy(unknown)
 
+        // Odd sizes come out even: Chrome renders an odd-sized AVIF grid as
+        // fully transparent.
+        let odd = try writePNG("odd.png", dpi: 144, width: 1201, height: 801)
+        let oddImage = CGImageSourceCreateImageAtIndex(CGImageSourceCreateWithURL(odd as CFURL, nil)!, 0, nil)!
+        let evenImage = CloudImageTranscoder.evenSized(oddImage)
+        precondition(evenImage.width == 1200 && evenImage.height == 800)
+        let evenRetina = CGImageSourceCreateImageAtIndex(CGImageSourceCreateWithURL(retina as CFURL, nil)!, 0, nil)!
+        precondition(CloudImageTranscoder.evenSized(evenRetina) === evenRetina, "Even images pass through")
+        // 1201x801 at 1x is 601x401 before the crop.
+        let oddScaled = try CloudImageTranscoder.transcodeToAVIF(
+            sourceURL: odd, scaleReferenceURL: nil,
+            settings: .init(quality: 0.8, downscalesRetina: true)
+        )!
+        let oddScaledInfo = info(oddScaled)
+        precondition(oddScaledInfo.width == 600 && oddScaledInfo.height == 400, "\(oddScaledInfo)")
+        CloudImageTranscoder.removeTemporaryCopy(oddScaled)
+
         precondition(CloudImageTranscoder.shouldTranscode(retina))
         precondition(!CloudImageTranscoder.shouldTranscode(root.appendingPathComponent("a.jpg")))
         precondition(!CloudImageTranscoder.shouldTranscode(root.appendingPathComponent("a.gif")))
-        print("PASS: AVIF output, 1x from DPI and from base image, no-DPI passthrough, cleanup")
+        print("PASS: AVIF output, 1x from DPI and from base image, no-DPI passthrough, even sizes, cleanup")
     }
 }
