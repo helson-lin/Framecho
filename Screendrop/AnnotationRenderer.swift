@@ -127,14 +127,12 @@ enum AnnotationRenderer {
                 throw CocoaError(.fileWriteUnknown)
             }
 
-            var options: CFDictionary?
+            var options = ImageDensityMetadata.properties(of: sourceURL)
             if contentType != .png {
-                options = [
-                    kCGImageDestinationLossyCompressionQuality: ScreendropPreferences.compressionQuality
-                ] as CFDictionary
+                options[kCGImageDestinationLossyCompressionQuality] = ScreendropPreferences.compressionQuality
             }
 
-            CGImageDestinationAddImage(destination, renderedImage, options)
+            CGImageDestinationAddImage(destination, renderedImage, options as CFDictionary)
 
             guard CGImageDestinationFinalize(destination) else {
                 throw CocoaError(.fileWriteUnknown)
