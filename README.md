@@ -46,8 +46,9 @@ Framecho 使用 Sparkle 检查更新，更新源为：
 - 裁剪、撤销与重做；保留原图和 `.screendrop` 编辑 sidecar，可再次打开修改。
 - 纯色、渐变、自定义壁纸和按需下载的壁纸包。
 - 留白、圆角、阴影、边框、水印及画布比例。
-- 截图透视、旋转、缩放、平移和渐进模糊效果。
+- 3D 透视（镜头角度、取景、卡片旋转）和渐进模糊效果。
 - 导入、导出 `.screendroppreset` 背景预设；本地壁纸文件不会随预设一起导出。
+- 侧边栏分为「标注」和「画面」两个标签：「标注」放工具、样式和自动遮挡；「画面」按构图、背景、截图外观、效果分组，预设只作用于这一页。选择工具或选中标注时自动切回「标注」。
 
 ### 录屏与视频编辑
 
@@ -61,6 +62,10 @@ Framecho 使用 Sparkle 检查更新，更新源为：
 - 原始比例、横屏、竖屏和方形导出；支持视频画面单独裁剪。
 - 质量、编码、分辨率、30 / 60 fps、运动模糊和音频导出设置。
 - 导出与分享使用项目编辑结果，支持进度显示和取消。
+- 3D 运镜：为视频卡片设置基础姿态，并在时间线上添加带进入 / 退出过渡的姿态变化；可在画布上用旋转球直接调整，在运镜轨道上拖出一段即可添加，导出时带运动模糊。
+- 侧边栏分为「画面」「动效」「叠加」「剪辑」四个标签；在时间线上选中缩放、运镜或片段时，自动切到对应标签。
+
+两个编辑器侧边栏中的数值框都可以直接拖动或点击定位，填充条显示当前值在范围中的位置；按住 Option 拖动可微调，Shift + 方向键按 10% 步进，点击数值可直接输入。
 
 ### 自托管分享与自动化
 
@@ -135,7 +140,7 @@ npx wrangler secret put UPLOAD_TOKEN
 
 ## 从源码构建
 
-需要 macOS 26.4 或更高版本，以及包含所需 macOS SDK 的 Xcode。Xcode 会自动解析 Sparkle 和 DockProgress 依赖。
+需要 macOS 26.4 或更高版本，以及 Xcode 27.1（发布版与 CI 使用的版本）。Xcode 会自动解析 Sparkle 和 DockProgress 依赖。Studio 的运动模糊使用 Metal 着色器，如果构建时提示缺少 Metal Toolchain，先运行 `xcodebuild -downloadComponent MetalToolchain`。
 
 ```bash
 git clone https://github.com/helson-lin/Screendrop.git
@@ -150,7 +155,27 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 
 仓库中的签名配置使用维护者的 Apple 开发者团队。其他开发者需在 Xcode 中选择自己的团队与可用证书；仅进行本地编译验证时，可在命令后加 `CODE_SIGNING_ALLOWED=NO`，该产物不用于正式分发。
 
-工程和 scheme 名称仍为 `Screendrop`，生成的应用名称为 `Framecho.app`，Bundle ID 为 `com.jarinhe.Framecho`。项目没有 Xcode 测试 target，构建成功是基本自动验证；性能专项检查见 [视频导出性能](docs/export-performance.md) 和 [编辑器性能](docs/editor-performance.md)。
+工程和 scheme 名称仍为 `Screendrop`，生成的应用名称为 `Framecho.app`，Bundle ID 为 `com.jarinhe.Framecho`。
+
+项目没有 Xcode 测试 target。`scripts/` 中的独立检查会直接编译相关的生产代码并运行，不需要启动应用：
+
+```bash
+scripts/run-checks.sh
+```
+
+性能专项检查见 [视频导出性能](docs/export-performance.md) 和 [编辑器性能](docs/editor-performance.md)。
+
+### 持续集成
+
+每个 Pull Request 和推送到 `main` 的提交都会运行 GitHub Actions（[`.github/workflows/ci.yml`](.github/workflows/ci.yml)）；只改动 `appcast.xml`、文档或 Markdown 的推送会跳过：
+
+| 检查 | 内容 |
+| --- | --- |
+| Build app | 使用 GitHub `xcode-27` 镜像中的 Xcode 27.1 进行不签名的 Debug 构建 |
+| Standalone checks | 运行 `scripts/run-checks.sh` |
+| Release tool | 在 Linux 上对发布工具运行 `go vet` 和 `go test` |
+
+`xcode-27` 镜像目前仍为 beta，GitHub 调整其中的 Xcode 版本时需同步更新工作流。
 
 ## 发布流程
 
@@ -159,13 +184,15 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 ```bash
 brew install create-dmg
 
-# 示例：在 0.34.1（build 33）之后发布下一版。
+# 示例：在 0.35.3（build 38）之后发布下一版。
 go run ./cmd/screendrop-release -build -yes \
-  -set-version 0.34.2 -set-build 34 \
+  -set-version 0.35.4 -set-build 39 \
   -notes-file /path/to/release-notes.txt
 ```
 
 更新说明文件每行一条。每次发布递增 build 号，并在发布前提交待发布的代码。工具会归档、Developer ID 签名导出、公证、附加公证票据、生成并进行 Sparkle 签名的 DMG，推送提交，创建 GitHub Release，最后更新并推送 `appcast.xml`。
+
+代码签名偶尔会因 Apple 时间戳服务暂时不可用而失败。归档和导出遇到这类错误会自动重试，最多 3 次，依次间隔 20 秒和 40 秒；证书缺失等其他签名错误会立即停止，并在报错开头列出 codesign 的错误行。
 
 不使用 `-build` 时，工具读取已经导出到 `~/Downloads/Framecho.app` 的应用进行打包和发布。当前未配置 Homebrew tap，不会发布或更新 cask。
 

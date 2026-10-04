@@ -2,14 +2,14 @@
 
 ## Project overview
 
-Screendrop is a native macOS screenshot and screen recording tool. Its Library window opens on normal launch; login launches remain in the menu bar (`LSUIElement = YES`). `AppActivationPolicy` uses `.regular` while Library, Settings, or editor windows are open, and returns to `.accessory` when they close. Built with SwiftUI + AppKit and no test target.
+Screendrop is a native macOS screenshot and screen recording tool. Its Library window opens on normal launch; login launches remain in the menu bar (`LSUIElement = YES`). `AppActivationPolicy` uses `.regular` while Library, Settings, or editor windows are open, and returns to `.accessory` when they close. Built with SwiftUI + AppKit and no Xcode test target.
 
-**Deployment target:** macOS 26.4 (Xcode 26.4 / Tahoe beta SDK).
+**Deployment target:** macOS 26.4, built with Xcode 27.1 (macOS 27 SDK).
 **Bundle ID:** `com.jarinhe.Framecho` (the app is named Framecho; the Xcode target and source folder keep the upstream name `Screendrop` to ease merging upstream)
 
 ## Build
 
-Use `xcodebuild` from the command line. The project requires the Xcode 26.4 beta toolchain:
+Use `xcodebuild` from the command line. The project requires Xcode 27.1, the toolchain releases and CI use. If the build reports a missing Metal toolchain (needed for `StudioMotionBlur.metal`), run `xcodebuild -downloadComponent MetalToolchain` once:
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
@@ -22,7 +22,13 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 
 There are two shared schemes (`Screendrop` and `Screendrop Dev`) - both build the same target with Debug config. Use `Screendrop` unless told otherwise.
 
-No test target exists. Build success is the only automated verification.
+No Xcode test target exists. Automated verification is:
+
+- **Build success** (add `CODE_SIGNING_ALLOWED=NO` to build without the maintainer's signing identity).
+- **`scripts/run-checks.sh`** - compiles each standalone check in `scripts/` against the production sources it exercises and runs it. Add new checks there. `check-editor-cancellation.swift` is excluded because it needs a fixture from the motion-blur benchmark.
+- **`go test ./cmd/...`** for the release tool.
+
+CI (`.github/workflows/ci.yml`) runs all three on pull requests and pushes to `main`, using Xcode 27.1 on GitHub's `xcode-27` runner image (beta). Pushes touching only `appcast.xml`, docs or Markdown are skipped.
 
 ## Swift concurrency settings
 
