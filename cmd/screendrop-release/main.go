@@ -583,6 +583,69 @@ func runCmdRetry(attempts int, name string, args ...string) (string, error) {
 	return out, err
 }
 
+// Code signing asks Apple's timestamp service to countersign every bundle, and
+// that service drops out for a minute or two now and then. Archive and export
+// retry only those failures, waiting longer each time.
+const signingAttempts = 3
+
+var signingRetryDelay = 20 * time.Second
+
+// runSigningCmd runs an archive or export command, re-running it when the
+// failure looks like a transient timestamp outage. prepare runs before every
+// attempt to clear partial output from the previous one.
+func runSigningCmd(prepare func(), name string, args ...string) (string, error) {
+	var out string
+	var err error
+	for i := 1; i <= signingAttempts; i++ {
+		prepare()
+		if out, err = runCmd(name, args...); err == nil {
+			return out, nil
+		}
+		if i == signingAttempts || !isTransientSigningFailure(out) {
+			return out, err
+		}
+		delay := time.Duration(i) * signingRetryDelay
+		warn(fmt.Sprintf("Code signing could not reach Apple's timestamp service (attempt %d/%d); retrying in %s...", i, signingAttempts, delay))
+		time.Sleep(delay)
+	}
+	return out, err
+}
+
+// isTransientSigningFailure reports whether xcodebuild failed because a
+// signature could not be timestamped, as opposed to a real signing problem
+// such as a missing certificate.
+func isTransientSigningFailure(output string) bool {
+	lower := strings.ToLower(output)
+	for _, marker := range []string{
+		"timestamp service is not available",
+		"a timestamp was expected but was not found",
+		"timestamp server",
+	} {
+		if strings.Contains(lower, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// signingFailureDetail pulls codesign's own error lines out of xcodebuild's
+// output, which otherwise sit far above the tail shown on failure.
+func signingFailureDetail(output string) string {
+	var detail []string
+	for _, line := range strings.Split(output, "\n") {
+		trimmed := strings.TrimSpace(line)
+		lower := strings.ToLower(trimmed)
+		if strings.Contains(lower, "timestamp") || strings.Contains(lower, "errsec") ||
+			(strings.Contains(lower, "codesign") && strings.Contains(lower, "error")) {
+			detail = append(detail, trimmed)
+		}
+	}
+	if len(detail) == 0 {
+		return ""
+	}
+	return strings.Join(detail, "\n") + "\n\n"
+}
+
 // createOrUpdateRelease creates the GitHub release for tag with the DMG
 // attached. If the release already exists (a re-run after a partial failure),
 // it re-uploads the DMG instead of failing. Returns the release URL.
@@ -744,7 +807,8 @@ func runBuildPhase(repoDir, homeDir, appPath string) {
 	_ = os.RemoveAll(archivePath)
 
 	step("Archiving " + schemeFlag + " (Release)... this can take a couple of minutes")
-	if out, err := runCmd("xcodebuild", "archive",
+	if out, err := runSigningCmd(func() { _ = os.RemoveAll(archivePath) },
+		"xcodebuild", "archive",
 		"-project", projectPath,
 		"-scheme", schemeFlag,
 		"-configuration", "Release",
@@ -752,7 +816,7 @@ func runBuildPhase(repoDir, homeDir, appPath string) {
 		"-archivePath", archivePath,
 		"DEVELOPMENT_TEAM="+developmentTeam,
 	); err != nil {
-		fail("xcodebuild archive failed:\n" + lastLines(out, 40))
+		fail("xcodebuild archive failed:\n" + signingFailureDetail(out) + lastLines(out, 40))
 	}
 	success("Archived")
 
@@ -768,15 +832,16 @@ func runBuildPhase(repoDir, homeDir, appPath string) {
 		fail("Could not write ExportOptions.plist: " + err.Error())
 	}
 
-	if out, err := runCmd("xcodebuild", "-exportArchive",
+	exportedApp := filepath.Join(exportDir, appName)
+	if out, err := runSigningCmd(func() { _ = os.RemoveAll(exportedApp) },
+		"xcodebuild", "-exportArchive",
 		"-archivePath", archivePath,
 		"-exportOptionsPlist", optsPath,
 		"-exportPath", exportDir,
 	); err != nil {
-		fail("xcodebuild -exportArchive failed:\n" + lastLines(out, 40))
+		fail("xcodebuild -exportArchive failed:\n" + signingFailureDetail(out) + lastLines(out, 40))
 	}
 
-	exportedApp := filepath.Join(exportDir, appName)
 	if !fileExists(exportedApp) {
 		fail("Exported app not found at " + exportedApp)
 	}
