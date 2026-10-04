@@ -56,6 +56,18 @@ struct TextRecognitionChecks {
             print("ok   \(name): \(text.debugDescription)")
         }
 
+        // GitHub's macOS runners are virtual machines without the hardware
+        // Vision's accurate recognizer needs; there it returns nothing for
+        // any image. Skip there, but only there: on a real Mac an empty probe
+        // is exactly the regression these checks exist to catch.
+        let probe = await ImageTextRecognizer.recognizeText(at: try render("probe", [
+            ("Hello", CGRect(x: 40, y: 40, width: 400, height: 60)),
+        ]))
+        if probe.isEmpty, ProcessInfo.processInfo.environment["CI"] == "true" {
+            print("SKIP text recognition: Vision recognizes nothing on this CI runner.")
+            return
+        }
+
         // Chinese is recognised at all, mixed with English on one line.
         await expect("mixed line", try render("mixed", [
             ("截图文字识别测试 Hello 世界", CGRect(x: 40, y: 40, width: 1100, height: 60)),
