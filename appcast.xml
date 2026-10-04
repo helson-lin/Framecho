@@ -27,6 +27,29 @@
     -->
 
     <item>
+      <title>Version 0.35.2</title>
+      <sparkle:version>37</sparkle:version>
+      <sparkle:shortVersionString>0.35.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.4</sparkle:minimumSystemVersion>
+      <pubDate>Sun, 04 Oct 2026 01:35:21 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.35.2</h2>
+        <ul>
+          <li>录屏 Studio 侧边栏分为「画面」「动效」「叠加」「剪辑」四个标签，配置按类型分组</li>
+          <li>在时间线上选中缩放、运镜或片段时，自动切到对应标签并显示其设置</li>
+          <li>字幕样式与按文字剪辑分开，基础姿态滑块默认收起</li>
+          <li>修复部分开关在中文界面下显示英文的问题</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Screendrop/releases/download/v0.35.2/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="TS7w336OMZdqk3ksjf7IBGiCB0O/rgwW6JorRRg8qdSuk5cN3g2+cVMOonQPbO6dXeluZAF7pDfXr0A8ZiyGAQ=="
+        length="8968491"
+      />
+    </item>
+
+    <item>
       <title>Version 0.35.1</title>
       <sparkle:version>36</sparkle:version>
       <sparkle:shortVersionString>0.35.1</sparkle:shortVersionString>
