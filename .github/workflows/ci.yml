@@ -31,6 +31,11 @@ jobs:
           path: ${{ runner.temp }}/SourcePackages
           key: spm-${{ hashFiles('Screendrop.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
 
+      # The runner's Xcode ships without the Metal toolchain, which the
+      # Studio motion-blur shader needs.
+      - name: Install Metal toolchain
+        run: xcodebuild -downloadComponent MetalToolchain
+
       - name: Build (Debug, unsigned)
         run: |
           status=0
