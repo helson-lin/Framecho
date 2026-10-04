@@ -75,19 +75,20 @@ nonisolated enum CloudImageTranscoder {
 
         let sourceScale = scaleReferenceURL.flatMap(pixelScale(of:)) ?? pixelScale(of: sourceURL) ?? 1
         let scale = settings.downscalesRetina ? sourceScale : 1
-        let image: CGImage?
+        let decoded: CGImage?
         if scale > 1.01, let size = pixelSize(of: source) {
             let maxPixelSize = Int((Double(max(size.width, size.height)) / scale).rounded())
-            image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+            decoded = CGImageSourceCreateThumbnailAtIndex(source, 0, [
                 kCGImageSourceCreateThumbnailFromImageAlways: true,
                 kCGImageSourceCreateThumbnailWithTransform: true,
                 kCGImageSourceShouldCacheImmediately: true,
                 kCGImageSourceThumbnailMaxPixelSize: max(1, maxPixelSize)
             ] as CFDictionary)
         } else {
-            image = CGImageSourceCreateImageAtIndex(source, 0, nil)
+            decoded = CGImageSourceCreateImageAtIndex(source, 0, nil)
         }
-        guard let image else { throw CocoaError(.fileReadCorruptFile) }
+        guard let decoded else { throw CocoaError(.fileReadCorruptFile) }
+        let image = evenSized(decoded)
 
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("Framecho-upload-\(UUID().uuidString)", isDirectory: true)
@@ -129,6 +130,18 @@ nonisolated enum CloudImageTranscoder {
             removeTemporaryCopy(destinationURL)
             throw error
         }
+    }
+
+    /// ImageIO stores any AVIF larger than 512px as a grid of tiles, and
+    /// Chrome decodes a grid whose width or height is odd as a fully
+    /// transparent image. Dropping the last column or row keeps both even.
+    static func evenSized(_ image: CGImage) -> CGImage {
+        let width = image.width & ~1
+        let height = image.height & ~1
+        guard width > 0, height > 0, width != image.width || height != image.height else {
+            return image
+        }
+        return image.cropping(to: CGRect(x: 0, y: 0, width: width, height: height)) ?? image
     }
 
     /// Deletes a copy made by `transcodeToAVIF`, along with its directory.
