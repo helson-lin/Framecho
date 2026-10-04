@@ -24,6 +24,10 @@ struct AnnotationEditorWindow: View {
     @State private var isCopying = false
     @State private var didCopyImage = false
     @State private var isShowingUploadOptions = false
+    /// What Retry on the error banner repeats, and the message it belongs
+    /// to: an error raised elsewhere afterwards must not inherit it.
+    @State private var retryAction: (() -> Void)?
+    @State private var retryMessage: String?
     @FocusState private var focusedField: AnnotationEditorFocusedField?
     @Environment(\.dismiss) private var dismissWindow
 
@@ -337,6 +341,8 @@ struct AnnotationEditorWindow: View {
         .overlay(alignment: .bottomLeading) {
             if model.previewImage != nil, model.imageSize != .zero {
                 HStack(spacing: 8) {
+                    AnnotationHistoryControl(model: model, onAction: clearInspectorFocus)
+                        .disabled(model.isCropping)
                     AnnotationZoomControl(model: model)
 
                     if model.isPreviewDownscaled {
@@ -355,20 +361,28 @@ struct AnnotationEditorWindow: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.92, anchor: .bottomTrailing)))
             }
         }
-        .overlay(alignment: .bottomLeading) {
-            // Only inline saves/uploads (which fail with an image already on
-            // screen) land here; a load failure shows the full-canvas state
-            // above instead of stacking a second copy of the same message.
+        .overlay(alignment: .top) {
+            // Only inline saves/copies/uploads (which fail with an image
+            // already on screen) land here; a load failure shows the
+            // full-canvas state above instead of a second copy of the message.
             if let errorMessage = model.errorMessage, model.previewImage != nil {
-                Text(errorMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 10)
-                    .background(.bar)
+                AnnotationErrorBanner(
+                    message: errorMessage,
+                    onRetry: (retryMessage == errorMessage ? retryAction : nil).map { retry in
+                        {
+                            dismissError()
+                            retry()
+                        }
+                    },
+                    onDismiss: dismissError
+                )
+                .padding(.horizontal, 24)
+                // Below the tool strip.
+                .padding(.top, 12 + AnnotationToolStrip.reservedHeight + 12)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
+        .animation(.snappy(duration: 0.2), value: model.errorMessage)
     }
 
     private func closeAfterLoadFailure() {
@@ -391,7 +405,7 @@ struct AnnotationEditorWindow: View {
                 try? await Task.sleep(for: .seconds(1.6))
                 withAnimation(.snappy(duration: 0.2)) { didCopyImage = false }
             } catch {
-                model.errorMessage = String(localized: "Failed to copy the image: \(error.localizedDescription)")
+                fail(String(localized: "Failed to copy the image: \(error.localizedDescription)"), retry: copyImage)
             }
         }
     }
@@ -420,7 +434,7 @@ struct AnnotationEditorWindow: View {
                         contentType: ScreenshotFileActions.exportContentType
                     )
                 } catch {
-                    model.errorMessage = String(localized: "Failed to save annotation: \(error.localizedDescription)")
+                    fail(String(localized: "Failed to save annotation: \(error.localizedDescription)"), retry: saveAs)
                 }
             }
         }
@@ -473,7 +487,7 @@ struct AnnotationEditorWindow: View {
                 ScreenshotHistoryStore.shared.setCloudURL(for: resultURL, cloudURL: result.url)
                 withAnimation(.snappy(duration: 0.2)) { didCopyLink = true }
             } catch {
-                model.errorMessage = String(localized: "Upload failed: \(error.localizedDescription)")
+                fail(String(localized: "Upload failed: \(error.localizedDescription)"), retry: { uploadAnnotation(options: options) })
             }
         }
     }
@@ -497,7 +511,7 @@ struct AnnotationEditorWindow: View {
                     historyURL: resultURL
                 )
             } catch {
-                model.errorMessage = String(localized: "Failed to save annotation: \(error.localizedDescription)")
+                fail(String(localized: "Failed to save annotation: \(error.localizedDescription)"), retry: saveEdits)
             }
         }
     }
@@ -532,7 +546,7 @@ struct AnnotationEditorWindow: View {
                 dismissWindow()
             } catch {
                 isFinishing = false
-                model.errorMessage = String(localized: "Failed to finish annotation: \(error.localizedDescription)")
+                fail(String(localized: "Failed to finish annotation: \(error.localizedDescription)"), retry: finishEditing)
             }
         }
     }
@@ -576,6 +590,18 @@ struct AnnotationEditorWindow: View {
 
     private func clearInspectorFocus() {
         focusedField = nil
+    }
+
+    private func fail(_ message: String, retry: (() -> Void)?) {
+        retryAction = retry
+        retryMessage = message
+        model.errorMessage = message
+    }
+
+    private func dismissError() {
+        model.errorMessage = nil
+        retryAction = nil
+        retryMessage = nil
     }
 }
 

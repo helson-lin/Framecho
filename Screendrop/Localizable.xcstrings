@@ -87,6 +87,16 @@
         }
       }
     },
+    "Redo" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重做"
+          }
+        }
+      }
+    },
     "Save and close (⌘↩)" : {
       "localizations" : {
         "zh-Hans" : {
@@ -153,6 +163,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "截图将按资料库中保存的原样上传。"
+          }
+        }
+      }
+    },
+    "Undo" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撤销"
           }
         }
       }

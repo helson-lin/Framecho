@@ -505,6 +505,17 @@ final class AnnotationEditorModel {
         engine.updateEditingText(id, to: text)
     }
 
+    /// Whether Undo / Redo would do anything; drives the canvas buttons.
+    var canUndo: Bool {
+        _ = revision
+        return !isCropping && (engine.canUndo || !cropUndoStack.isEmpty)
+    }
+
+    var canRedo: Bool {
+        _ = revision
+        return !isCropping && (engine.canRedo || !cropRedoStack.isEmpty)
+    }
+
     func undo() {
         guard !isCropping else { return }
         if engine.canUndo {

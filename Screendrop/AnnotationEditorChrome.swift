@@ -47,6 +47,90 @@ struct AnnotationZoomControl: View {
     }
 }
 
+/// Undo and Redo in the canvas corner, beside zoom. They were reachable
+/// only through Command-Z and Shift-Command-Z.
+struct AnnotationHistoryControl: View {
+    @Bindable var model: AnnotationEditorModel
+    let onAction: () -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            button("Undo", systemImage: "arrow.uturn.backward", help: "Undo (⌘Z)", enabled: model.canUndo) {
+                model.undo()
+            }
+            button("Redo", systemImage: "arrow.uturn.forward", help: "Redo (⇧⌘Z)", enabled: model.canRedo) {
+                model.redo()
+            }
+        }
+        .padding(.horizontal, 3)
+        .frame(height: 30)
+        .glassEffect(.regular, in: .capsule)
+    }
+
+    private func button(
+        _ title: LocalizedStringResource,
+        systemImage: String,
+        help: LocalizedStringResource,
+        enabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            onAction()
+            action()
+        } label: {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .semibold))
+                .frame(width: 30, height: 26)
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.35)
+        .help(Text(help))
+        .accessibilityLabel(Text(title))
+    }
+}
+
+/// A failed save, copy or upload, shown at the top of the canvas where it
+/// can't cover the zoom control, with Retry when the action can be repeated
+/// and a close button so it never lingers.
+struct AnnotationErrorBanner: View {
+    let message: String
+    let onRetry: (() -> Void)?
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.red)
+            Text(message)
+                .font(.callout)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+            if let onRetry {
+                Button("Retry", action: onRetry)
+                    .controlSize(.small)
+            }
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .bold))
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Dismiss")
+            .accessibilityLabel("Dismiss")
+        }
+        .padding(.leading, 12)
+        .padding(.trailing, 8)
+        .padding(.vertical, 8)
+        .frame(maxWidth: 560)
+        .glassEffect(.regular, in: .rect(cornerRadius: 12))
+        .accessibilityElement(children: .contain)
+    }
+}
+
 /// Live pixel dimensions of the current crop selection, shown in the bottom
 /// trailing corner of the canvas while cropping. Styled to match the zoom
 /// control capsule on the opposite side.
