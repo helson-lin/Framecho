@@ -48,7 +48,7 @@ nonisolated enum SmartRedactionRecognizer {
         defer { cancellation.clearRequest() }
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
-        request.recognitionLanguages = ImageTextRecognizer.recognitionLanguages(for: request)
+        ImageTextRecognizer.configureLanguages(request)
 
         let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
         do {
