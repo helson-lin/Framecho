@@ -168,12 +168,11 @@ final class ScreenshotPreviewStack {
         guard CloudUploader.shared.isConfigured else { return }
         Task {
             do {
-                // Automatic, unattended upload - no popover, just the
-                // remembered comments/likes default.
+                // Automatic, unattended upload - no popover; the worker
+                // falls back to the file name for the title.
                 let result = try await CloudUploader.shared.upload(
                     itemID: itemID,
-                    fileURL: url,
-                    socialEnabled: CloudUploadPreferences.lastSocialEnabled
+                    fileURL: url
                 )
                 if AfterCaptureActions.isEnabled(.copyShareLink, for: type) {
                     NSPasteboard.general.clearContents()

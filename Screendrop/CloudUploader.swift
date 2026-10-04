@@ -56,8 +56,7 @@ final class CloudUploader: NSObject {
     func upload(
         itemID: UUID,
         fileURL: URL,
-        title: String? = nil,
-        socialEnabled: Bool = true
+        title: String? = nil
     ) async throws -> CloudUploadResult {
         guard isConfigured else {
             throw CloudUploadError.notConfigured
@@ -162,7 +161,6 @@ final class CloudUploader: NSObject {
                 height: dimensions?.height,
                 duration: duration,
                 title: title,
-                socialEnabled: socialEnabled,
                 creds: creds,
                 progress: { [weak self] fraction in
                     Task { @MainActor [weak self] in
@@ -306,7 +304,6 @@ final class CloudUploader: NSObject {
         height: Int?,
         duration: Double?,
         title: String?,
-        socialEnabled: Bool,
         creds: CloudCredentials,
         progress: (@Sendable (Double) -> Void)?
     ) async throws -> CloudUploadResult {
@@ -337,7 +334,6 @@ final class CloudUploader: NSObject {
             let encoded = title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? title
             request.setValue(encoded, forHTTPHeaderField: "X-Title")
         }
-        request.setValue(socialEnabled ? "true" : "false", forHTTPHeaderField: "X-Social-Enabled")
 
         let progressDelegate = UploadProgressDelegate { sent, expected in
             guard expected > 0 else { return }

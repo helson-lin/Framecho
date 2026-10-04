@@ -695,16 +695,6 @@
         }
       }
     },
-    "Allow comments & likes" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "允许评论和点赞"
-          }
-        }
-      }
-    },
     "Allow Framecho to use the camera in Privacy & Security, then select it again." : {
       "localizations" : {
         "zh-Hans" : {

@@ -379,8 +379,7 @@ struct AnnotationEditorWindow: View {
                 let result = try await CloudUploader.shared.upload(
                     itemID: UUID(),
                     fileURL: resultURL,
-                    title: options.trimmedTitleOrNil,
-                    socialEnabled: options.socialEnabled
+                    title: options.trimmedTitleOrNil
                 )
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(result.url, forType: .string)
