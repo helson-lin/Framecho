@@ -27,6 +27,32 @@
     -->
 
     <item>
+      <title>Version 0.38.0</title>
+      <sparkle:version>41</sparkle:version>
+      <sparkle:shortVersionString>0.38.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.4</sparkle:minimumSystemVersion>
+      <pubDate>Sun, 04 Oct 2026 14:45:00 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.38.0</h2>
+        <ul>
+          <li>识别文字支持中文，「Settings 设置」这样的中英混排也能正确识别</li>
+          <li>整屏 Retina 截图也能完整识别文字，不再漏掉大部分内容</li>
+          <li>识别结果保留原有排版：同一行的内容合为一行，自动换行的段落重新连成一段</li>
+          <li>代码、命令和链接按原样识别，不再被插入多余空格</li>
+          <li>预览卡片和钉图的「拷贝图中文字」会显示识别进度和结果，未识别到文字时也会提示</li>
+          <li>钉图新增实况文本：在工具栏打开后，可直接选中图中文字并拷贝、查询或翻译</li>
+          <li>更新后第一次识别文字不再需要等待半分钟</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Screendrop/releases/download/v0.38.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="AZzHLllZf6ZX/v86rGqu5b4WFhWSy1A3hvuzOouBJvLc7jrOFUA+/jE/SphKbYTfjVJo1lujG+Pnv9G49HlKCg=="
+        length="9120279"
+      />
+    </item>
+
+    <item>
       <title>Version 0.37.0</title>
       <sparkle:version>40</sparkle:version>
       <sparkle:shortVersionString>0.37.0</sparkle:shortVersionString>
