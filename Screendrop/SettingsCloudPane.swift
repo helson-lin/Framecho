@@ -129,7 +129,22 @@ struct CloudSettingsPane: View {
                     .disabled(!isWorkerConfigured)
                 }
             } header: {
-                Text("Connection")
+                // The status lives here rather than in the toolbar: a toolbar
+                // item on one pane swaps the window's toolbar and changes the
+                // title bar's height when switching panes.
+                HStack {
+                    Text("Connection")
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(overallStatusColor)
+                            .frame(width: 7, height: 7)
+                            .accessibilityHidden(true)
+                        Text(overallStatusText)
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundStyle(.secondary)
+                    }
+                }
             } footer: {
                 VStack(alignment: .leading, spacing: 6) {
                     if case .failed(let message) = workerStatus {
@@ -272,21 +287,6 @@ struct CloudSettingsPane: View {
             }
         }
         .settingsFormStyle()
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(overallStatusColor)
-                        .frame(width: 7, height: 7)
-
-                    Text(overallStatusText)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-            }
-        }
         .onAppear {
             loadFromStore()
         }
