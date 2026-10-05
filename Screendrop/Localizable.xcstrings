@@ -1933,6 +1933,26 @@
         }
       }
     },
+    "Click again to discard" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再次点击以丢弃"
+          }
+        }
+      }
+    },
+    "Click again to start over" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再次点击以重新开始"
+          }
+        }
+      }
+    },
     "Click highlights" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2119,6 +2139,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "压缩质量"
+          }
+        }
+      }
+    },
+    "Confirm discard - delete this recording without saving" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确认丢弃 - 删除此录制且不保存"
+          }
+        }
+      }
+    },
+    "Confirm restart - discard what's recorded and start again" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确认重新开始 - 丢弃已录制内容并重新录制"
           }
         }
       }
