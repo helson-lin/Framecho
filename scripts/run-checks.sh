@@ -73,4 +73,9 @@ engine=(
 check annotation-engine -default-isolation MainActor -parse-as-library \
   "${engine[@]}" scripts/check-annotation-engine.swift
 
+check annotation-document -default-isolation MainActor -parse-as-library \
+  "${engine[@]}" Screendrop/AnnotationDocument.swift Screendrop/AnnotationBackground.swift \
+  Screendrop/AnnotationPresetStore.swift Screendrop/AnnotationShadowStyle.swift Screendrop/AnnotationMetrics.swift \
+  scripts/check-annotation-document.swift
+
 echo "All checks passed."
