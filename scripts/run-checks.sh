@@ -47,4 +47,7 @@ check cloud-image-transcode -default-isolation MainActor -parse-as-library \
 check text-recognition -default-isolation MainActor -parse-as-library \
   Screendrop/ImageTextRecognizer.swift scripts/check-text-recognition.swift
 
+check pinned-geometry "${strict[@]}" \
+  Screendrop/PinnedScreenshotGeometry.swift scripts/check-pinned-geometry.swift
+
 echo "All checks passed."

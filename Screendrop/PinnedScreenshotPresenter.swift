@@ -119,7 +119,10 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
         pixelSize = ScreenshotImageLoader.imageSize(at: url) ?? image.size
         pin = PinnedScreenshot(url: url, image: image)
 
-        let contentSize = Self.displaySize(forPixelSize: pixelSize)
+        let contentSize = PinnedScreenshotGeometry.displaySize(
+            forPixelSize: pixelSize,
+            backingScale: NSScreen.main?.backingScaleFactor ?? 2
+        )
         panel = PinnedPanel(contentRect: NSRect(origin: .zero, size: contentSize))
         panel.contentAspectRatio = contentSize
         super.init()
@@ -367,49 +370,28 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
         return NSSize(width: pixelSize.width / scale, height: pixelSize.height / scale)
     }
 
-    /// Resizes around `anchor`, kept between the minimum size and the screen
-    /// the pin is on.
     private func resize(to proposed: NSSize, around anchor: CGPoint?, animated: Bool) {
-        guard proposed.width > 0, proposed.height > 0 else { return }
         let frame = panel.frame
-        let visible = (panel.screen ?? NSScreen.main)?.visibleFrame.size ?? proposed
-        let grow = max(panel.minSize.width / proposed.width, panel.minSize.height / proposed.height, 1)
-        let shrink = min(visible.width / proposed.width, visible.height / proposed.height, 1)
-        let factor = grow > 1 ? grow : shrink
-        let size = NSSize(width: (proposed.width * factor).rounded(), height: (proposed.height * factor).rounded())
-
-        let anchor = anchor ?? CGPoint(x: frame.midX, y: frame.midY)
-        let fx = (anchor.x - frame.minX) / frame.width
-        let fy = (anchor.y - frame.minY) / frame.height
-        var target = NSRect(
-            x: (anchor.x - fx * size.width).rounded(),
-            y: (anchor.y - fy * size.height).rounded(),
-            width: size.width,
-            height: size.height
-        )
-        // A pin that grows past an edge of the screen is pulled back onto it.
-        if let screen = (panel.screen ?? NSScreen.main)?.visibleFrame, size.width > frame.width {
-            target.origin.x = min(max(target.minX, screen.minX), screen.maxX - target.width)
-            target.origin.y = min(max(target.minY, screen.minY), screen.maxY - target.height)
-        }
+        let visibleFrame = (panel.screen ?? NSScreen.main)?.visibleFrame ?? CGRect(origin: .zero, size: proposed)
+        guard let target = PinnedScreenshotGeometry.resizedFrame(
+            frame, to: proposed, around: anchor, minSize: panel.minSize, visibleFrame: visibleFrame
+        ) else { return }
         if target != frame {
             let animate = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
             panel.setFrame(target, display: true, animate: animate)
         }
-        let actualWidth = actualSize.width
-        if actualWidth > 0 {
-            showFeedback(.zoom(Int((size.width / actualWidth * 100).rounded())))
+        if let percent = PinnedScreenshotGeometry.zoomPercent(width: target.width, actualWidth: actualSize.width) {
+            showFeedback(.zoom(percent))
         }
     }
 
     // MARK: Opacity
 
-    static let minimumOpacity: CGFloat = 0.2
     static let opacityStep: CGFloat = 0.1
 
     /// Fades the pin, never so far that it can't be found again.
     func setOpacity(_ opacity: CGFloat) {
-        let opacity = min(1, max(Self.minimumOpacity, opacity))
+        let opacity = PinnedScreenshotGeometry.clampedOpacity(opacity)
         panel.alphaValue = opacity
         pin.opacity = opacity
         showFeedback(.opacity(Int((opacity * 100).rounded())))
@@ -423,24 +405,6 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
             guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.2)) { self?.pin.feedback = nil }
         }
-    }
-
-    /// Convert pixel dimensions to a sensible point size for the pinned window,
-    /// scaled for the display and clamped so pins stay handy but readable.
-    private static func displaySize(forPixelSize pixelSize: CGSize) -> NSSize {
-        let scale = NSScreen.main?.backingScaleFactor ?? 2
-        var width = pixelSize.width / scale
-        var height = pixelSize.height / scale
-        guard width > 0, height > 0 else { return NSSize(width: 320, height: 240) }
-
-        let longest = max(width, height)
-        let maxLongest: CGFloat = 560
-        let minLongest: CGFloat = 160
-        let target = min(max(longest, minLongest), maxLongest)
-        let factor = target / longest
-        width *= factor
-        height *= factor
-        return NSSize(width: width.rounded(), height: height.rounded())
     }
 
     // MARK: Toolbar
@@ -474,16 +438,11 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
         let size = toolbarPanel.fittingSize
         guard size.width > 0, size.height > 0 else { return }
         let pinFrame = panel.frame
-        let screen = (panel.screen ?? NSScreen.main)?.visibleFrame ?? pinFrame
-        let gap = Self.toolbarGap
-
-        let x = min(max(pinFrame.maxX - size.width, screen.minX + gap), screen.maxX - size.width - gap)
-        var y = pinFrame.minY - gap - size.height
-        if y < screen.minY + gap {
-            let above = pinFrame.maxY + gap
-            y = above + size.height <= screen.maxY - gap ? above : pinFrame.minY + gap
-        }
-        toolbarPanel.setFrame(NSRect(x: x.rounded(), y: y.rounded(), width: size.width, height: size.height), display: true)
+        let visibleFrame = (panel.screen ?? NSScreen.main)?.visibleFrame ?? pinFrame
+        toolbarPanel.setFrame(
+            PinnedScreenshotGeometry.toolbarFrame(size: size, pinFrame: pinFrame, visibleFrame: visibleFrame, gap: Self.toolbarGap),
+            display: true
+        )
     }
 
     // MARK: NSWindowDelegate
