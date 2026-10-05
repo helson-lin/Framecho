@@ -229,6 +229,16 @@ private struct SettingsDetailView: View {
 
 // MARK: - Helpers
 
+extension View {
+    /// The grouped form every settings pane uses, with switches for toggles.
+    func settingsFormStyle() -> some View {
+        formStyle(.grouped)
+            .toggleStyle(.switch)
+            .scrollContentBackground(.hidden)
+            .contentMargins(.top, 8, for: .scrollContent)
+    }
+}
+
 /// The same label rhythm across settings panes, with descriptions allowed to
 /// wrap at the window's minimum width instead of being vertically truncated.
 struct SettingsControlLabel: View {

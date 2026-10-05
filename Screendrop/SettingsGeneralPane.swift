@@ -69,7 +69,6 @@ struct GeneralSettingsPane: View {
                         detail: "When you click Save, write straight to the export folder instead of asking where to put it."
                     )
                 }
-                .toggleStyle(.switch)
             }
 
             Section {
@@ -98,7 +97,6 @@ struct GeneralSettingsPane: View {
                         detail: "Start Framecho automatically when you sign in."
                     )
                 }
-                .toggleStyle(.switch)
 
                 if let launchAtLoginError {
                     Text(launchAtLoginError)
@@ -116,7 +114,6 @@ struct GeneralSettingsPane: View {
                         detail: "Play the camera shutter sound when a screenshot is taken."
                     )
                 }
-                .toggleStyle(.switch)
 
                 Toggle(isOn: $showMenuBarIcon) {
                     SettingsControlLabel(
@@ -124,7 +121,6 @@ struct GeneralSettingsPane: View {
                         detail: "When hidden, reopen Framecho to get back to Settings."
                     )
                 }
-                .toggleStyle(.switch)
             }
 
             Section("Capture Visibility") {
@@ -134,12 +130,9 @@ struct GeneralSettingsPane: View {
                         detail: "Show preview cards, recording controls, Settings, and other Framecho windows in screenshots and screen recordings."
                     )
                 }
-                .toggleStyle(.switch)
             }
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .contentMargins(.top, 8, for: .scrollContent)
+        .settingsFormStyle()
         .onAppear {
             refreshLaunchAtLoginStatus()
         }

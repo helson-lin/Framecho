@@ -77,8 +77,6 @@ struct SettingsAboutPane: View {
                 Link("Screendrop on GitHub", destination: URL(string: "https://github.com/fayazara/screendrop")!)
             }
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .contentMargins(.top, 8, for: .scrollContent)
+        .settingsFormStyle()
     }
 }

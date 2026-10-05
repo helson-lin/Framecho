@@ -17,7 +17,6 @@ struct VideoSettingsPane: View {
                         detail: "Select the exported file in Finder once the render finishes."
                     )
                 }
-                .toggleStyle(.switch)
             }
 
             Section("Projects") {
@@ -33,9 +32,7 @@ struct VideoSettingsPane: View {
                 }
             }
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .contentMargins(.top, 8, for: .scrollContent)
+        .settingsFormStyle()
     }
 }
 
@@ -107,7 +104,6 @@ struct OverlaySettingsPane: View {
                         detail: "Dismiss the preview once you drag it out to another app."
                     )
                 }
-                .toggleStyle(.switch)
             }
 
             Section("Card Actions") {
@@ -116,8 +112,6 @@ struct OverlaySettingsPane: View {
                     .frame(maxWidth: .infinity)
             }
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .contentMargins(.top, 8, for: .scrollContent)
+        .settingsFormStyle()
     }
 }
