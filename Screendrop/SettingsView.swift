@@ -169,6 +169,7 @@ extension View {
             .toggleStyle(.switch)
             .scrollContentBackground(.hidden)
             .contentMargins(.top, 8, for: .scrollContent)
+            .contentMargins(.horizontal, 12, for: .scrollContent)
     }
 }
 
