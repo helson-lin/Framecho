@@ -24,6 +24,7 @@ final class UpdaterManager: NSObject, ObservableObject {
     private let controller: SPUStandardUpdaterController
 
     @Published var canCheckForUpdates = false
+    @Published private(set) var lastUpdateCheckDate: Date?
 
     var automaticallyChecksForUpdates: Bool {
         get { controller.updater.automaticallyChecksForUpdates }
@@ -40,6 +41,8 @@ final class UpdaterManager: NSObject, ObservableObject {
 
         controller.updater.publisher(for: \.canCheckForUpdates)
             .assign(to: &$canCheckForUpdates)
+        controller.updater.publisher(for: \.lastUpdateCheckDate)
+            .assign(to: &$lastUpdateCheckDate)
     }
 
     func start() {

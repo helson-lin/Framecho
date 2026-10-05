@@ -271,9 +271,7 @@ struct CloudSettingsPane: View {
                 }
             }
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .contentMargins(.top, 8, for: .scrollContent)
+        .settingsFormStyle()
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 HStack(spacing: 6) {

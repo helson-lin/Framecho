@@ -6,8 +6,6 @@ struct VideoSettingsPane: View {
 
     var body: some View {
         Form {
-            CaptureHotkeySettingsSection(actions: [.screenRecording])
-
             AfterCaptureActionsSection(type: .recording, title: "After Recording")
 
             Section("After Export") {
@@ -17,7 +15,6 @@ struct VideoSettingsPane: View {
                         detail: "Select the exported file in Finder once the render finishes."
                     )
                 }
-                .toggleStyle(.switch)
             }
 
             Section("Projects") {
@@ -33,9 +30,7 @@ struct VideoSettingsPane: View {
                 }
             }
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .contentMargins(.top, 8, for: .scrollContent)
+        .settingsFormStyle()
     }
 }
 
@@ -75,14 +70,31 @@ struct OverlaySettingsPane: View {
                 }
 
                 LabeledContent {
-                    Slider(
-                        value: previewSizeStep,
-                        in: 0...Double(PreviewOverlaySize.allCases.count - 1),
-                        step: 1
-                    )
-                    .frame(width: 180)
-                    .accessibilityLabel("Preview size")
-                    .accessibilityValue(Double(previewSize.cardScale).formatted(.percent))
+                    HStack(spacing: 12) {
+                        Slider(
+                            value: previewSizeStep,
+                            in: 0...Double(PreviewOverlaySize.allCases.count - 1),
+                            step: 1
+                        ) {
+                            Text("Preview size")
+                        } minimumValueLabel: {
+                            Image(systemName: "rectangle.inset.filled")
+                                .imageScale(.small)
+                                .accessibilityHidden(true)
+                        } maximumValueLabel: {
+                            Image(systemName: "rectangle.inset.filled")
+                                .imageScale(.large)
+                                .accessibilityHidden(true)
+                        }
+                        .labelsHidden()
+                        .frame(width: 180)
+                        .accessibilityValue(Double(previewSize.cardScale).formatted(.percent))
+
+                        Text(Double(previewSize.cardScale), format: .percent)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 40, alignment: .trailing)
+                    }
                 } label: {
                     SettingsControlLabel(
                         "Preview size",
@@ -107,7 +119,6 @@ struct OverlaySettingsPane: View {
                         detail: "Dismiss the preview once you drag it out to another app."
                     )
                 }
-                .toggleStyle(.switch)
             }
 
             Section("Card Actions") {
@@ -116,8 +127,6 @@ struct OverlaySettingsPane: View {
                     .frame(maxWidth: .infinity)
             }
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .contentMargins(.top, 8, for: .scrollContent)
+        .settingsFormStyle()
     }
 }

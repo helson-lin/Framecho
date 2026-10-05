@@ -7,12 +7,48 @@
     " / %@" : {
 
     },
+    "%@ (Default)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@（默认）"
+          }
+        }
+      }
+    },
+    "%@ is already assigned to %@. Your previous shortcut has been kept." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ is already assigned to %2$@. Your previous shortcut has been kept."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 已分配给“%2$@”，已保留之前的快捷键。"
+          }
+        }
+      }
+    },
     "1 annotation selected" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "已选择 1 个标注"
+          }
+        }
+      }
+    },
+    "A native, open-source screenshot and recording tool for macOS." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一款原生、开源的 macOS 截图与录屏工具。"
           }
         }
       }
@@ -187,6 +223,16 @@
         }
       }
     },
+    "Capture on Timer delay" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“定时截图”的延迟"
+          }
+        }
+      }
+    },
     "Capture, record and mark up your screen from the menu bar or a shortcut." : {
       "localizations" : {
         "zh-Hans" : {
@@ -217,12 +263,42 @@
         }
       }
     },
+    "Check for updates" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "检查更新"
+          }
+        }
+      }
+    },
+    "Check Now" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "立即检查"
+          }
+        }
+      }
+    },
     "Checking…" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在检查…"
+          }
+        }
+      }
+    },
+    "Click to record a new shortcut." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按以录制新的快捷键。"
           }
         }
       }
@@ -263,6 +339,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "拷贝图片（⌘C）"
+          }
+        }
+      }
+    },
+    "Could not open the export folder: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法打开导出文件夹：%@"
+          }
+        }
+      }
+    },
+    "Countdown before every capture" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每次截图前倒计时"
           }
         }
       }
@@ -313,6 +409,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "要放弃标注吗？"
+          }
+        }
+      }
+    },
+    "Every capture mode counts down first, which helps when you need to open a menu." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所有截图方式都会先倒计时，适合需要先展开菜单的场景。"
           }
         }
       }
@@ -377,6 +483,16 @@
         }
       }
     },
+    "Image" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图像"
+          }
+        }
+      }
+    },
     "Image Uploads" : {
       "localizations" : {
         "zh-Hans" : {
@@ -403,6 +519,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "继续编辑"
+          }
+        }
+      }
+    },
+    "Last checked %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上次检查：%@"
           }
         }
       }
@@ -467,6 +593,16 @@
         }
       }
     },
+    "Not checked yet" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未检查"
+          }
+        }
+      }
+    },
     "Not Now" : {
       "localizations" : {
         "zh-Hans" : {
@@ -483,6 +619,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "通知"
+          }
+        }
+      }
+    },
+    "Only for Capture on Timer, which captures the screen under the pointer. Other capture modes aren't affected." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅用于“定时截图”，截取指针所在的屏幕。其他截图方式不受影响。"
           }
         }
       }
@@ -517,12 +663,32 @@
         }
       }
     },
+    "Open Login Items…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开登录项…"
+          }
+        }
+      }
+    },
     "Open Privacy & Security › Screen & System Audio Recording" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "打开「隐私与安全性 › 屏幕与系统录音」"
+          }
+        }
+      }
+    },
+    "Other…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他…"
           }
         }
       }
@@ -547,12 +713,52 @@
         }
       }
     },
+    "Pinning" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "置顶"
+          }
+        }
+      }
+    },
+    "Press Esc to cancel." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按 Esc 键取消。"
+          }
+        }
+      }
+    },
     "Press esc to leave the guide at any time." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "按 esc 可随时离开引导"
+          }
+        }
+      }
+    },
+    "Press keys…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请按键…"
+          }
+        }
+      }
+    },
+    "Preview at low resolution while editing" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑时使用低分辨率预览"
           }
         }
       }
@@ -573,6 +779,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "录制屏幕"
+          }
+        }
+      }
+    },
+    "Recording" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在录制"
           }
         }
       }
@@ -603,6 +819,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "必需"
+          }
+        }
+      }
+    },
+    "Restore %@ to %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Restore %1$@ to %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将“%1$@”恢复为 %2$@"
+          }
+        }
+      }
+    },
+    "Restore All Defaults" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部恢复默认"
+          }
+        }
+      }
+    },
+    "Restore Default (%@)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复默认（%@）"
           }
         }
       }
@@ -717,12 +969,32 @@
         }
       }
     },
+    "Show in Finder" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在访达中显示"
+          }
+        }
+      }
+    },
     "Show Setup Guide…" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "显示设置引导…"
+          }
+        }
+      }
+    },
+    "Shows a downscaled image in the annotation editor to reduce memory use. Saved and exported screenshots are always full resolution." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在标注编辑器中显示缩小的图像以节省内存。存储和导出的截图始终为原始分辨率。"
           }
         }
       }
@@ -743,6 +1015,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "录屏时用摄像头气泡显示你。"
+          }
+        }
+      }
+    },
+    "Source code" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "源代码"
           }
         }
       }
@@ -1067,22 +1349,6 @@
         }
       }
     },
-    "%@ is already assigned to %@." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ is already assigned to %2$@."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ 已分配给“%2$@”。"
-          }
-        }
-      }
-    },
     "%@ value" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1374,16 +1640,6 @@
     },
     "200%" : {
 
-    },
-    "A native screenshot and recording tool for macOS." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "一款原生的 macOS 截图与录屏工具。"
-          }
-        }
-      }
     },
     "A preset with this name already exists." : {
       "localizations" : {
@@ -1681,16 +1937,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "标注截图"
-          }
-        }
-      }
-    },
-    "Annotation Editor" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "标注编辑器"
           }
         }
       }
@@ -2313,16 +2559,6 @@
         }
       }
     },
-    "Capture Visibility" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "截图与录屏中的可见性"
-          }
-        }
-      }
-    },
     "Capture Window" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2539,16 +2775,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "选取背景墙纸"
-          }
-        }
-      }
-    },
-    "Choose Folder…" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选取文件夹…"
           }
         }
       }
@@ -4333,16 +4559,6 @@
         }
       }
     },
-    "File Format" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "文件格式"
-          }
-        }
-      }
-    },
     "Fill" : {
       "localizations" : {
         "zh-Hans" : {
@@ -4623,16 +4839,6 @@
         }
       }
     },
-    "Framecho is a lightweight opensource app for capturing screenshots and screen recordings on macOS." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Framecho 是一款轻量的开源应用，用于在 macOS 上截图和录屏。"
-          }
-        }
-      }
-    },
     "Framecho is already recording." : {
       "localizations" : {
         "zh-Hans" : {
@@ -4773,16 +4979,6 @@
         }
       }
     },
-    "GitHub" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub"
-          }
-        }
-      }
-    },
     "Glass" : {
       "localizations" : {
         "zh-Hans" : {
@@ -4799,26 +4995,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "光晕"
-          }
-        }
-      }
-    },
-    "Go Back" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "后退"
-          }
-        }
-      }
-    },
-    "Go Forward" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "前进"
           }
         }
       }
@@ -4949,16 +5125,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "浮动预览卡片显示的大小。"
-          }
-        }
-      }
-    },
-    "How long Capture on Timer counts down before capturing the screen under the pointer. Other capture modes aren't affected." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "定时截图在截取指针所在屏幕之前倒计时的时长。不影响其他截图方式。"
           }
         }
       }
@@ -6659,26 +6825,6 @@
         }
       }
     },
-    "Press a key combination with at least one modifier. Press Esc to cancel." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "按下至少包含一个修饰键的组合键。按 Esc 键取消。"
-          }
-        }
-      }
-    },
-    "Press keys..." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请按键…"
-          }
-        }
-      }
-    },
     "Preview Overlay" : {
       "localizations" : {
         "zh-Hans" : {
@@ -7889,16 +8035,6 @@
         }
       }
     },
-    "Screendrop on GitHub" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub 上的 Screendrop"
-          }
-        }
-      }
-    },
     "Screenshot" : {
       "localizations" : {
         "zh-Hans" : {
@@ -8045,16 +8181,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "所选内容"
-          }
-        }
-      }
-    },
-    "Self-timer" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "自拍定时"
           }
         }
       }
@@ -8225,16 +8351,6 @@
         }
       }
     },
-    "Show a countdown before the capture is taken." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "截取前显示倒计时。"
-          }
-        }
-      }
-    },
     "Show All Captures…" : {
       "localizations" : {
         "zh-Hans" : {
@@ -8381,16 +8497,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "录制时显示"
-          }
-        }
-      }
-    },
-    "Shows a downscaled image while editing to reduce memory use. Saved and exported screenshots are always full resolution." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "编辑时显示缩小后的图像以减少内存占用。存储和导出的截图始终为完整分辨率。"
           }
         }
       }
@@ -9925,26 +10031,6 @@
         }
       }
     },
-    "Use Default" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用默认"
-          }
-        }
-      }
-    },
-    "Use low-resolution preview to save memory" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用低分辨率预览以节省内存"
-          }
-        }
-      }
-    },
     "Use the recorded audio again" : {
       "localizations" : {
         "zh-Hans" : {
@@ -10007,16 +10093,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "版本 %1$@（%2$@）"
-          }
-        }
-      }
-    },
-    "Version 1.0" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "版本 1.0"
           }
         }
       }
