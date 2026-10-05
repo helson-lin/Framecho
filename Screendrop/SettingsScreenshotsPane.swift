@@ -37,8 +37,8 @@ struct ScreenshotsSettingsPane: View {
                     }
                 } label: {
                     SettingsControlLabel(
-                        "Self-timer",
-                        detail: "Show a countdown before the capture is taken."
+                        "Countdown before every capture",
+                        detail: "Every capture mode counts down first, which helps when you need to open a menu."
                     )
                 }
 
@@ -48,8 +48,8 @@ struct ScreenshotsSettingsPane: View {
                     }
                 } label: {
                     SettingsControlLabel(
-                        "Capture on Timer",
-                        detail: "How long Capture on Timer counts down before capturing the screen under the pointer. Other capture modes aren't affected."
+                        "Capture on Timer delay",
+                        detail: "Only for Capture on Timer, which captures the screen under the pointer. Other capture modes aren't affected."
                     )
                 }
 
@@ -68,18 +68,7 @@ struct ScreenshotsSettingsPane: View {
                 }
             }
 
-            Section("Annotation Editor") {
-                Toggle(isOn: $lowResolutionEditorPreview) {
-                    SettingsControlLabel(
-                        "Use low-resolution preview to save memory",
-                        detail: "Shows a downscaled image while editing to reduce memory use. Saved and exported screenshots are always full resolution."
-                    )
-                }
-            }
-
-            AfterCaptureActionsSection(type: .screenshot, title: "After Capture")
-
-            Section("File Format") {
+            Section("Image") {
                 Picker("Format", selection: Binding(
                     get: { exportFormat },
                     set: { exportFormat = $0 }
@@ -90,10 +79,10 @@ struct ScreenshotsSettingsPane: View {
                 }
 
                 if exportFormat.usesLossyQuality {
-                    LabeledContent("Compression quality") {
+                    LabeledContent {
                         HStack(spacing: 12) {
                             Slider(value: $compressionQuality, in: 0.1...1, step: 0.05)
-                                .frame(width: 180)
+                                .frame(width: 160)
                                 .accessibilityLabel("Compression quality")
                                 .accessibilityValue(compressionQuality.formatted(.percent.precision(.fractionLength(0))))
 
@@ -102,13 +91,23 @@ struct ScreenshotsSettingsPane: View {
                                 .foregroundStyle(.secondary)
                                 .frame(width: 40, alignment: .trailing)
                         }
+                    } label: {
+                        SettingsControlLabel(
+                            "Compression quality",
+                            detail: "Lower values produce smaller files with reduced image quality."
+                        )
                     }
+                }
 
-                    Text("Lower values produce smaller files with reduced image quality.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                Toggle(isOn: $lowResolutionEditorPreview) {
+                    SettingsControlLabel(
+                        "Preview at low resolution while editing",
+                        detail: "Shows a downscaled image in the annotation editor to reduce memory use. Saved and exported screenshots are always full resolution."
+                    )
                 }
             }
+
+            AfterCaptureActionsSection(type: .screenshot, title: "After Capture")
         }
         .settingsFormStyle()
     }

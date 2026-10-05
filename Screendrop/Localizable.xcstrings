@@ -213,6 +213,16 @@
         }
       }
     },
+    "Capture on Timer delay" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“定时截图”的延迟"
+          }
+        }
+      }
+    },
     "Capture, record and mark up your screen from the menu bar or a shortcut." : {
       "localizations" : {
         "zh-Hans" : {
@@ -323,6 +333,16 @@
         }
       }
     },
+    "Countdown before every capture" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每次截图前倒计时"
+          }
+        }
+      }
+    },
     "Crop the screenshot (⇧⌘C)" : {
       "localizations" : {
         "zh-Hans" : {
@@ -369,6 +389,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "要放弃标注吗？"
+          }
+        }
+      }
+    },
+    "Every capture mode counts down first, which helps when you need to open a menu." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所有截图方式都会先倒计时，适合需要先展开菜单的场景。"
           }
         }
       }
@@ -439,6 +469,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "截取方式、图像格式，以及截图后自动执行的操作。"
+          }
+        }
+      }
+    },
+    "Image" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图像"
           }
         }
       }
@@ -549,6 +589,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "通知"
+          }
+        }
+      }
+    },
+    "Only for Capture on Timer, which captures the screen under the pointer. Other capture modes aren't affected." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅用于“定时截图”，截取指针所在的屏幕。其他截图方式不受影响。"
           }
         }
       }
@@ -669,6 +719,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请按键…"
+          }
+        }
+      }
+    },
+    "Preview at low resolution while editing" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑时使用低分辨率预览"
           }
         }
       }
@@ -895,6 +955,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "显示设置引导…"
+          }
+        }
+      }
+    },
+    "Shows a downscaled image in the annotation editor to reduce memory use. Saved and exported screenshots are always full resolution." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在标注编辑器中显示缩小的图像以节省内存。存储和导出的截图始终为原始分辨率。"
           }
         }
       }
@@ -1887,16 +1957,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "标注截图"
-          }
-        }
-      }
-    },
-    "Annotation Editor" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "标注编辑器"
           }
         }
       }
@@ -4519,16 +4579,6 @@
         }
       }
     },
-    "File Format" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "文件格式"
-          }
-        }
-      }
-    },
     "Fill" : {
       "localizations" : {
         "zh-Hans" : {
@@ -5115,16 +5165,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "浮动预览卡片显示的大小。"
-          }
-        }
-      }
-    },
-    "How long Capture on Timer counts down before capturing the screen under the pointer. Other capture modes aren't affected." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "定时截图在截取指针所在屏幕之前倒计时的时长。不影响其他截图方式。"
           }
         }
       }
@@ -8195,16 +8235,6 @@
         }
       }
     },
-    "Self-timer" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "自拍定时"
-          }
-        }
-      }
-    },
     "Server error (%lld): %@" : {
       "localizations" : {
         "en" : {
@@ -8371,16 +8401,6 @@
         }
       }
     },
-    "Show a countdown before the capture is taken." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "截取前显示倒计时。"
-          }
-        }
-      }
-    },
     "Show All Captures…" : {
       "localizations" : {
         "zh-Hans" : {
@@ -8527,16 +8547,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "录制时显示"
-          }
-        }
-      }
-    },
-    "Shows a downscaled image while editing to reduce memory use. Saved and exported screenshots are always full resolution." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "编辑时显示缩小后的图像以减少内存占用。存储和导出的截图始终为完整分辨率。"
           }
         }
       }
@@ -10067,16 +10077,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "使用较小的视野让镜头更平稳，然后用缩放和平移来取景"
-          }
-        }
-      }
-    },
-    "Use low-resolution preview to save memory" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用低分辨率预览以节省内存"
           }
         }
       }
