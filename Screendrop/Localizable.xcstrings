@@ -393,6 +393,16 @@
         }
       }
     },
+    "Date range" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日期范围"
+          }
+        }
+      }
+    },
     "Discard" : {
       "localizations" : {
         "zh-Hans" : {
@@ -609,6 +619,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "麦克风"
+          }
+        }
+      }
+    },
+    "More" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多"
           }
         }
       }
@@ -1215,6 +1235,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "今天"
+          }
+        }
+      }
+    },
+    "Total duration" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "总时长"
           }
         }
       }
@@ -2062,16 +2092,6 @@
       }
     },
     "Annotate screenshot" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "标注截图"
-          }
-        }
-      }
-    },
-    "Annotate Screenshot" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -4359,16 +4379,6 @@
         }
       }
     },
-    "Edit Recording" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "编辑录制"
-          }
-        }
-      }
-    },
     "Edit the clip, background, camera, audio, and zooms in one place." : {
       "localizations" : {
         "zh-Hans" : {
@@ -5915,16 +5925,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "修改时间"
-          }
-        }
-      }
-    },
-    "More Actions" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更多操作"
           }
         }
       }
@@ -8457,16 +8457,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "共享选项"
-          }
-        }
-      }
-    },
-    "Share to Cloud" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "共享到云端"
           }
         }
       }
