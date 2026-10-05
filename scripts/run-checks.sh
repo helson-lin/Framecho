@@ -122,7 +122,7 @@ check background-layout -default-isolation MainActor -parse-as-library \
   Screendrop/AnnotationBackgroundLayout.swift Screendrop/AnnotationBackground.swift \
   Screendrop/AnnotationShadowStyle.swift Screendrop/AnnotationSwatch.swift scripts/check-background-layout.swift
 
-check recording-timelines -default-isolation MainActor -parse-as-library \
+check recording-timelines "${strict[@]}" \
   Screendrop/RecordingViewportTimeline.swift Screendrop/RecordingPointerTimeline.swift \
   Screendrop/RecordingPointerStream.swift Screendrop/RecordingMotionSpring.swift \
   Screendrop/RecordingClipTimeline.swift Screendrop/PointerCaptureFile.swift \
