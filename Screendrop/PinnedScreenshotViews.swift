@@ -92,6 +92,9 @@ struct PinnedScreenshotToolbar: View {
             }
         }
         .fixedSize()
+        // Framecho stays in the background while a pin is used, and AppKit
+        // dims controls in inactive windows; the toolbar is always live.
+        .environment(\.controlActiveState, .key)
     }
 
     private var viewingBar: some View {
