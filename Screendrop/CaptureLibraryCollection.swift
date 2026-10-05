@@ -29,6 +29,8 @@ struct CaptureLibraryCollection: NSViewRepresentable {
     let sections: [CaptureLibrarySection]
     let revision: Int
     let layout: CaptureLibraryLayout
+    /// 0 is the smallest grid card, 1 the largest.
+    let thumbnailScale: Double
     @Binding var selection: Set<String>
     let isBusy: Bool
     let onAction: (CaptureLibraryAction) -> Void
@@ -47,6 +49,7 @@ struct CaptureLibraryCollection: NSViewRepresentable {
         collection.allowsMultipleSelection = true
         collection.allowsEmptySelection = true
         collection.configureLayout(layout)
+        (collection.collectionViewLayout as? LibraryCollectionLayout)?.thumbnailScale = thumbnailScale
         collection.dataSource = context.coordinator
         collection.delegate = context.coordinator
         collection.command = { [weak coordinator = context.coordinator] action in
@@ -76,6 +79,11 @@ struct CaptureLibraryCollection: NSViewRepresentable {
             (collection.collectionViewLayout as? LibraryCollectionLayout)?.displayLayout = layout
             collection.reloadData()
             collection.collectionViewLayout?.invalidateLayout()
+        }
+        if old.thumbnailScale != thumbnailScale,
+           let flow = collection.collectionViewLayout as? LibraryCollectionLayout {
+            flow.thumbnailScale = thumbnailScale
+            flow.invalidateLayout()
         }
         let paths = Set(selection.compactMap { coordinator.indices[$0] })
         if collection.selectionIndexPaths != paths { collection.selectionIndexPaths = paths }
@@ -243,13 +251,15 @@ final class LibraryCollectionView: NSCollectionView {
 
 final class LibraryCollectionLayout: NSCollectionViewFlowLayout {
     var displayLayout: CaptureLibraryLayout = .grid
+    var thumbnailScale: Double = 0.3
 
     override func prepare() {
         let width = max(200, collectionView?.enclosingScrollView?.contentSize.width ?? 800)
         minimumInteritemSpacing = 16
         minimumLineSpacing = displayLayout == .grid ? 16 : 6
         if displayLayout == .grid {
-            let columns = min(3, max(1, floor((width - 16) / 236)))
+            let target = 180 + 200 * min(max(thumbnailScale, 0), 1)
+            let columns = max(1, floor((width - 16) / (target + 16)))
             let cellWidth = floor((width - 32 - (columns - 1) * 16) / columns)
             itemSize = CGSize(width: cellWidth, height: floor(cellWidth * 0.625) + 62)
         } else {

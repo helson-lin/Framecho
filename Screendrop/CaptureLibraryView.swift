@@ -10,6 +10,7 @@ struct CaptureLibraryView: View {
     @AppStorage("captureLibrary.layout") private var layout: CaptureLibraryLayout = .grid
     @AppStorage("captureLibrary.inspectorVisible") private var inspectorVisible = true
     @AppStorage("captureLibrary.sort") private var savedSort: CaptureLibrarySort = .newest
+    @AppStorage("captureLibrary.thumbnailScale") private var thumbnailScale = 0.3
 
     private var activeFilter: CaptureLibraryFilter { model.filter ?? .all }
 
@@ -135,6 +136,7 @@ struct CaptureLibraryView: View {
             }
         } else {
             CaptureLibraryCollection(sections: model.sections, revision: model.contentRevision, layout: layout,
+                thumbnailScale: thumbnailScale,
                 selection: $model.selection, isBusy: model.isBusy, onAction: model.perform)
         }
     }
@@ -193,12 +195,30 @@ struct CaptureLibraryView: View {
             }
             Spacer()
             if model.isLoading { ProgressView().controlSize(.mini).help("Refreshing Library") }
+            if layout == .grid && !model.visibleItems.isEmpty {
+                thumbnailSizeSlider
+            }
         }
         .font(.caption)
         .monospacedDigit()
         .foregroundStyle(.secondary)
         .padding(.horizontal, 16)
         .frame(height: 30)
+    }
+
+    private var thumbnailSizeSlider: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "square.grid.3x3")
+                .imageScale(.small)
+                .accessibilityHidden(true)
+            Slider(value: $thumbnailScale, in: 0.0...1.0)
+                .controlSize(.mini)
+                .frame(width: 96)
+                .accessibilityLabel(Text("Thumbnail size"))
+            Image(systemName: "square.grid.2x2")
+                .accessibilityHidden(true)
+        }
+        .help(Text("Thumbnail size"))
     }
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
