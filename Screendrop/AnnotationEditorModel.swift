@@ -143,12 +143,19 @@ final class AnnotationEditorModel {
     // MARK: - Loading
 
     func load(url: URL?, dismiss: DismissAction) {
-        cancelSmartRedaction()
         guard let url else {
+            cancelSmartRedaction()
             dismiss()
             return
         }
+        load(url: url, appliesBackgroundPreset: true)
+    }
 
+    /// - Parameter appliesBackgroundPreset: Whether a screenshot with no saved
+    ///   edits starts with the active background preset. A pin annotates the
+    ///   image as it is pinned, so it passes false.
+    func load(url: URL, appliesBackgroundPreset: Bool) {
+        cancelSmartRedaction()
         wallpaperCacheLease = AnnotationBackgroundRenderer.beginWallpaperUse()
         removeOwnedCropFiles()
         applyAnnotationPreset()
@@ -168,8 +175,7 @@ final class AnnotationEditorModel {
             appliedBackgroundPresetID = nil
         } else {
             renderSourceURL = url
-            let presetStore = AnnotationBackgroundPresetStore.shared
-            let activePreset = presetStore.activePreset
+            let activePreset = appliesBackgroundPreset ? AnnotationBackgroundPresetStore.shared.activePreset : nil
             backgroundSettings = document?.backgroundSettings ?? activePreset?.settings ?? AnnotationBackgroundSettings()
             appliedBackgroundPresetID = document == nil ? activePreset?.id : nil
         }
