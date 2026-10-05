@@ -286,6 +286,8 @@ struct CaptureLibraryView: View {
         }
         .sharedBackgroundVisibility(.hidden)
 
+        ToolbarSpacer(.flexible)
+
         ToolbarItem(placement: .primaryAction) {
             LibrarySearchField(text: $model.searchText, focusRequest: searchFocusRequest)
                 .frame(width: 190)
