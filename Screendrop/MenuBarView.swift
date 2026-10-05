@@ -15,6 +15,7 @@ struct MenuBarView: View {
     @State private var historyStore = ScreenshotHistoryStore.shared
     @State private var projectStore = RecordingProjectStore.shared
     @State private var hotkeyManager = HotkeyManager.shared
+    @State private var recorder = ScreenRecordingManager.shared
 
     var body: some View {
         Group {
@@ -53,12 +54,23 @@ struct MenuBarView: View {
             }
             .keyboardShortcut(hotkeyManager.activeShortcuts[.timedCapture]?.keyboardShortcut)
 
-            Button {
-                RecordingPickerPresenter.shared.show()
-            } label: {
-                Label("Record Screen", systemImage: "record.circle")
+            // Mirrors the recording shortcut, which stops a running recording.
+            if recorder.isActive {
+                Button {
+                    recorder.stopRecording()
+                } label: {
+                    Label("Stop Screen Recording", systemImage: "stop.circle")
+                }
+                .keyboardShortcut(hotkeyManager.activeShortcuts[.screenRecording]?.keyboardShortcut)
+                .disabled(recorder.state == .starting || recorder.state == .finishing)
+            } else {
+                Button {
+                    RecordingPickerPresenter.shared.show()
+                } label: {
+                    Label("Record Screen", systemImage: "record.circle")
+                }
+                .keyboardShortcut(hotkeyManager.activeShortcuts[.screenRecording]?.keyboardShortcut)
             }
-            .keyboardShortcut(hotkeyManager.activeShortcuts[.screenRecording]?.keyboardShortcut)
 
             Divider()
 

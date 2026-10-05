@@ -51,8 +51,14 @@ final class RecordingBarPresenter {
 
     // MARK: Picker
 
+    /// The recording shortcut is a toggle across the whole flow: it opens the
+    /// picker, closes it again, and - once a recording is running - stops and
+    /// saves it, so the hand that started a recording can end it.
     func togglePicker() {
-        if let panel, panel.isVisible, mode == .picker {
+        let recorder = ScreenRecordingManager.shared
+        if recorder.isActive {
+            recorder.stopRecording()
+        } else if let panel, panel.isVisible, mode == .picker {
             hide()
         } else {
             showPicker()
@@ -60,6 +66,12 @@ final class RecordingBarPresenter {
     }
 
     func showPicker() {
+        // A running recording owns the bar. Swapping in the picker would hide
+        // its transport controls while capture carries on underneath.
+        if ScreenRecordingManager.shared.isActive {
+            panel?.orderFrontRegardless()
+            return
+        }
         let panel = panel ?? makePanel()
         PreviewWindowCaptureExclusion.shared.register(window: panel)
         Task {
