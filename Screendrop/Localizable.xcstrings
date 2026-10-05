@@ -197,6 +197,26 @@
         }
       }
     },
+    "Opacity %lld%%" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "透明度 %lld%%"
+          }
+        }
+      }
+    },
+    "Opacity: scroll over the pin, or press [ and ]" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "透明度：在钉图上滚动，或按 [ 和 ]"
+          }
+        }
+      }
+    },
     "Open in Editor" : {
       "localizations" : {
         "zh-Hans" : {

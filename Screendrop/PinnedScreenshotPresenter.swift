@@ -55,6 +55,12 @@ final class PinnedScreenshotPresenter {
 
 // MARK: - Pin state
 
+enum PinnedScreenshotFeedback: Equatable {
+    /// Percent of the image's actual size.
+    case zoom(Int)
+    case opacity(Int)
+}
+
 /// What a pin's image view and its toolbar both show.
 @MainActor
 @Observable
@@ -68,8 +74,10 @@ final class PinnedScreenshot {
     var isLiveTextActive = false
     var hasText = false
     fileprivate(set) var didCopy = false
-    /// Shown briefly after a zoom, as a percentage of the image's actual size.
-    fileprivate(set) var zoomPercent: Int?
+    /// Shown briefly after a zoom or a change of opacity.
+    fileprivate(set) var feedback: PinnedScreenshotFeedback?
+    /// Mirrors the window's alpha, for the toolbar's opacity menu.
+    fileprivate(set) var opacity: CGFloat = 1
     /// Present while annotating in place.
     fileprivate(set) var editor: AnnotationEditorModel?
 
@@ -99,7 +107,7 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
     private var pixelSize: CGSize
     private var keyMonitor: Any?
     private var copyFeedbackTask: Task<Void, Never>?
-    private var zoomFeedbackTask: Task<Void, Never>?
+    private var feedbackTask: Task<Void, Never>?
 
     private static let previewPixelSize: CGFloat = 1600
     private static let toolbarGap: CGFloat = 8
@@ -120,6 +128,10 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
         panel.onZoom = { [weak self] factor, anchor in
             self?.zoom(by: factor, around: anchor, animated: false)
         }
+        panel.onFade = { [weak self] delta in
+            guard let self else { return }
+            self.setOpacity(self.panel.alphaValue + delta)
+        }
         panel.contentView = NSHostingView(rootView: PinnedScreenshotView(pin: pin, controller: self))
         toolbarPanel.setContent(PinnedScreenshotToolbar(pin: pin, controller: self)) { [weak self] in
             self?.layoutToolbar()
@@ -138,7 +150,7 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
             self.keyMonitor = nil
         }
         copyFeedbackTask?.cancel()
-        zoomFeedbackTask?.cancel()
+        feedbackTask?.cancel()
         pin.editor?.releaseEditorResources()
         pin.editor = nil
         setToolbarVisible(false)
@@ -379,18 +391,32 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
             let animate = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
             panel.setFrame(target, display: true, animate: animate)
         }
-        showZoomFeedback(width: size.width)
+        let actualWidth = actualSize.width
+        if actualWidth > 0 {
+            showFeedback(.zoom(Int((size.width / actualWidth * 100).rounded())))
+        }
     }
 
-    private func showZoomFeedback(width: CGFloat) {
-        let actualWidth = actualSize.width
-        guard actualWidth > 0 else { return }
-        pin.zoomPercent = Int((width / actualWidth * 100).rounded())
-        zoomFeedbackTask?.cancel()
-        zoomFeedbackTask = Task { [weak self] in
+    // MARK: Opacity
+
+    static let minimumOpacity: CGFloat = 0.2
+    static let opacityStep: CGFloat = 0.1
+
+    /// Fades the pin, never so far that it can't be found again.
+    func setOpacity(_ opacity: CGFloat) {
+        let opacity = min(1, max(Self.minimumOpacity, opacity))
+        panel.alphaValue = opacity
+        pin.opacity = opacity
+        showFeedback(.opacity(Int((opacity * 100).rounded())))
+    }
+
+    private func showFeedback(_ feedback: PinnedScreenshotFeedback) {
+        pin.feedback = feedback
+        feedbackTask?.cancel()
+        feedbackTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(1.2))
             guard !Task.isCancelled else { return }
-            withAnimation(.easeOut(duration: 0.2)) { self?.pin.zoomPercent = nil }
+            withAnimation(.easeOut(duration: 0.2)) { self?.pin.feedback = nil }
         }
     }
 
@@ -534,6 +560,10 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
             nudge(dx: 0, dy: modifiers.contains(.shift) ? -10 : -1)
         case ([], 126, _), ([.shift], 126, _):
             nudge(dx: 0, dy: modifiers.contains(.shift) ? 10 : 1)
+        case ([], 33, _):   // [
+            setOpacity(panel.alphaValue - Self.opacityStep)
+        case ([], 30, _):   // ]
+            setOpacity(panel.alphaValue + Self.opacityStep)
         case ([], _, "e"):
             beginAnnotating()
         default:
@@ -575,6 +605,8 @@ final class PinnedPanel: NSPanel {
 
     /// Zoom by a factor around a screen point.
     var onZoom: ((CGFloat, CGPoint) -> Void)?
+    /// Change opacity by a delta.
+    var onFade: ((CGFloat) -> Void)?
 
     /// Pinch to zoom around the pointer. While annotating, the canvas takes
     /// the pinch and zooms inside the pin instead.
@@ -616,7 +648,7 @@ final class PinnedPanel: NSPanel {
         let physicalUp = event.isDirectionInvertedFromDevice ? -points : points
 
         let sensitivity: CGFloat = 0.002
-        alphaValue = min(1, max(0.2, alphaValue + physicalUp * sensitivity))
+        onFade?(physicalUp * sensitivity)
     }
 }
 
