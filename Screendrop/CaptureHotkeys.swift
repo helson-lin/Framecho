@@ -251,25 +251,10 @@ enum CaptureHotkeyAction: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Where a custom shortcut is stored. Existing users' shortcuts live
+    /// under these exact names, so they never change.
     var preferencesKey: String {
-        switch self {
-        case .fullscreen:
-            ScreendropPreferences.fullscreenHotkeyKey
-        case .window:
-            ScreendropPreferences.windowHotkeyKey
-        case .area:
-            ScreendropPreferences.areaHotkeyKey
-        case .screenRecording:
-            ScreendropPreferences.screenRecordingHotkeyKey
-        case .textCapture:
-            ScreendropPreferences.textCaptureHotkeyKey
-        case .timedCapture:
-            ScreendropPreferences.timedCaptureHotkeyKey
-        case .pinArea:
-            ScreendropPreferences.pinAreaHotkeyKey
-        case .pinLatest:
-            ScreendropPreferences.pinLatestHotkeyKey
-        }
+        "captureHotkey.\(rawValue)"
     }
 
     init?(hotKeyID: UInt32) {
@@ -278,29 +263,6 @@ enum CaptureHotkeyAction: String, CaseIterable, Identifiable {
         }
 
         self = action
-    }
-
-    func perform() {
-        switch self {
-        case .fullscreen:
-            CaptureCoordinator.shared.captureFullscreen()
-        case .window:
-            CaptureCoordinator.shared.captureWindow()
-        case .area:
-            CaptureCoordinator.shared.captureArea()
-        case .screenRecording:
-            Task { @MainActor in
-                RecordingPickerPresenter.shared.toggle()
-            }
-        case .textCapture:
-            CaptureCoordinator.shared.captureText()
-        case .timedCapture:
-            CaptureCoordinator.shared.captureOnTimer()
-        case .pinArea:
-            CaptureCoordinator.shared.captureAreaAndPin()
-        case .pinLatest:
-            PinnedScreenshotPresenter.shared.pinLatestScreenshot()
-        }
     }
 }
 

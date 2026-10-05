@@ -158,3 +158,30 @@ private func hotKeyHandler(
     
     return noErr
 }
+
+// MARK: - Actions
+
+extension CaptureHotkeyAction {
+    func perform() {
+        switch self {
+        case .fullscreen:
+            CaptureCoordinator.shared.captureFullscreen()
+        case .window:
+            CaptureCoordinator.shared.captureWindow()
+        case .area:
+            CaptureCoordinator.shared.captureArea()
+        case .screenRecording:
+            Task { @MainActor in
+                RecordingPickerPresenter.shared.toggle()
+            }
+        case .textCapture:
+            CaptureCoordinator.shared.captureText()
+        case .timedCapture:
+            CaptureCoordinator.shared.captureOnTimer()
+        case .pinArea:
+            CaptureCoordinator.shared.captureAreaAndPin()
+        case .pinLatest:
+            PinnedScreenshotPresenter.shared.pinLatestScreenshot()
+        }
+    }
+}
