@@ -84,4 +84,8 @@ check history-metadata "${strict[@]}" \
 check hotkeys "${strict[@]}" \
   Screendrop/CaptureHotkeys.swift scripts/check-hotkeys.swift
 
+check background-layout -default-isolation MainActor -parse-as-library \
+  Screendrop/AnnotationBackgroundLayout.swift Screendrop/AnnotationBackground.swift \
+  Screendrop/AnnotationShadowStyle.swift Screendrop/AnnotationSwatch.swift scripts/check-background-layout.swift
+
 echo "All checks passed."
