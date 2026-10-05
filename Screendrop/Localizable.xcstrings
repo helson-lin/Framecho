@@ -7,6 +7,22 @@
     " / %@" : {
 
     },
+    "%@ is already assigned to %@. Your previous shortcut has been kept." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ is already assigned to %2$@. Your previous shortcut has been kept."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 已分配给“%2$@”，已保留之前的快捷键。"
+          }
+        }
+      }
+    },
     "1 annotation selected" : {
       "localizations" : {
         "zh-Hans" : {
@@ -223,6 +239,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在检查…"
+          }
+        }
+      }
+    },
+    "Click to record a new shortcut." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按以录制新的快捷键。"
           }
         }
       }
@@ -547,12 +573,42 @@
         }
       }
     },
+    "Pinning" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "置顶"
+          }
+        }
+      }
+    },
+    "Press Esc to cancel." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按 Esc 键取消。"
+          }
+        }
+      }
+    },
     "Press esc to leave the guide at any time." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "按 esc 可随时离开引导"
+          }
+        }
+      }
+    },
+    "Press keys…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请按键…"
           }
         }
       }
@@ -573,6 +629,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "录制屏幕"
+          }
+        }
+      }
+    },
+    "Recording" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在录制"
           }
         }
       }
@@ -603,6 +669,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "必需"
+          }
+        }
+      }
+    },
+    "Restore %@ to %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Restore %1$@ to %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将“%1$@”恢复为 %2$@"
+          }
+        }
+      }
+    },
+    "Restore All Defaults" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部恢复默认"
+          }
+        }
+      }
+    },
+    "Restore Default (%@)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复默认（%@）"
           }
         }
       }
@@ -1063,22 +1165,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ 已存储。"
-          }
-        }
-      }
-    },
-    "%@ is already assigned to %@." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ is already assigned to %2$@."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ 已分配给“%2$@”。"
           }
         }
       }
@@ -6655,26 +6741,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "预设…"
-          }
-        }
-      }
-    },
-    "Press a key combination with at least one modifier. Press Esc to cancel." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "按下至少包含一个修饰键的组合键。按 Esc 键取消。"
-          }
-        }
-      }
-    },
-    "Press keys..." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请按键…"
           }
         }
       }

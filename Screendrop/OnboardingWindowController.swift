@@ -131,7 +131,7 @@ private final class OnboardingOverlayController {
             finish: { [weak self] openLibrary in self?.close(openLibrary: openLibrary, animated: true) },
             changeShortcuts: { [weak self] in
                 self?.close(openLibrary: false, animated: true) {
-                    SettingsWindowController.show(tab: .screenshots)
+                    SettingsWindowController.show(tab: .shortcuts)
                 }
             }
         )

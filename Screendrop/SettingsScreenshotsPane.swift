@@ -30,8 +30,6 @@ struct ScreenshotsSettingsPane: View {
 
     var body: some View {
         Form {
-            CaptureHotkeySettingsSection(actions: [.fullscreen, .window, .area, .textCapture, .timedCapture, .pinArea, .pinLatest])
-
             Section("Capture") {
                 Picker(selection: $captureDelaySeconds) {
                     ForEach(delayOptions, id: \.self) { seconds in

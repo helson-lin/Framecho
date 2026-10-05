@@ -8,6 +8,7 @@ import SwiftUI
 
 enum SettingsTab: String, CaseIterable, Identifiable {
     case general
+    case shortcuts
     case screenshots
     case video
     case overlay
@@ -19,6 +20,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .general: String(localized: "General")
+        case .shortcuts: String(localized: "Keyboard Shortcuts")
         case .screenshots: String(localized: "Screenshots")
         case .video: String(localized: "Screen Recordings")
         case .overlay: String(localized: "Overlay")
@@ -30,6 +32,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .general: "gearshape"
+        case .shortcuts: "keyboard"
         case .screenshots: "photo.on.rectangle.angled"
         case .video: "video"
         case .overlay: "square.on.square"
@@ -210,6 +213,8 @@ private struct SettingsDetailView: View {
             switch tab {
             case .general:
                 GeneralSettingsPane()
+            case .shortcuts:
+                ShortcutsSettingsPane()
             case .screenshots:
                 ScreenshotsSettingsPane()
             case .video:
