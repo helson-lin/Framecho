@@ -1,14 +1,23 @@
 import AppKit
 import Observation
+import SwiftUI
 
 nonisolated enum CaptureLibraryFilter: String, CaseIterable, Identifiable {
-    case all, screenshots, recordings
+    case all, screenshots, recordings, shared, drafts
     var id: Self { self }
+
+    /// The sidebar's two groups: capture kinds, then smart groups derived
+    /// from each capture's state.
+    static let kinds: [Self] = [.all, .screenshots, .recordings]
+    static let smartGroups: [Self] = [.shared, .drafts]
+
     var title: String {
         switch self {
         case .all: String(localized: "All Captures")
         case .screenshots: String(localized: "Screenshots")
         case .recordings: String(localized: "Recordings")
+        case .shared: String(localized: "Shared")
+        case .drafts: String(localized: "Drafts")
         }
     }
     var symbol: String {
@@ -16,6 +25,27 @@ nonisolated enum CaptureLibraryFilter: String, CaseIterable, Identifiable {
         case .all: "square.stack.3d.up"
         case .screenshots: "photo.on.rectangle"
         case .recordings: "video"
+        case .shared: "link"
+        case .drafts: "square.and.pencil"
+        }
+    }
+    var tint: Color {
+        switch self {
+        case .all: .gray
+        case .screenshots: .blue
+        case .recordings: .red
+        case .shared: .teal
+        case .drafts: .orange
+        }
+    }
+
+    func includes(_ item: CaptureLibraryItem) -> Bool {
+        switch self {
+        case .all: true
+        case .screenshots: !item.isVideo
+        case .recordings: item.isVideo
+        case .shared: item.cloudURL != nil
+        case .drafts: item.hasDraft
         }
     }
 }
@@ -116,7 +146,7 @@ final class CaptureLibraryModel {
     private(set) var items: [CaptureLibraryItem] = []
     private(set) var visibleItems: [CaptureLibraryItem] = []
     private(set) var contentRevision = 0
-    private(set) var screenshotCount = 0
+    private(set) var counts: [CaptureLibraryFilter: Int] = [:]
     private(set) var isLoading = false
     var operationTitle: String?
     var errorMessage: String?
@@ -156,11 +186,7 @@ final class CaptureLibraryModel {
     }
 
     func count(for filter: CaptureLibraryFilter) -> Int {
-        switch filter {
-        case .all: items.count
-        case .screenshots: screenshotCount
-        case .recordings: items.count - screenshotCount
-        }
+        counts[filter] ?? 0
     }
 
     func refresh() {
@@ -181,7 +207,9 @@ final class CaptureLibraryModel {
             } onCancel: { scan.cancel() }
             guard !Task.isCancelled else { return }
             items = result
-            screenshotCount = result.lazy.filter { !$0.isVideo }.count
+            counts = Dictionary(uniqueKeysWithValues: CaptureLibraryFilter.allCases.map { filter in
+                (filter, result.lazy.filter(filter.includes).count)
+            })
             updateVisibleItems()
             isLoading = false
         }
@@ -200,8 +228,7 @@ final class CaptureLibraryModel {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let filter = filter ?? .all
         let visible = items.filter { item in
-            let matchesKind = filter == .all || (filter == .recordings ? item.isVideo : !item.isVideo)
-            return matchesKind && (query.isEmpty || item.name.localizedStandardContains(query)
+            filter.includes(item) && (query.isEmpty || item.name.localizedStandardContains(query)
                 || item.fileURL.lastPathComponent.localizedStandardContains(query))
         }.sorted { lhs, rhs in
             switch sortOrder {

@@ -253,6 +253,16 @@
         }
       }
     },
+    "Captures you upload to the cloud appear here." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上传到云端的截图和录制会显示在这里。"
+          }
+        }
+      }
+    },
     "Change Shortcuts" : {
       "localizations" : {
         "zh-Hans" : {
@@ -409,6 +419,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "要放弃标注吗？"
+          }
+        }
+      }
+    },
+    "Drafts" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "草稿"
           }
         }
       }
@@ -589,6 +609,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "截图和录屏都需要此权限。"
+          }
+        }
+      }
+    },
+    "No Drafts" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有草稿"
+          }
+        }
+      }
+    },
+    "No Shared Captures" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有已共享的内容"
           }
         }
       }
@@ -793,6 +833,16 @@
         }
       }
     },
+    "Recordings with unsaved edits appear here." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有未存储编辑的录制会显示在这里。"
+          }
+        }
+      }
+    },
     "Redo" : {
       "localizations" : {
         "zh-Hans" : {
@@ -969,6 +1019,16 @@
         }
       }
     },
+    "Shared" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已共享"
+          }
+        }
+      }
+    },
     "Show in Finder" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1015,6 +1075,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "录屏时用摄像头气泡显示你。"
+          }
+        }
+      }
+    },
+    "Smart Groups" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "智能分组"
           }
         }
       }

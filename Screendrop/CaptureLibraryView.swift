@@ -17,17 +17,13 @@ struct CaptureLibraryView: View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: $model.filter) {
                 Section("Library") {
-                    ForEach(CaptureLibraryFilter.allCases) { filter in
-                        Label {
-                            HStack {
-                                Text(filter.title)
-                                Spacer()
-                                Text(model.count(for: filter), format: .number)
-                                    .foregroundStyle(.secondary)
-                                    .font(.caption.monospacedDigit())
-                            }
-                        } icon: { Image(systemName: filter.symbol) }
-                        .tag(filter)
+                    ForEach(CaptureLibraryFilter.kinds) { filter in
+                        sidebarRow(filter)
+                    }
+                }
+                Section("Smart Groups") {
+                    ForEach(CaptureLibraryFilter.smartGroups) { filter in
+                        sidebarRow(filter)
                     }
                 }
             }
@@ -37,9 +33,13 @@ struct CaptureLibraryView: View {
                 Button {
                     SettingsWindowController.show(tab: .general)
                 } label: {
-                    Label("Settings", systemImage: "gearshape")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 8)
+                    Label {
+                        Text("Settings")
+                    } icon: {
+                        SidebarIconTile(systemImage: "gearshape", tint: .gray)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 8)
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 20)
@@ -124,10 +124,10 @@ struct CaptureLibraryView: View {
                 } description: {
                     Text(emptyLibraryDescription)
                 } actions: {
-                    if activeFilter != .recordings {
+                    if activeFilter == .all || activeFilter == .screenshots {
                         Button("Capture Area") { CaptureCoordinator.shared.captureArea() }
                     }
-                    if activeFilter != .screenshots {
+                    if activeFilter == .all || activeFilter == .recordings {
                         Button("Record Screen") { RecordingPickerPresenter.shared.show() }
                             .disabled(ScreenRecordingManager.shared.isActive)
                     }
@@ -137,6 +137,22 @@ struct CaptureLibraryView: View {
             CaptureLibraryCollection(items: model.visibleItems, revision: model.contentRevision, layout: layout,
                 selection: $model.selection, isBusy: model.isBusy, onAction: model.perform)
         }
+    }
+
+    private func sidebarRow(_ filter: CaptureLibraryFilter) -> some View {
+        Label {
+            HStack {
+                Text(filter.title)
+                Spacer()
+                Text(model.count(for: filter), format: .number)
+                    .foregroundStyle(.secondary)
+                    .font(.caption.monospacedDigit())
+            }
+        } icon: {
+            SidebarIconTile(systemImage: filter.symbol, tint: filter.tint)
+        }
+        .padding(.vertical, 3)
+        .tag(filter)
     }
 
     private var trashAlertTitle: String {
@@ -151,6 +167,8 @@ struct CaptureLibraryView: View {
         case .all: String(localized: "No Captures")
         case .screenshots: String(localized: "No Screenshots")
         case .recordings: String(localized: "No Recordings")
+        case .shared: String(localized: "No Shared Captures")
+        case .drafts: String(localized: "No Drafts")
         }
     }
 
@@ -159,6 +177,8 @@ struct CaptureLibraryView: View {
         case .all: String(localized: "Screenshots and recordings you capture will appear here.")
         case .screenshots: String(localized: "Take a screenshot to start your screenshot library.")
         case .recordings: String(localized: "Record your screen to start your recording library.")
+        case .shared: String(localized: "Captures you upload to the cloud appear here.")
+        case .drafts: String(localized: "Recordings with unsaved edits appear here.")
         }
     }
 
