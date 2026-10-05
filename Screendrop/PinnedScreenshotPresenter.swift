@@ -381,12 +381,17 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
         let anchor = anchor ?? CGPoint(x: frame.midX, y: frame.midY)
         let fx = (anchor.x - frame.minX) / frame.width
         let fy = (anchor.y - frame.minY) / frame.height
-        let target = NSRect(
+        var target = NSRect(
             x: (anchor.x - fx * size.width).rounded(),
             y: (anchor.y - fy * size.height).rounded(),
             width: size.width,
             height: size.height
         )
+        // A pin that grows past an edge of the screen is pulled back onto it.
+        if let screen = (panel.screen ?? NSScreen.main)?.visibleFrame, size.width > frame.width {
+            target.origin.x = min(max(target.minX, screen.minX), screen.maxX - target.width)
+            target.origin.y = min(max(target.minY, screen.minY), screen.maxY - target.height)
+        }
         if target != frame {
             let animate = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
             panel.setFrame(target, display: true, animate: animate)
