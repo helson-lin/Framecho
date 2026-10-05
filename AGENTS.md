@@ -25,10 +25,10 @@ There are two shared schemes (`Screendrop` and `Screendrop Dev`) - both build th
 No Xcode test target exists. Automated verification is:
 
 - **Build success** (add `CODE_SIGNING_ALLOWED=NO` to build without the maintainer's signing identity).
-- **`scripts/run-checks.sh`** - compiles each standalone check in `scripts/` against the production sources it exercises and runs it. Add new checks there. `check-editor-cancellation.swift` is excluded because it needs a fixture from the motion-blur benchmark.
+- **`scripts/run-checks.sh`** - compiles each standalone check in `scripts/` against the production sources it exercises and runs it. Add new checks there: the script fails if a `scripts/check-*.swift` isn't run by it or listed in its `not_run` (where `check-editor-cancellation.swift` sits, as it needs a fixture from the motion-blur benchmark). To make code checkable, keep its logic in files that compile without the app (see the `nonisolated` geometry, permission and timeline files the checks use).
 - **`go test ./cmd/...`** for the release tool.
 
-CI (`.github/workflows/ci.yml`) runs all three on pull requests and pushes to `main`, using Xcode 27.1 on GitHub's `xcode-27` runner image (beta). Pushes touching only `appcast.xml`, docs or Markdown are skipped.
+CI (`.github/workflows/ci.yml`) runs all three on pull requests and pushes to `main`, using Xcode 27.1 on GitHub's `xcode-27` runner image (beta), and can be started by hand on any branch. Pushes touching only `appcast.xml`, docs or Markdown are skipped. Each check's result appears in the job summary; on failure the logs are uploaded as `check-logs`.
 
 ## Swift concurrency settings
 
@@ -84,7 +84,7 @@ Updates are served by Sparkle from `appcast.xml` on `main` of `helson-lin/Screen
 
 Builds are signed for team `64S5F787T9`: Debug with the Apple Development certificate, Release with Developer ID Application (hardened runtime on). Because the signature is tied to the team rather than the binary, privacy permissions survive rebuilds and updates.
 
-To release, run `go run ./cmd/screendrop-release -build -set-version <x.y.z> -set-build <n>`. It archives, exports with Developer ID, notarizes, staples, builds and Sparkle-signs the DMG, prepends `appcast.xml`, pushes it, and creates the GitHub release. Notarization reads the `framecho-notary` keychain profile; create it once with:
+To release, run `go run ./cmd/screendrop-release -build -set-version <x.y.z> -set-build <n>`. It first runs the same checks as CI (`scripts/run-checks.sh`, `go vet`, `go test`) and stops if any fail or if CI failed for the commit; `-skip-checks` bypasses that, for emergencies only. Then it archives, exports with Developer ID, notarizes, staples, builds and Sparkle-signs the DMG, prepends `appcast.xml`, pushes it, and creates the GitHub release. Notarization reads the `framecho-notary` keychain profile; create it once with:
 
 ```bash
 xcrun notarytool store-credentials framecho-notary --apple-id <apple-id> --team-id 64S5F787T9
