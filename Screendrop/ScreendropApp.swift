@@ -157,10 +157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async { [weak self] in
             guard let self, !launchedInBackground, !self.openedFilesAtLaunch else { return }
             // The first launch opens the setup guide; the Library follows it.
-            let showsGuide = OnboardingWindowController.showIfNeeded {
-                CaptureLibraryModel.shared.show()
-            }
-            if !showsGuide {
+            if !OnboardingWindowController.showIfNeeded() {
                 CaptureLibraryModel.shared.show()
             }
         }
@@ -178,6 +175,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Finder, Spotlight and the Dock all reopen the same Library window.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        // The guide covers the screen; the Library would open behind it.
+        guard !OnboardingWindowController.isShowingGuide else { return false }
         CaptureLibraryModel.shared.show()
         return false
     }

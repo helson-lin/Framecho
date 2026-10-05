@@ -77,6 +77,16 @@
         }
       }
     },
+    "Allow Screen Recording to continue." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允许屏幕录制后才能继续。"
+          }
+        }
+      }
+    },
     "Allow Screen Recording…" : {
       "localizations" : {
         "zh-Hans" : {
@@ -187,12 +197,52 @@
         }
       }
     },
+    "Capture, record, annotate and pin, all a shortcut away." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "截图、录屏、标注和置顶，按一个快捷键就能开始。"
+          }
+        }
+      }
+    },
+    "Change Shortcuts" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "修改快捷键"
+          }
+        }
+      }
+    },
+    "Checking…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在检查…"
+          }
+        }
+      }
+    },
     "Close Pin (Esc)" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "关闭置顶 (Esc)"
+          }
+        }
+      }
+    },
+    "Come back here and click Reopen" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回到这里，点「重新打开」"
           }
         }
       }
@@ -317,6 +367,16 @@
         }
       }
     },
+    "Get Started" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始使用"
+          }
+        }
+      }
+    },
     "Image Uploads" : {
       "localizations" : {
         "zh-Hans" : {
@@ -343,6 +403,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "继续编辑"
+          }
+        }
+      }
+    },
+    "Later" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "稍后"
           }
         }
       }
@@ -447,6 +517,16 @@
         }
       }
     },
+    "Open Privacy & Security › Screen & System Audio Recording" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开「隐私与安全性 › 屏幕与系统录音」"
+          }
+        }
+      }
+    },
     "Permissions" : {
       "localizations" : {
         "zh-Hans" : {
@@ -463,6 +543,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "置顶最近的截图"
+          }
+        }
+      }
+    },
+    "Press esc to leave the guide at any time." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按 esc 可随时离开引导"
           }
         }
       }
@@ -493,6 +583,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重做"
+          }
+        }
+      }
+    },
+    "Reopen" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新打开"
           }
         }
       }
@@ -587,6 +687,16 @@
         }
       }
     },
+    "Screen Recording is required. Turn on the rest as you need them; you can change any of them later in Settings." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "屏幕录制是必需的，其余可按需开启，之后也能在设置里修改。"
+          }
+        }
+      }
+    },
     "Screenshots are converted before uploading; the copy in your Library stays lossless. 1x makes files about four times smaller but looks softer on Retina displays." : {
       "localizations" : {
         "zh-Hans" : {
@@ -637,12 +747,32 @@
         }
       }
     },
+    "Step %lld of %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 步，共 %lld 步"
+          }
+        }
+      }
+    },
     "Stop selecting text (Esc)" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "停止选择文字 (Esc)"
+          }
+        }
+      }
+    },
+    "System Settings" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "系统设置"
           }
         }
       }
@@ -657,6 +787,16 @@
         }
       }
     },
+    "That capture didn't happen. Allow Screen Recording for Framecho in System Settings, then reopen Framecho." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刚才的截图没有完成。在系统设置里打开 Framecho 的屏幕录制权限，然后重新打开 Framecho。"
+          }
+        }
+      }
+    },
     "The pinned screenshot stays as it was." : {
       "localizations" : {
         "zh-Hans" : {
@@ -667,12 +807,42 @@
         }
       }
     },
+    "Try it now: press these keys and drag over any part of the screen." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "现在就试试：按下这些键，框选屏幕上的任意区域。"
+          }
+        }
+      }
+    },
+    "Turn on the switch next to Framecho" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 Framecho 旁边的开关"
+          }
+        }
+      }
+    },
     "Turned it on in System Settings? Quit and reopen Framecho to apply it." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "已在系统设置中打开？退出并重新打开 Framecho 后生效。"
+          }
+        }
+      }
+    },
+    "Turned something on in System Settings? Reopen Framecho to apply it." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在系统设置里开启后，需要重新打开 Framecho 才会生效。"
           }
         }
       }
@@ -707,6 +877,16 @@
         }
       }
     },
+    "Waiting for you to press the shortcut…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待你按下快捷键…"
+          }
+        }
+      }
+    },
     "Welcome to Framecho" : {
       "localizations" : {
         "zh-Hans" : {
@@ -733,6 +913,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "之后可以在“设置 > 通用”中允许访问。"
+          }
+        }
+      }
+    },
+    "You're all set" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一切就绪"
           }
         }
       }

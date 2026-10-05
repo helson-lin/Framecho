@@ -240,11 +240,15 @@ final class AppPermissionCenter {
     // MARK: Capture gate
 
     /// Call before capturing. Without Screen Recording, macOS hands back a
-    /// picture of the wallpaper or nothing at all, so the setup window opens
-    /// on its permissions page instead and the capture is skipped.
+    /// picture of the wallpaper or nothing at all, so a window explaining
+    /// that opens instead and the capture is skipped.
     func ensureScreenRecording() -> Bool {
         refresh()
-        if isScreenRecordingGranted { return true }
+        if isScreenRecordingGranted {
+            // Pressing the shortcut the guide suggests ends the guide.
+            OnboardingWindowController.closeForCapture()
+            return true
+        }
         OnboardingWindowController.show(page: .permissions, reason: .screenRecordingNeeded)
         return false
     }
