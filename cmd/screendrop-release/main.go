@@ -126,6 +126,7 @@ func main() {
 	flag.StringVar(&setVersionFlag, "set-version", "", "Set MARKETING_VERSION before archiving and commit it (with -build).")
 	flag.StringVar(&setBuildFlag, "set-build", "", "Set CURRENT_PROJECT_VERSION before archiving and commit it (with -build).")
 	flag.StringVar(&notaryProfile, "notary-profile", "framecho-notary", "notarytool keychain profile name (with -build).")
+	flag.BoolVar(&skipChecks, "skip-checks", false, "Release without running the checks or consulting CI. Emergencies only.")
 	flag.Parse()
 
 	homeDir, _ := os.UserHomeDir()
@@ -157,6 +158,9 @@ func main() {
 		fail("Sparkle sign_update not found in DerivedData. Build the project once first.")
 	}
 	success("All tools found")
+
+	// Before the version bump commit, the archive or anything published.
+	runReleaseGate(repoDir)
 
 	if doBuild {
 		runBuildPhase(repoDir, homeDir, appPath)
