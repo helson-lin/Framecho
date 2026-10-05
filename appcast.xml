@@ -27,6 +27,34 @@
     -->
 
     <item>
+      <title>Version 0.39.0</title>
+      <sparkle:version>42</sparkle:version>
+      <sparkle:shortVersionString>0.39.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.4</sparkle:minimumSystemVersion>
+      <pubDate>Mon, 05 Oct 2026 10:15:15 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.39.0</h2>
+        <ul>
+          <li>新增设置引导，实时显示各项权限的状态；缺少屏幕录制权限时，截图和录屏会先打开引导并说明原因</li>
+          <li>钉图可以直接拖动、选中和标注，选中后工具栏显示在图片外侧，不再遮挡内容</li>
+          <li>钉图支持按键、触控板捏合和 ⌘+滚轮缩放，放大时始终保持在屏幕内，并可查看和调整透明度</li>
+          <li>新增快捷键：⌥7 框选区域直接钉到屏幕，⌥8 钉住最近一张截图（可在设置中修改）</li>
+          <li>钉图工具栏的「完成」「丢弃」按钮不再显示成禁用的灰色</li>
+          <li>录屏前选择麦克风后，图标会实时显示输入音量；麦克风静音或无响应时会给出提示</li>
+          <li>录制中计时旁也会显示麦克风音量，中途静音或断开能马上发现</li>
+          <li>录制中再按一次录屏快捷键即可停止并保存</li>
+          <li>录制超过 10 秒后，「重新开始」和「丢弃」需要点两次才会生效，避免误删</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Screendrop/releases/download/v0.39.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="cK8v02MvoPkXj2Oc0ri3ZYejx9G1SOeODXjAznbeLIiI1O3av9yJS9OWrWqLhberR90BCEhZIYBeR6eSG4+fCg=="
+        length="9515900"
+      />
+    </item>
+
+    <item>
       <title>Version 0.38.0</title>
       <sparkle:version>41</sparkle:version>
       <sparkle:shortVersionString>0.38.0</sparkle:shortVersionString>
