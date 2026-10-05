@@ -52,7 +52,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         window.title = String(localized: "Settings")
         window.titleVisibility = .visible
         window.titlebarAppearsTransparent = false
-        window.toolbarStyle = .automatic
+        window.toolbarStyle = .unified
         // AppKit's inferred order-front transition animates the custom
         // full-size-content window's shadow independently from its frame on
         // Tahoe. Keep the WindowServer geometry static and provide a simple
@@ -69,6 +69,12 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
         let hostingController = NSHostingController(rootView: SettingsView())
         window.contentViewController = hostingController
+        // An empty unified toolbar gives the title bar the Library window's
+        // height, so the traffic lights sit inside the inset sidebar panel
+        // the same way in both windows.
+        if window.toolbar == nil {
+            window.toolbar = NSToolbar(identifier: "SettingsWindowToolbar")
+        }
         PreviewWindowCaptureExclusion.shared.register(window: window)
     }
 
@@ -82,11 +88,19 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             NSApp.activate(ignoringOtherApps: true)
         }
 
-        let shouldAnimate = !window.isVisible
+        let isOpening = !window.isVisible
+        let shouldAnimate = isOpening
             && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         window.alphaValue = shouldAnimate ? 0 : 1
 
         super.showWindow(sender)
+
+        // AppKit focuses the first control when the window becomes key, which
+        // draws a focus ring on the export folder picker before anything was
+        // pressed. Start with the window itself focused; Tab still moves in.
+        if isOpening {
+            DispatchQueue.main.async { window.makeFirstResponder(nil) }
+        }
 
         guard shouldAnimate else { return }
         window.displayIfNeeded()

@@ -1,14 +1,23 @@
 import AppKit
 import Observation
+import SwiftUI
 
 nonisolated enum CaptureLibraryFilter: String, CaseIterable, Identifiable {
-    case all, screenshots, recordings
+    case all, screenshots, recordings, shared, drafts
     var id: Self { self }
+
+    /// The sidebar's two groups: capture kinds, then smart groups derived
+    /// from each capture's state.
+    static let kinds: [Self] = [.all, .screenshots, .recordings]
+    static let smartGroups: [Self] = [.shared, .drafts]
+
     var title: String {
         switch self {
         case .all: String(localized: "All Captures")
         case .screenshots: String(localized: "Screenshots")
         case .recordings: String(localized: "Recordings")
+        case .shared: String(localized: "Shared")
+        case .drafts: String(localized: "Drafts")
         }
     }
     var symbol: String {
@@ -16,6 +25,27 @@ nonisolated enum CaptureLibraryFilter: String, CaseIterable, Identifiable {
         case .all: "square.stack.3d.up"
         case .screenshots: "photo.on.rectangle"
         case .recordings: "video"
+        case .shared: "link"
+        case .drafts: "square.and.pencil"
+        }
+    }
+    var tint: Color {
+        switch self {
+        case .all: .gray
+        case .screenshots: .blue
+        case .recordings: .red
+        case .shared: .teal
+        case .drafts: .orange
+        }
+    }
+
+    func includes(_ item: CaptureLibraryItem) -> Bool {
+        switch self {
+        case .all: true
+        case .screenshots: !item.isVideo
+        case .recordings: item.isVideo
+        case .shared: item.cloudURL != nil
+        case .drafts: item.hasDraft
         }
     }
 }
@@ -75,6 +105,14 @@ nonisolated struct CaptureLibraryItem: Identifiable, Equatable, Sendable {
     }
 }
 
+/// One run of visible captures under a date heading. Sorting by name gives a
+/// single section without a title.
+nonisolated struct CaptureLibrarySection: Equatable, Identifiable, Sendable {
+    let id: String
+    let title: String?
+    let items: [CaptureLibraryItem]
+}
+
 nonisolated struct CaptureLibraryHistorySnapshot: Sendable {
     let id: UUID
     let name: String
@@ -115,8 +153,9 @@ final class CaptureLibraryModel {
     var selection: Set<String> = []
     private(set) var items: [CaptureLibraryItem] = []
     private(set) var visibleItems: [CaptureLibraryItem] = []
+    private(set) var sections: [CaptureLibrarySection] = []
     private(set) var contentRevision = 0
-    private(set) var screenshotCount = 0
+    private(set) var counts: [CaptureLibraryFilter: Int] = [:]
     private(set) var isLoading = false
     var operationTitle: String?
     var errorMessage: String?
@@ -156,11 +195,7 @@ final class CaptureLibraryModel {
     }
 
     func count(for filter: CaptureLibraryFilter) -> Int {
-        switch filter {
-        case .all: items.count
-        case .screenshots: screenshotCount
-        case .recordings: items.count - screenshotCount
-        }
+        counts[filter] ?? 0
     }
 
     func refresh() {
@@ -181,7 +216,9 @@ final class CaptureLibraryModel {
             } onCancel: { scan.cancel() }
             guard !Task.isCancelled else { return }
             items = result
-            screenshotCount = result.lazy.filter { !$0.isVideo }.count
+            counts = Dictionary(uniqueKeysWithValues: CaptureLibraryFilter.allCases.map { filter in
+                (filter, result.lazy.filter(filter.includes).count)
+            })
             updateVisibleItems()
             isLoading = false
         }
@@ -200,8 +237,7 @@ final class CaptureLibraryModel {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let filter = filter ?? .all
         let visible = items.filter { item in
-            let matchesKind = filter == .all || (filter == .recordings ? item.isVideo : !item.isVideo)
-            return matchesKind && (query.isEmpty || item.name.localizedStandardContains(query)
+            filter.includes(item) && (query.isEmpty || item.name.localizedStandardContains(query)
                 || item.fileURL.lastPathComponent.localizedStandardContains(query))
         }.sorted { lhs, rhs in
             switch sortOrder {
@@ -213,12 +249,37 @@ final class CaptureLibraryModel {
             default: return lhs.id < rhs.id
             }
         }
-        if visible != visibleItems {
+        let sections = Self.sections(for: visible, sortOrder: sortOrder)
+        if visible != visibleItems || sections != self.sections {
             visibleItems = visible
+            self.sections = sections
             visibleIndices = Dictionary(uniqueKeysWithValues: visible.enumerated().map { ($0.element.id, $0.offset) })
             contentRevision &+= 1
         }
         selection.formIntersection(Set(visibleIndices.keys))
+    }
+}
+
+extension CaptureLibraryModel {
+    /// Date headings for the date sorts, keyed on the date being sorted by.
+    static func sections(
+        for items: [CaptureLibraryItem],
+        sortOrder: CaptureLibrarySort,
+        now: Date = .now,
+        calendar: Calendar = .current
+    ) -> [CaptureLibrarySection] {
+        guard !items.isEmpty else { return [] }
+        guard sortOrder != .name else {
+            return [CaptureLibrarySection(id: "all", title: nil, items: items)]
+        }
+        let dates = items.map { sortOrder == .modified ? $0.modifiedAt : $0.createdAt }
+        return CaptureLibraryDateSection.runs(of: dates, now: now, calendar: calendar).map { run in
+            CaptureLibrarySection(
+                id: run.section.id,
+                title: run.section.title(now: now, calendar: calendar),
+                items: Array(items[run.range])
+            )
+        }
     }
 }
 

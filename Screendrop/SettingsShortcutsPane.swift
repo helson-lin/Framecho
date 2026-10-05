@@ -261,7 +261,7 @@ private struct ShortcutRecorderField: View {
     }
 }
 
-private struct HotkeyShortcutDisplay: View {
+struct HotkeyShortcutDisplay: View {
     let shortcut: HotkeyShortcut
 
     var body: some View {

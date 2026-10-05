@@ -253,12 +253,32 @@
         }
       }
     },
+    "Captures you upload to the cloud appear here." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上传到云端的截图和录制会显示在这里。"
+          }
+        }
+      }
+    },
     "Change Shortcuts" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "修改快捷键"
+          }
+        }
+      }
+    },
+    "Change Shortcuts…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改快捷键…"
           }
         }
       }
@@ -383,6 +403,16 @@
         }
       }
     },
+    "Date range" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日期范围"
+          }
+        }
+      }
+    },
     "Discard" : {
       "localizations" : {
         "zh-Hans" : {
@@ -409,6 +439,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "要放弃标注吗？"
+          }
+        }
+      }
+    },
+    "Drafts" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "草稿"
           }
         }
       }
@@ -449,6 +489,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法存储标注"
+          }
+        }
+      }
+    },
+    "Find" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查找"
           }
         }
       }
@@ -523,6 +573,16 @@
         }
       }
     },
+    "Kind" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "种类"
+          }
+        }
+      }
+    },
     "Last checked %@" : {
       "localizations" : {
         "zh-Hans" : {
@@ -583,12 +643,42 @@
         }
       }
     },
+    "More" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多"
+          }
+        }
+      }
+    },
     "Needed for every screenshot and recording." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "截图和录屏都需要此权限。"
+          }
+        }
+      }
+    },
+    "No Drafts" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有草稿"
+          }
+        }
+      }
+    },
+    "No Shared Captures" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有已共享的内容"
           }
         }
       }
@@ -763,6 +853,16 @@
         }
       }
     },
+    "Previous 7 Days" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "过去 7 天"
+          }
+        }
+      }
+    },
     "Quit & Reopen" : {
       "localizations" : {
         "zh-Hans" : {
@@ -789,6 +889,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在录制"
+          }
+        }
+      }
+    },
+    "Recordings with unsaved edits appear here." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有未存储编辑的录制会显示在这里。"
           }
         }
       }
@@ -969,6 +1079,26 @@
         }
       }
     },
+    "Shared" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已共享"
+          }
+        }
+      }
+    },
+    "Shared to the cloud" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已共享到云端"
+          }
+        }
+      }
+    },
     "Show in Finder" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1015,6 +1145,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "录屏时用摄像头气泡显示你。"
+          }
+        }
+      }
+    },
+    "Smart Groups" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "智能分组"
+          }
+        }
+      }
+    },
+    "Sort by %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按“%@”排序"
           }
         }
       }
@@ -1085,6 +1235,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "置顶的截图会保持原样。"
+          }
+        }
+      }
+    },
+    "Thumbnail size" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缩略图大小"
+          }
+        }
+      }
+    },
+    "Today" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天"
+          }
+        }
+      }
+    },
+    "Total duration" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "总时长"
           }
         }
       }
@@ -1185,6 +1365,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "可加入旁白、摄像头气泡和按键提示。"
+          }
+        }
+      }
+    },
+    "Yesterday" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昨天"
           }
         }
       }
@@ -1671,16 +1861,6 @@
         }
       }
     },
-    "Actions" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "操作"
-          }
-        }
-      }
-    },
     "Add" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1922,16 +2102,6 @@
       }
     },
     "Annotate screenshot" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "标注截图"
-          }
-        }
-      }
-    },
-    "Annotate Screenshot" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -2477,16 +2647,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "截取"
-          }
-        }
-      }
-    },
-    "Capture actions" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "操作"
           }
         }
       }
@@ -4219,16 +4379,6 @@
         }
       }
     },
-    "Edit Recording" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "编辑录制"
-          }
-        }
-      }
-    },
     "Edit the clip, background, camera, audio, and zooms in one place." : {
       "localizations" : {
         "zh-Hans" : {
@@ -5779,16 +5929,6 @@
         }
       }
     },
-    "More Actions" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更多操作"
-          }
-        }
-      }
-    },
     "More capture actions" : {
       "localizations" : {
         "zh-Hans" : {
@@ -6301,16 +6441,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "打开标注编辑器"
-          }
-        }
-      }
-    },
-    "Open in the screenshot or recording editor" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在截图或录制编辑器中打开"
           }
         }
       }
@@ -6911,16 +7041,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "快速查看"
-          }
-        }
-      }
-    },
-    "Quick Look (Space)" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "快速查看（空格键）"
           }
         }
       }
@@ -8317,16 +8437,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "共享选项"
-          }
-        }
-      }
-    },
-    "Share to Cloud" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "共享到云端"
           }
         }
       }

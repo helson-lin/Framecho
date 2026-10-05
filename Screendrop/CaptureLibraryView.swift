@@ -6,58 +6,65 @@ struct CaptureLibraryView: View {
     @State private var history = ScreenshotHistoryStore.shared
     @State private var projects = RecordingProjectStore.shared
     @State private var libraryWindow: NSWindow?
-    @State private var columnVisibility = NavigationSplitViewVisibility.automatic
     @AppStorage("captureLibrary.layout") private var layout: CaptureLibraryLayout = .grid
     @AppStorage("captureLibrary.inspectorVisible") private var inspectorVisible = true
     @AppStorage("captureLibrary.sort") private var savedSort: CaptureLibrarySort = .newest
+    @AppStorage("captureLibrary.thumbnailScale") private var thumbnailScale = 0.3
+    @State private var searchFocusRequest = 0
 
     private var activeFilter: CaptureLibraryFilter { model.filter ?? .all }
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
+        NavigationSplitView(columnVisibility: .constant(.all)) {
             List(selection: $model.filter) {
                 Section("Library") {
-                    ForEach(CaptureLibraryFilter.allCases) { filter in
-                        Label {
-                            HStack {
-                                Text(filter.title)
-                                Spacer()
-                                Text(model.count(for: filter), format: .number)
-                                    .foregroundStyle(.secondary)
-                                    .font(.caption.monospacedDigit())
-                            }
-                        } icon: { Image(systemName: filter.symbol) }
-                        .tag(filter)
+                    ForEach(CaptureLibraryFilter.kinds) { filter in
+                        sidebarRow(filter)
+                    }
+                }
+                Section("Smart Groups") {
+                    ForEach(CaptureLibraryFilter.smartGroups) { filter in
+                        sidebarRow(filter)
                     }
                 }
             }
             .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 180, ideal: 210, max: 280)
+            .scrollEdgeEffectSoftIfAvailable()
+            .navigationSplitViewColumnWidth(min: 210, ideal: 210, max: 240)
+            .toolbar(removing: .sidebarToggle)
             .safeAreaInset(edge: .bottom) {
                 Button {
                     SettingsWindowController.show(tab: .general)
                 } label: {
-                    Label("Settings", systemImage: "gearshape")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 8)
+                    Label {
+                        Text("Settings")
+                    } icon: {
+                        SidebarIconTile(systemImage: "gearshape", tint: .gray)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 8)
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 20)
-                .padding(.bottom, 8)
+                .padding(.bottom, 16)
             }
-            .modifier(LibrarySidebarSurface())
+            .sidebarPanel()
         } detail: {
             VStack(spacing: 0) {
                 browser
                 Divider()
                 statusBar
             }
-            .modifier(LibraryDetailCorners(showsSidebar: columnVisibility != .detailOnly))
             .navigationTitle(activeFilter.title)
-            .navigationSubtitle("Framecho")
+            .toolbar(removing: .title)
+            .background {
+                // ⌘F, which `.searchable` used to provide.
+                Button("Find") { searchFocusRequest += 1 }
+                    .keyboardShortcut("f", modifiers: .command)
+                    .hidden()
+            }
         }
         .navigationSplitViewStyle(.balanced)
-        .searchable(text: $model.searchText, placement: .toolbar, prompt: "Search captures")
         .inspector(isPresented: $inspectorVisible) {
             CaptureLibraryInspector(model: model)
                 .inspectorColumnWidth(min: 240, ideal: 280, max: 360)
@@ -124,19 +131,77 @@ struct CaptureLibraryView: View {
                 } description: {
                     Text(emptyLibraryDescription)
                 } actions: {
-                    if activeFilter != .recordings {
-                        Button("Capture Area") { CaptureCoordinator.shared.captureArea() }
-                    }
-                    if activeFilter != .screenshots {
-                        Button("Record Screen") { RecordingPickerPresenter.shared.show() }
-                            .disabled(ScreenRecordingManager.shared.isActive)
-                    }
+                    emptyLibraryActions
                 }
             }
         } else {
-            CaptureLibraryCollection(items: model.visibleItems, revision: model.contentRevision, layout: layout,
-                selection: $model.selection, isBusy: model.isBusy, onAction: model.perform)
+            VStack(spacing: 0) {
+                if layout == .list {
+                    LibraryListHeader(sortOrder: $model.sortOrder)
+                }
+                CaptureLibraryCollection(sections: model.sections, revision: model.contentRevision, layout: layout,
+                    thumbnailScale: thumbnailScale,
+                    selection: $model.selection, isBusy: model.isBusy, onAction: model.perform)
+            }
         }
+    }
+
+    private func sidebarRow(_ filter: CaptureLibraryFilter) -> some View {
+        Label {
+            HStack {
+                Text(filter.title)
+                Spacer()
+                Text(model.count(for: filter), format: .number)
+                    .foregroundStyle(.secondary)
+                    .font(.caption.monospacedDigit())
+            }
+        } icon: {
+            SidebarIconTile(systemImage: filter.symbol, tint: filter.tint)
+        }
+        .padding(.vertical, 3)
+        .tag(filter)
+    }
+
+    /// Start a capture from the empty Library, showing each action's shortcut
+    /// so it can be used next time without opening the window.
+    @ViewBuilder private var emptyLibraryActions: some View {
+        let showsCapture = activeFilter == .all || activeFilter == .screenshots
+        let showsRecording = activeFilter == .all || activeFilter == .recordings
+        if showsCapture || showsRecording {
+            VStack(spacing: 12) {
+                HStack(spacing: 10) {
+                    if showsCapture {
+                        Button { CaptureCoordinator.shared.captureArea() } label: {
+                            shortcutLabel("Capture Area", action: .area)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    if showsRecording {
+                        Button { RecordingPickerPresenter.shared.show() } label: {
+                            shortcutLabel("Record Screen", action: .screenRecording)
+                        }
+                        .disabled(ScreenRecordingManager.shared.isActive)
+                    }
+                }
+                .controlSize(.large)
+
+                Button("Change Shortcuts…") { SettingsWindowController.show(tab: .shortcuts) }
+                    .buttonStyle(.link)
+                    .controlSize(.small)
+            }
+        }
+    }
+
+    private func shortcutLabel(_ title: LocalizedStringResource, action: CaptureHotkeyAction) -> some View {
+        HStack(spacing: 8) {
+            Text(title)
+            HotkeyShortcutDisplay(shortcut: CaptureHotkeyPreferences.shortcut(for: action))
+        }
+    }
+
+    private var captureCountText: String {
+        let count = model.visibleItems.count
+        return count == 1 ? String(localized: "1 capture") : String(localized: "\(count) captures")
     }
 
     private var trashAlertTitle: String {
@@ -151,6 +216,8 @@ struct CaptureLibraryView: View {
         case .all: String(localized: "No Captures")
         case .screenshots: String(localized: "No Screenshots")
         case .recordings: String(localized: "No Recordings")
+        case .shared: String(localized: "No Shared Captures")
+        case .drafts: String(localized: "No Drafts")
         }
     }
 
@@ -159,6 +226,8 @@ struct CaptureLibraryView: View {
         case .all: String(localized: "Screenshots and recordings you capture will appear here.")
         case .screenshots: String(localized: "Take a screenshot to start your screenshot library.")
         case .recordings: String(localized: "Record your screen to start your recording library.")
+        case .shared: String(localized: "Captures you upload to the cloud appear here.")
+        case .drafts: String(localized: "Recordings with unsaved edits appear here.")
         }
     }
 
@@ -168,11 +237,14 @@ struct CaptureLibraryView: View {
                 ProgressView().controlSize(.mini)
                 Text(title)
             } else {
-                Text(model.visibleItems.count == 1 ? "1 capture" : "\(model.visibleItems.count) captures")
+                Text(captureCountText)
                 if !model.selection.isEmpty { Text("· \(model.selection.count) selected") }
             }
             Spacer()
             if model.isLoading { ProgressView().controlSize(.mini).help("Refreshing Library") }
+            if layout == .grid && !model.visibleItems.isEmpty {
+                thumbnailSizeSlider
+            }
         }
         .font(.caption)
         .monospacedDigit()
@@ -181,17 +253,44 @@ struct CaptureLibraryView: View {
         .frame(height: 30)
     }
 
+    private var thumbnailSizeSlider: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "square.grid.3x3")
+                .imageScale(.small)
+                .accessibilityHidden(true)
+            Slider(value: $thumbnailScale, in: 0.0...1.0)
+                .controlSize(.mini)
+                .frame(width: 96)
+                .accessibilityLabel(Text("Thumbnail size"))
+            Image(systemName: "square.grid.2x2")
+                .accessibilityHidden(true)
+        }
+        .help(Text("Thumbnail size"))
+    }
+
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        // The window title is hidden; the filter and its count read as one
+        // line at the leading edge.
+        ToolbarItem(placement: .navigation) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(activeFilter.title)
+                    .font(.title3.weight(.bold))
+                Text(captureCountText)
+                    .font(.callout)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 8)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+        }
+        .sharedBackgroundVisibility(.hidden)
+
+        ToolbarSpacer(.flexible)
+
         ToolbarItem(placement: .primaryAction) {
-            Menu {
-                Button("Capture Fullscreen", systemImage: "macwindow") { CaptureCoordinator.shared.captureFullscreen() }
-                Button("Capture Window", systemImage: "macwindow.on.rectangle") { CaptureCoordinator.shared.captureWindow() }
-                Button("Capture Area", systemImage: "rectangle.dashed") { CaptureCoordinator.shared.captureArea() }
-                Divider()
-                Button("Record Screen", systemImage: "record.circle") { RecordingPickerPresenter.shared.show() }
-                    .disabled(ScreenRecordingManager.shared.isActive)
-            } label: { Label("New Capture", systemImage: "plus") }
-            .help("New capture")
+            LibrarySearchField(text: $model.searchText, focusRequest: searchFocusRequest)
+                .frame(width: 190)
         }
         ToolbarItem(placement: .primaryAction) {
             Picker("View", selection: $layout) {
@@ -210,106 +309,49 @@ struct CaptureLibraryView: View {
                 Divider()
                 Button("Refresh", systemImage: "arrow.clockwise") { model.refresh() }
                     .keyboardShortcut("r", modifiers: .command)
-            } label: { Label("Sort", systemImage: "arrow.up.arrow.down") }
+            } label: {
+                Text(model.sortOrder.title)
+            }
             .help("Sort captures")
         }
-        ToolbarItemGroup(placement: .primaryAction) {
-            Button { model.perform(.preview) } label: { Label("Quick Look", systemImage: "eye") }
-                .disabled(model.selection.count != 1 || model.isBusy)
-                .help("Quick Look (Space)")
-            Button { model.perform(.edit) } label: { Label("Edit", systemImage: "slider.horizontal.3") }
-                .disabled(model.selection.count != 1 || model.isBusy)
-                .help("Open in the screenshot or recording editor")
+        ToolbarItem(placement: .primaryAction) {
             Menu {
-                Button("Copy", systemImage: "doc.on.doc") { model.perform(.copy) }
-                Button("Export…", systemImage: "square.and.arrow.up") { model.perform(.export) }
-                Button("Rename…", systemImage: "pencil") { model.perform(.rename) }
-                    .disabled(model.selection.count != 1)
-                Button("Reveal in Finder", systemImage: "folder") { model.perform(.reveal) }
+                Button("Capture Fullscreen", systemImage: "macwindow") { CaptureCoordinator.shared.captureFullscreen() }
+                Button("Capture Window", systemImage: "macwindow.on.rectangle") { CaptureCoordinator.shared.captureWindow() }
+                Button("Capture Area", systemImage: "rectangle.dashed") { CaptureCoordinator.shared.captureArea() }
                 Divider()
-                Button("Move to Trash…", systemImage: "trash", role: .destructive) { model.perform(.trash) }
-            } label: { Label("Actions", systemImage: "ellipsis.circle") }
-            .disabled(model.selection.isEmpty || model.isBusy)
-            .help("Capture actions")
+                Button("Record Screen", systemImage: "record.circle") { RecordingPickerPresenter.shared.show() }
+                    .disabled(ScreenRecordingManager.shared.isActive)
+            } label: {
+                // Toolbar items ignore prominent button styles, so the
+                // primary action draws its own accent capsule.
+                HStack(spacing: 5) {
+                    Image(systemName: "plus")
+                    Text("New Capture")
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .bold))
+                }
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .frame(height: 30)
+                .background(Color.accentColor, in: Capsule())
+                .contentShape(Capsule())
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("New capture")
+            .accessibilityLabel("New Capture")
         }
+        .sharedBackgroundVisibility(.hidden)
         ToolbarItem(placement: .primaryAction) {
             Button { inspectorVisible.toggle() } label: {
                 Label(inspectorVisible ? "Hide Inspector" : "Show Inspector", systemImage: "sidebar.right")
             }
             .keyboardShortcut("i", modifiers: [.command, .option])
             .help(inspectorVisible ? "Hide Inspector" : "Show Inspector")
-        }
-    }
-}
-
-/// Share one adaptive color between the sidebar and the detail's corner
-/// cutouts; separate visual-effect views can resolve to different tints.
-private struct LibrarySidebarSurface: ViewModifier {
-    static var background: Color { Color(nsColor: .underPageBackgroundColor) }
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if #available(macOS 27.0, *) {
-            content
-                .scrollContentBackground(.hidden)
-                .background {
-                    Self.background.ignoresSafeArea(.container)
-                }
-        } else {
-            content
-        }
-    }
-}
-
-/// Round the entire detail surface, including the native toolbar's safe area.
-/// The browser keeps its normal insets so content doesn't move under controls.
-private struct LibraryDetailCorners: ViewModifier {
-    let showsSidebar: Bool
-    @Environment(\.displayScale) private var displayScale
-
-    private var cornerRadius: CGFloat { showsSidebar ? 16 : 0 }
-
-    private var surface: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(
-            topLeadingRadius: cornerRadius,
-            bottomLeadingRadius: cornerRadius,
-            style: .continuous
-        )
-    }
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if #available(macOS 27.0, *) {
-            content
-                // Only the lower corner intersects the body. The upper corner
-                // belongs to the background extended behind the toolbar below.
-                .clipShape(
-                    UnevenRoundedRectangle(
-                        bottomLeadingRadius: cornerRadius,
-                        style: .continuous
-                    )
-                )
-                .background {
-                    ZStack {
-                        LibrarySidebarSurface.background
-                        surface.fill(Color(nsColor: .controlBackgroundColor))
-                    }
-                    .ignoresSafeArea(.container, edges: .top)
-                }
-                .overlay {
-                    if showsSidebar {
-                        surface
-                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1 / displayScale)
-                            .mask(alignment: .leading) {
-                                Rectangle().frame(width: cornerRadius)
-                            }
-                            .ignoresSafeArea(.container, edges: .top)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-        } else {
-            content
         }
     }
 }
