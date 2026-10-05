@@ -14,85 +14,6 @@ import IOKit.hid
 import Observation
 import UserNotifications
 
-enum AppPermission: String, CaseIterable, Identifiable {
-    case screenRecording
-    case microphone
-    case camera
-    case inputMonitoring
-    case notifications
-
-    var id: Self { self }
-
-    /// Without it nothing can be captured; everything else adds to recordings.
-    var isRequired: Bool { self == .screenRecording }
-
-    var title: String {
-        switch self {
-        case .screenRecording: String(localized: "Screen Recording")
-        case .microphone: String(localized: "Microphone")
-        case .camera: String(localized: "Camera")
-        case .inputMonitoring: String(localized: "Input Monitoring")
-        case .notifications: String(localized: "Notifications")
-        }
-    }
-
-    var purpose: String {
-        switch self {
-        case .screenRecording:
-            String(localized: "Needed for every screenshot and recording.")
-        case .microphone:
-            String(localized: "Adds your narration to recordings.")
-        case .camera:
-            String(localized: "Shows you in a camera bubble while recording.")
-        case .inputMonitoring:
-            String(localized: "Shows the keys you press and smooths the pointer in recordings.")
-        case .notifications:
-            String(localized: "Tells you when a recording has finished exporting.")
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .screenRecording: "rectangle.dashed.badge.record"
-        case .microphone: "mic"
-        case .camera: "video"
-        case .inputMonitoring: "keyboard"
-        case .notifications: "bell.badge"
-        }
-    }
-
-    /// macOS only applies these to a running app after it relaunches.
-    var needsRelaunchAfterGrant: Bool {
-        self == .screenRecording || self == .inputMonitoring
-    }
-
-    fileprivate var settingsURL: URL? {
-        let string = switch self {
-        case .screenRecording:
-            "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
-        case .microphone:
-            "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
-        case .camera:
-            "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"
-        case .inputMonitoring:
-            "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
-        case .notifications:
-            "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(Bundle.main.bundleIdentifier ?? "")"
-        }
-        return URL(string: string)
-    }
-}
-
-enum AppPermissionStatus: Equatable {
-    case granted
-    /// macOS will show its own prompt when asked.
-    case notDetermined
-    /// Only System Settings can change it now.
-    case denied
-    /// Blocked by a profile; nobody on this Mac can change it.
-    case restricted
-}
-
 @MainActor
 @Observable
 final class AppPermissionCenter {
@@ -121,7 +42,7 @@ final class AppPermissionCenter {
 
     /// Whether a grant made in System Settings needs Framecho to relaunch.
     var isRelaunchSuggested: Bool {
-        sentToSettings.contains { $0.needsRelaunchAfterGrant && status(of: $0) != .granted }
+        AppPermissionRules.isRelaunchSuggested(sentToSettings: sentToSettings, status: status(of:))
     }
 
     // MARK: Status
@@ -164,10 +85,10 @@ final class AppPermissionCenter {
     }
 
     private static func screenRecordingStatus() -> AppPermissionStatus {
-        if CGPreflightScreenCaptureAccess() { return .granted }
-        // There's no "not determined" to read; macOS prompts only the first
-        // time it's asked, so remember asking.
-        return UserDefaults.standard.bool(forKey: screenRecordingRequestedKey) ? .denied : .notDetermined
+        AppPermissionRules.screenRecordingStatus(
+            isGranted: CGPreflightScreenCaptureAccess(),
+            wasRequested: UserDefaults.standard.bool(forKey: screenRecordingRequestedKey)
+        )
     }
 
     private static func status(for mediaType: AVMediaType) -> AppPermissionStatus {

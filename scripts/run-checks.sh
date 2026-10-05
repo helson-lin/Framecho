@@ -50,4 +50,7 @@ check text-recognition -default-isolation MainActor -parse-as-library \
 check pinned-geometry "${strict[@]}" \
   Screendrop/PinnedScreenshotGeometry.swift scripts/check-pinned-geometry.swift
 
+check app-permissions "${strict[@]}" \
+  Screendrop/AppPermission.swift scripts/check-app-permissions.swift
+
 echo "All checks passed."
