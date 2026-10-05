@@ -114,10 +114,7 @@ struct ShortcutsSettingsPane: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(action.title)
                 if let message {
-                    Label(message, systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                        .fixedSize(horizontal: false, vertical: true)
+                    SettingsIssueText(message)
                 }
             }
         }

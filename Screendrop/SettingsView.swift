@@ -256,6 +256,23 @@ struct SettingsControlLabel: View {
     }
 }
 
+/// A warning or failure inside a settings form, marked by an icon as well
+/// as color.
+struct SettingsIssueText: View {
+    let message: String
+
+    init(_ message: String) {
+        self.message = message
+    }
+
+    var body: some View {
+        Label(message, systemImage: "exclamationmark.triangle.fill")
+            .font(.caption)
+            .foregroundStyle(.orange)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
 extension URL {
     var abbreviatedPath: String {
         let home = FileManager.default.homeDirectoryForCurrentUser.path

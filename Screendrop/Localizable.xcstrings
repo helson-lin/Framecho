@@ -7,6 +7,16 @@
     " / %@" : {
 
     },
+    "%@ (Default)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@（默认）"
+          }
+        }
+      }
+    },
     "%@ is already assigned to %@. Your previous shortcut has been kept." : {
       "localizations" : {
         "en" : {
@@ -303,6 +313,16 @@
         }
       }
     },
+    "Could not open the export folder: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法打开导出文件夹：%@"
+          }
+        }
+      }
+    },
     "Crop the screenshot (⇧⌘C)" : {
       "localizations" : {
         "zh-Hans" : {
@@ -563,12 +583,32 @@
         }
       }
     },
+    "Open Login Items…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开登录项…"
+          }
+        }
+      }
+    },
     "Open Privacy & Security › Screen & System Audio Recording" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "打开「隐私与安全性 › 屏幕与系统录音」"
+          }
+        }
+      }
+    },
+    "Other…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他…"
           }
         }
       }
@@ -835,6 +875,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "截图将按资料库中保存的原样上传。"
+          }
+        }
+      }
+    },
+    "Show in Finder" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在访达中显示"
           }
         }
       }
@@ -2469,16 +2519,6 @@
         }
       }
     },
-    "Capture Visibility" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "截图与录屏中的可见性"
-          }
-        }
-      }
-    },
     "Capture Window" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2695,16 +2735,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "选取背景墙纸"
-          }
-        }
-      }
-    },
-    "Choose Folder…" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选取文件夹…"
           }
         }
       }
@@ -10037,16 +10067,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "使用较小的视野让镜头更平稳，然后用缩放和平移来取景"
-          }
-        }
-      }
-    },
-    "Use Default" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用默认"
           }
         }
       }

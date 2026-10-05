@@ -16,6 +16,7 @@ struct GeneralSettingsPane: View {
     private var includeAppWindowsInCaptures = false
     @State private var launchAtLoginStatus = LaunchAtLoginController.status
     @State private var launchAtLoginError: String?
+    @State private var revealError: String?
     @State private var permissionCenter = AppPermissionCenter.shared
 
     private var launchAtLoginBinding: Binding<Bool> {
@@ -35,32 +36,31 @@ struct GeneralSettingsPane: View {
     var body: some View {
         Form {
             Section("Save Location") {
-                LabeledContent("Export folder") {
-                    HStack(spacing: 8) {
-                        Image(systemName: "folder.fill")
-                            .foregroundStyle(.blue)
-                            .font(.system(size: 14))
+                LabeledContent {
+                    HStack(spacing: 6) {
+                        ExportFolderMenu(
+                            exportDirectoryPath: $exportDirectoryPath,
+                            chooseOther: chooseExportDirectory
+                        )
 
-                        Text(ScreendropPreferences.exportDirectory.abbreviatedPath)
-                            .font(.system(size: 13))
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                            .foregroundStyle(.primary)
-                            .help(ScreendropPreferences.exportDirectory.path)
+                        Button {
+                            revealExportDirectory()
+                        } label: {
+                            Image(systemName: "magnifyingglass")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Show in Finder")
+                        .accessibilityLabel("Show in Finder")
                     }
+                } label: {
+                    SettingsControlLabel(
+                        String(localized: "Export folder"),
+                        detail: ScreendropPreferences.exportDirectory.abbreviatedPath
+                    )
                 }
 
-                HStack(spacing: 8) {
-                    Button("Choose Folder…") {
-                        chooseExportDirectory()
-                    }
-                    .controlSize(.small)
-
-                    Button("Use Default") {
-                        exportDirectoryPath = ""
-                    }
-                    .controlSize(.small)
-                    .disabled(exportDirectoryPath.isEmpty)
+                if let revealError {
+                    SettingsIssueText(revealError)
                 }
 
                 Toggle(isOn: saveButtonUsesFolderBinding) {
@@ -99,13 +99,15 @@ struct GeneralSettingsPane: View {
                 }
 
                 if let launchAtLoginError {
-                    Text(launchAtLoginError)
-                        .font(.caption)
-                        .foregroundStyle(.red)
+                    SettingsIssueText(launchAtLoginError)
                 } else if launchAtLoginStatus.requiresApproval {
-                    Text("Approve Framecho in System Settings → General → Login Items.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 10) {
+                        SettingsIssueText(String(localized: "Approve Framecho in System Settings → General → Login Items."))
+                        Spacer(minLength: 8)
+                        Button("Open Login Items…") {
+                            SMAppService.openSystemSettingsLoginItems()
+                        }
+                    }
                 }
 
                 Toggle(isOn: $playSounds) {
@@ -121,9 +123,7 @@ struct GeneralSettingsPane: View {
                         detail: "When hidden, reopen Framecho to get back to Settings."
                     )
                 }
-            }
 
-            Section("Capture Visibility") {
                 Toggle(isOn: $includeAppWindowsInCaptures) {
                     SettingsControlLabel(
                         "Include Framecho windows in captures",
@@ -159,6 +159,17 @@ struct GeneralSettingsPane: View {
         exportDirectoryPath = url.path
     }
 
+    private func revealExportDirectory() {
+        let directory = ScreendropPreferences.exportDirectory
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            revealError = nil
+            NSWorkspace.shared.activateFileViewerSelecting([directory])
+        } catch {
+            revealError = String(localized: "Could not open the export folder: \(error.localizedDescription)")
+        }
+    }
+
     private func refreshLaunchAtLoginStatus() {
         launchAtLoginStatus = LaunchAtLoginController.status
     }
@@ -172,6 +183,64 @@ struct GeneralSettingsPane: View {
         }
 
         refreshLaunchAtLoginStatus()
+    }
+}
+
+/// The export folder as a pop-up: the default, the usual user folders, the
+/// current custom folder, and Other… to pick any folder.
+private struct ExportFolderMenu: View {
+    @Binding var exportDirectoryPath: String
+    let chooseOther: () -> Void
+
+    private struct Choice: Identifiable {
+        let url: URL
+        let title: String
+        var id: String { url.standardizedFileURL.path }
+    }
+
+    private var current: URL { ScreendropPreferences.exportDirectory }
+
+    private var choices: [Choice] {
+        let fileManager = FileManager.default
+        let defaultURL = ScreendropPreferences.defaultExportDirectory
+        var choices = [Choice(
+            url: defaultURL,
+            title: String(localized: "\(fileManager.displayName(atPath: defaultURL.path)) (Default)")
+        )]
+        for directory in [FileManager.SearchPathDirectory.desktopDirectory, .documentDirectory, .downloadsDirectory] {
+            guard let url = fileManager.urls(for: directory, in: .userDomainMask).first else { continue }
+            choices.append(Choice(url: url, title: fileManager.displayName(atPath: url.path)))
+        }
+        if !choices.contains(where: { $0.id == current.standardizedFileURL.path }) {
+            choices.append(Choice(url: current, title: fileManager.displayName(atPath: current.path)))
+        }
+        return choices
+    }
+
+    var body: some View {
+        Menu {
+            ForEach(choices) { choice in
+                Toggle(isOn: Binding(
+                    get: { choice.id == current.standardizedFileURL.path },
+                    set: { if $0 { select(choice) } }
+                )) {
+                    Label(choice.title, systemImage: "folder")
+                }
+            }
+            Divider()
+            Button("Other…", action: chooseOther)
+        } label: {
+            Label(FileManager.default.displayName(atPath: current.path), systemImage: "folder.fill")
+        }
+        .fixedSize()
+        .help(current.path)
+        .accessibilityLabel("Export folder")
+        .accessibilityValue(current.abbreviatedPath)
+    }
+
+    private func select(_ choice: Choice) {
+        let isDefault = choice.id == ScreendropPreferences.defaultExportDirectory.standardizedFileURL.path
+        exportDirectoryPath = isDefault ? "" : choice.url.path
     }
 }
 
