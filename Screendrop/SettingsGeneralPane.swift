@@ -16,6 +16,7 @@ struct GeneralSettingsPane: View {
     private var includeAppWindowsInCaptures = false
     @State private var launchAtLoginStatus = LaunchAtLoginController.status
     @State private var launchAtLoginError: String?
+    @State private var permissionCenter = AppPermissionCenter.shared
 
     private var launchAtLoginBinding: Binding<Bool> {
         Binding(
@@ -70,6 +71,25 @@ struct GeneralSettingsPane: View {
                 }
                 .toggleStyle(.switch)
             }
+
+            Section {
+                ForEach(AppPermission.allCases) { permission in
+                    AppPermissionRow(permission: permission)
+                }
+                if permissionCenter.isRelaunchSuggested {
+                    AppPermissionRelaunchNotice()
+                }
+            } header: {
+                Text("Permissions")
+            } footer: {
+                Button("Show Setup Guide…") {
+                    OnboardingWindowController.show(page: .welcome, reason: .manual)
+                }
+                .buttonStyle(.link)
+                .controlSize(.small)
+            }
+            .onAppear { permissionCenter.beginObserving() }
+            .onDisappear { permissionCenter.endObserving() }
 
             Section("System") {
                 Toggle(isOn: launchAtLoginBinding) {

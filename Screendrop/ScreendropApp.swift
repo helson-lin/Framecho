@@ -156,7 +156,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Library. Login/service launches keep the existing quiet menu-bar mode.
         DispatchQueue.main.async { [weak self] in
             guard let self, !launchedInBackground, !self.openedFilesAtLaunch else { return }
-            CaptureLibraryModel.shared.show()
+            // The first launch opens the setup guide; the Library follows it.
+            let showsGuide = OnboardingWindowController.showIfNeeded {
+                CaptureLibraryModel.shared.show()
+            }
+            if !showsGuide {
+                CaptureLibraryModel.shared.show()
+            }
         }
     }
 
