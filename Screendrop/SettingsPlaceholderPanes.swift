@@ -70,14 +70,31 @@ struct OverlaySettingsPane: View {
                 }
 
                 LabeledContent {
-                    Slider(
-                        value: previewSizeStep,
-                        in: 0...Double(PreviewOverlaySize.allCases.count - 1),
-                        step: 1
-                    )
-                    .frame(width: 180)
-                    .accessibilityLabel("Preview size")
-                    .accessibilityValue(Double(previewSize.cardScale).formatted(.percent))
+                    HStack(spacing: 12) {
+                        Slider(
+                            value: previewSizeStep,
+                            in: 0...Double(PreviewOverlaySize.allCases.count - 1),
+                            step: 1
+                        ) {
+                            Text("Preview size")
+                        } minimumValueLabel: {
+                            Image(systemName: "rectangle.inset.filled")
+                                .imageScale(.small)
+                                .accessibilityHidden(true)
+                        } maximumValueLabel: {
+                            Image(systemName: "rectangle.inset.filled")
+                                .imageScale(.large)
+                                .accessibilityHidden(true)
+                        }
+                        .labelsHidden()
+                        .frame(width: 180)
+                        .accessibilityValue(Double(previewSize.cardScale).formatted(.percent))
+
+                        Text(Double(previewSize.cardScale), format: .percent)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 40, alignment: .trailing)
+                    }
                 } label: {
                     SettingsControlLabel(
                         "Preview size",
