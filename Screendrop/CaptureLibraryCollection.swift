@@ -256,14 +256,14 @@ final class LibraryCollectionLayout: NSCollectionViewFlowLayout {
     override func prepare() {
         let width = max(200, collectionView?.enclosingScrollView?.contentSize.width ?? 800)
         minimumInteritemSpacing = 16
-        minimumLineSpacing = displayLayout == .grid ? 16 : 6
+        minimumLineSpacing = displayLayout == .grid ? 16 : 2
         if displayLayout == .grid {
             let target = 180 + 200 * min(max(thumbnailScale, 0), 1)
             let columns = max(1, floor((width - 16) / (target + 16)))
             let cellWidth = floor((width - 32 - (columns - 1) * 16) / columns)
             itemSize = CGSize(width: cellWidth, height: floor(cellWidth * 0.625) + 62)
         } else {
-            itemSize = CGSize(width: width - 32, height: 76)
+            itemSize = CGSize(width: width - 32, height: 46)
         }
         super.prepare()
     }
@@ -378,23 +378,15 @@ struct LibraryCellContent: View {
                                 .padding(.horizontal, 4)
                                 .padding(.bottom, 4)
                         }
-                    } else {
-                        HStack(spacing: 14) {
-                            thumbnail(item).frame(width: 88, height: 58)
-                            labels(item)
-                            Spacer(minLength: 8)
-                            Text(item.kindTitle)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .padding(.trailing, 8)
+                        .padding(6)
+                        .background(cardFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .strokeBorder(cardStroke, lineWidth: selected ? 2 : 0.5)
                         }
+                    } else {
+                        listRow(item)
                     }
-                }
-                .padding(6)
-                .background(cardFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(cardStroke, lineWidth: selected ? 2 : 0.5)
                 }
                 .onHover { isHovering = $0 }
                 .onChange(of: item.id) { _, _ in isHovering = false }
@@ -415,6 +407,50 @@ struct LibraryCellContent: View {
         return parts.joined(separator: ", ")
     }
 
+    /// A Finder-style row: the selection fills with the accent color and
+    /// the text turns white, with columns shared with LibraryListHeader.
+    private func listRow(_ item: CaptureLibraryItem) -> some View {
+        let secondary: Color = selected ? .white.opacity(0.85) : .secondary
+        return HStack(spacing: LibraryListColumns.spacing) {
+            HStack(spacing: 10) {
+                thumbnail(item).frame(width: 54, height: 34)
+                Text(item.name)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                if item.hasDraft { LibraryDraftBadge(onAccent: selected) }
+                if item.cloudURL != nil {
+                    Image(systemName: "link")
+                        .foregroundStyle(secondary)
+                        .help("Shared to the cloud")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(item.kindTitle)
+                .foregroundStyle(secondary)
+                .frame(width: LibraryListColumns.kind, alignment: .leading)
+            Text(item.pixelWidth > 0 ? item.dimensions : "—")
+                .foregroundStyle(secondary)
+                .frame(width: LibraryListColumns.dimensions, alignment: .trailing)
+            Text(item.isVideo ? item.durationText : "—")
+                .foregroundStyle(secondary)
+                .frame(width: LibraryListColumns.duration, alignment: .trailing)
+            Text(item.createdAt.formatted(date: .abbreviated, time: .shortened))
+                .foregroundStyle(secondary)
+                .frame(width: LibraryListColumns.created, alignment: .leading)
+        }
+        .font(.system(size: 12.5))
+        .monospacedDigit()
+        .lineLimit(1)
+        .foregroundStyle(selected ? Color.white : Color.primary)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .frame(maxHeight: .infinity)
+        .background(
+            selected ? Color.accentColor : Color.primary.opacity(isHovering ? 0.04 : 0),
+            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+        )
+    }
+
     private var cardFill: Color {
         if selected { return Color.accentColor.opacity(0.14) }
         return Color.primary.opacity(isHovering ? 0.035 : 0.012)
@@ -429,10 +465,6 @@ struct LibraryCellContent: View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 5) {
                 Text(item.name).font(.system(size: 13, weight: .medium)).lineLimit(1).truncationMode(.middle)
-                if layout == .list {
-                    if item.cloudURL != nil { Image(systemName: "link").foregroundStyle(.secondary) }
-                    if item.hasDraft { LibraryDraftBadge() }
-                }
             }
             Text(item.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
         }
@@ -486,11 +518,72 @@ private struct LibraryThumbnailBadge<Content: View>: View {
 
 /// Marks a recording with unsaved edits by word, not only by color.
 struct LibraryDraftBadge: View {
+    var onAccent = false
+
     var body: some View {
         Text("Draft")
             .font(.system(size: 10, weight: .semibold))
-            .foregroundStyle(.orange)
+            .foregroundStyle(onAccent ? Color.white : Color.orange)
             .padding(.horizontal, 6).padding(.vertical, 1)
-            .background(.orange.opacity(0.14), in: Capsule())
+            .background(onAccent ? Color.white.opacity(0.22) : Color.orange.opacity(0.14), in: Capsule())
+    }
+}
+
+/// Column widths the list rows and their header share.
+enum LibraryListColumns {
+    static let spacing: CGFloat = 12
+    static let kind: CGFloat = 110
+    static let dimensions: CGFloat = 96
+    static let duration: CGFloat = 56
+    static let created: CGFloat = 150
+    /// Rows sit inside the 16pt section inset plus the row's own padding.
+    static let leadingInset: CGFloat = 22
+}
+
+/// Column titles above the list. Name and Created sort when clicked;
+/// clicking Created again flips between newest and oldest first.
+struct LibraryListHeader: View {
+    @Binding var sortOrder: CaptureLibrarySort
+
+    var body: some View {
+        HStack(spacing: LibraryListColumns.spacing) {
+            column("Name", sort: .name)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text("Kind")
+                .frame(width: LibraryListColumns.kind, alignment: .leading)
+            Text("Dimensions")
+                .frame(width: LibraryListColumns.dimensions, alignment: .trailing)
+            Text("Duration")
+                .frame(width: LibraryListColumns.duration, alignment: .trailing)
+            column("Created", sort: sortOrder == .newest ? .oldest : .newest, isActive: sortOrder == .newest || sortOrder == .oldest)
+                .frame(width: LibraryListColumns.created, alignment: .leading)
+        }
+        .font(.system(size: 11, weight: .semibold))
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+        .padding(.horizontal, LibraryListColumns.leadingInset)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
+        .overlay(alignment: .bottom) { Divider().padding(.horizontal, 16) }
+    }
+
+    private func column(_ title: LocalizedStringResource, sort: CaptureLibrarySort, isActive: Bool? = nil) -> some View {
+        let active = isActive ?? (sortOrder == sort)
+        return Button {
+            sortOrder = sort
+        } label: {
+            HStack(spacing: 3) {
+                Text(title)
+                if active {
+                    Image(systemName: sortOrder == .oldest ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 9, weight: .bold))
+                }
+            }
+            .foregroundStyle(active ? Color.primary : Color.secondary)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(active ? [.isSelected] : [])
+        .help(String(localized: "Sort by \(String(localized: title))"))
     }
 }

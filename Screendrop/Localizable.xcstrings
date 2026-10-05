@@ -543,6 +543,16 @@
         }
       }
     },
+    "Kind" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "种类"
+          }
+        }
+      }
+    },
     "Last checked %@" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1105,6 +1115,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "智能分组"
+          }
+        }
+      }
+    },
+    "Sort by %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按“%@”排序"
           }
         }
       }

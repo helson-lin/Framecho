@@ -135,9 +135,14 @@ struct CaptureLibraryView: View {
                 }
             }
         } else {
-            CaptureLibraryCollection(sections: model.sections, revision: model.contentRevision, layout: layout,
-                thumbnailScale: thumbnailScale,
-                selection: $model.selection, isBusy: model.isBusy, onAction: model.perform)
+            VStack(spacing: 0) {
+                if layout == .list {
+                    LibraryListHeader(sortOrder: $model.sortOrder)
+                }
+                CaptureLibraryCollection(sections: model.sections, revision: model.contentRevision, layout: layout,
+                    thumbnailScale: thumbnailScale,
+                    selection: $model.selection, isBusy: model.isBusy, onAction: model.perform)
+            }
         }
     }
 
