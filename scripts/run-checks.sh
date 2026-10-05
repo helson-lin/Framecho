@@ -56,4 +56,21 @@ check app-permissions "${strict[@]}" \
 check onboarding-launch "${strict[@]}" \
   Screendrop/OnboardingLaunch.swift scripts/check-onboarding-launch.swift
 
+# The annotation engine without its AppKit drawing and text-editing views.
+engine=(
+  Screendrop/Engine/AnnoEditor.swift Screendrop/Engine/AnnoEditorInteraction.swift
+  Screendrop/Engine/ArrowShared.swift Screendrop/Engine/ArrowTypes.swift Screendrop/Engine/Arrowheads.swift
+  Screendrop/Engine/Box.swift Screendrop/Engine/CurvedArrow.swift Screendrop/Engine/Document.swift
+  Screendrop/Engine/GeoPaths.swift Screendrop/Engine/Geometry2d.swift Screendrop/Engine/InkPath.swift
+  Screendrop/Engine/Intersect.swift Screendrop/Engine/Mat.swift Screendrop/Engine/MathUtils.swift
+  Screendrop/Engine/PathBuilder.swift Screendrop/Engine/PerfectDash.swift Screendrop/Engine/Shape.swift
+  Screendrop/Engine/ShapeRenderer.swift Screendrop/Engine/Shapes2d.swift Screendrop/Engine/StraightArrow.swift
+  Screendrop/Engine/StrokeOptions.swift Screendrop/Engine/StrokeOutline.swift Screendrop/Engine/StrokePipeline.swift
+  Screendrop/Engine/TextMeasure.swift Screendrop/Engine/Theme.swift Screendrop/Engine/Vec.swift
+  Screendrop/AnnotationTool.swift Screendrop/AnnotationSwatch.swift
+)
+
+check annotation-engine -default-isolation MainActor -parse-as-library \
+  "${engine[@]}" scripts/check-annotation-engine.swift
+
 echo "All checks passed."
