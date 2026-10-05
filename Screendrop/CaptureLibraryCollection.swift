@@ -413,43 +413,39 @@ struct LibraryCellContent: View {
     }
 
     /// A Finder-style row: the selection fills with the accent color and
-    /// the text turns white, with columns shared with LibraryListHeader.
+    /// the text turns white. Columns follow LibraryListColumn, so they match
+    /// the header at any width.
     private func listRow(_ item: CaptureLibraryItem) -> some View {
         let secondary: Color = selected ? .white.opacity(0.85) : .secondary
-        return HStack(spacing: LibraryListColumns.spacing) {
-            HStack(spacing: 10) {
-                thumbnail(item).frame(width: 54, height: 34)
-                Text(item.name)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                if item.hasDraft { LibraryDraftBadge(onAccent: selected) }
-                if item.cloudURL != nil {
-                    Image(systemName: "link")
+        return GeometryReader { proxy in
+            let columns = LibraryListColumn.visible(forContentWidth: proxy.size.width - 12)
+            HStack(spacing: LibraryListColumn.spacing) {
+                HStack(spacing: 10) {
+                    thumbnail(item).frame(width: 54, height: 34)
+                    Text(item.name)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    if item.hasDraft { LibraryDraftBadge(onAccent: selected) }
+                    if item.cloudURL != nil {
+                        Image(systemName: "link")
+                            .foregroundStyle(secondary)
+                            .help("Shared to the cloud")
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                ForEach(columns) { column in
+                    Text(column.value(for: item))
                         .foregroundStyle(secondary)
-                        .help("Shared to the cloud")
+                        .frame(width: column.width, alignment: column.alignment)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            Text(item.kindTitle)
-                .foregroundStyle(secondary)
-                .frame(width: LibraryListColumns.kind, alignment: .leading)
-            Text(item.pixelWidth > 0 ? item.dimensions : "—")
-                .foregroundStyle(secondary)
-                .frame(width: LibraryListColumns.dimensions, alignment: .trailing)
-            Text(item.isVideo ? item.durationText : "—")
-                .foregroundStyle(secondary)
-                .frame(width: LibraryListColumns.duration, alignment: .trailing)
-            Text(item.createdAt.formatted(date: .abbreviated, time: .shortened))
-                .foregroundStyle(secondary)
-                .frame(width: LibraryListColumns.created, alignment: .leading)
+            .padding(.horizontal, 6)
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .font(.system(size: 12.5))
         .monospacedDigit()
         .lineLimit(1)
         .foregroundStyle(selected ? Color.white : Color.primary)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 4)
-        .frame(maxHeight: .infinity)
         .background(
             selected ? Color.accentColor : Color.primary.opacity(isHovering ? 0.04 : 0),
             in: RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -534,41 +530,107 @@ struct LibraryDraftBadge: View {
     }
 }
 
-/// Column widths the list rows and their header share.
-enum LibraryListColumns {
+/// The list's optional columns, after Name. They drop out lowest priority
+/// first when the width can't hold them, so neither the header nor a row
+/// ever asks for more width than the window gives it.
+enum LibraryListColumn: CaseIterable, Identifiable {
+    case created, kind, duration, dimensions
+
     static let spacing: CGFloat = 12
-    static let kind: CGFloat = 110
-    static let dimensions: CGFloat = 96
-    static let duration: CGFloat = 56
-    static let created: CGFloat = 150
+    static let minimumNameWidth: CGFloat = 200
     /// Rows sit inside the 16pt section inset plus the row's own padding.
     static let leadingInset: CGFloat = 22
+
+    var id: Self { self }
+
+    var width: CGFloat {
+        switch self {
+        case .created: 150
+        case .kind: 110
+        case .duration: 56
+        case .dimensions: 96
+        }
+    }
+
+    var alignment: Alignment {
+        switch self {
+        case .created, .kind: .leading
+        case .duration, .dimensions: .trailing
+        }
+    }
+
+    var title: LocalizedStringResource {
+        switch self {
+        case .created: "Created"
+        case .kind: "Kind"
+        case .duration: "Duration"
+        case .dimensions: "Dimensions"
+        }
+    }
+
+    func value(for item: CaptureLibraryItem) -> String {
+        switch self {
+        case .created: item.createdAt.formatted(date: .abbreviated, time: .shortened)
+        case .kind: item.kindTitle
+        case .duration: item.isVideo ? item.durationText : "—"
+        case .dimensions: item.pixelWidth > 0 ? item.dimensions : "—"
+        }
+    }
+
+    /// The columns that fit beside a readable name, in display order.
+    static func visible(forContentWidth width: CGFloat) -> [Self] {
+        var remaining = width - minimumNameWidth
+        var fitting: Set<Self> = []
+        for column in allCases where remaining >= column.width + spacing {
+            fitting.insert(column)
+            remaining -= column.width + spacing
+        }
+        return [.kind, .dimensions, .duration, .created].filter(fitting.contains)
+    }
 }
 
 /// Column titles above the list. Name and Created sort when clicked;
 /// clicking Created again flips between newest and oldest first.
 struct LibraryListHeader: View {
     @Binding var sortOrder: CaptureLibrarySort
+    @State private var width: CGFloat = 0
+
+    /// Always-visible scroll bars take width from the rows below but not from
+    /// the header, so the header gives it up too to keep columns aligned.
+    private static var scrollerWidth: CGFloat {
+        NSScroller.preferredScrollerStyle == .legacy
+            ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
+            : 0
+    }
 
     var body: some View {
-        HStack(spacing: LibraryListColumns.spacing) {
+        let columns = LibraryListColumn.visible(
+            forContentWidth: width - 2 * LibraryListColumn.leadingInset - Self.scrollerWidth
+        )
+        HStack(spacing: LibraryListColumn.spacing) {
             column("Name", sort: .name)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Text("Kind")
-                .frame(width: LibraryListColumns.kind, alignment: .leading)
-            Text("Dimensions")
-                .frame(width: LibraryListColumns.dimensions, alignment: .trailing)
-            Text("Duration")
-                .frame(width: LibraryListColumns.duration, alignment: .trailing)
-            column("Created", sort: sortOrder == .newest ? .oldest : .newest, isActive: sortOrder == .newest || sortOrder == .oldest)
-                .frame(width: LibraryListColumns.created, alignment: .leading)
+            ForEach(columns) { item in
+                Group {
+                    if item == .created {
+                        column(item.title, sort: sortOrder == .newest ? .oldest : .newest,
+                               isActive: sortOrder == .newest || sortOrder == .oldest)
+                    } else {
+                        Text(item.title)
+                    }
+                }
+                .frame(width: item.width, alignment: item.alignment)
+            }
         }
         .font(.system(size: 11, weight: .semibold))
         .foregroundStyle(.secondary)
         .lineLimit(1)
-        .padding(.horizontal, LibraryListColumns.leadingInset)
+        .padding(.leading, LibraryListColumn.leadingInset)
+        .padding(.trailing, LibraryListColumn.leadingInset + Self.scrollerWidth)
         .padding(.top, 8)
         .padding(.bottom, 6)
+        .frame(minWidth: 0, maxWidth: .infinity)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .overlay(alignment: .bottom) { Divider().padding(.horizontal, 16) }
     }
 
