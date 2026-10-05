@@ -244,6 +244,13 @@ nonisolated private final class CameraCaptureEngine: NSObject, AVCaptureVideoDat
     private var input: AVCaptureDeviceInput?
     private var output: AVCaptureVideoDataOutput?
     private var activeDevice: AVCaptureDevice?
+    /// What `output` actually delivers. The movie writer is sized from this,
+    /// not from the device format, so it never rescales frames.
+    private var outputDimensions: CMVideoDimensions?
+
+    /// The bubble is at most 45% of the canvas's short side, so 720 lines
+    /// covers it at 1080p export without holding 1080p buffers in memory.
+    private static let maxOutputSize = CGSize(width: 1280, height: 720)
 
     /// Starts the capture session only - no movie is written yet. Frames
     /// reach `captureOutput` immediately (for the live preview layer), but
@@ -254,6 +261,7 @@ nonisolated private final class CameraCaptureEngine: NSObject, AVCaptureVideoDat
             sessionQueue.async { [self] in
                 do {
                     try configureSession(device: device)
+                    configureOutputSize(device: device)
                     activeDevice = device
                     session.startRunning()
                     continuation.resume()
@@ -270,12 +278,11 @@ nonisolated private final class CameraCaptureEngine: NSObject, AVCaptureVideoDat
     func beginWriting(outputURL: URL) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             sessionQueue.async { [self] in
-                guard let activeDevice else {
+                guard activeDevice != nil, let dimensions = outputDimensions else {
                     continuation.resume(throwing: CocoaError(.fileWriteUnknown))
                     return
                 }
                 do {
-                    let dimensions = CMVideoFormatDescriptionGetDimensions(activeDevice.activeFormat.formatDescription)
                     try writer.setup(
                         outputURL: outputURL,
                         width: Int(dimensions.width),
@@ -340,8 +347,10 @@ nonisolated private final class CameraCaptureEngine: NSObject, AVCaptureVideoDat
         self.input = input
 
         let output = AVCaptureVideoDataOutput()
+        // Cameras deliver 4:2:0 natively and HEVC stores it, so BGRA would
+        // only add a conversion on each side of the encoder.
         output.videoSettings = [
-            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
         ]
         output.alwaysDiscardsLateVideoFrames = true
         output.setSampleBufferDelegate(self, queue: videoQueue)
@@ -357,6 +366,34 @@ nonisolated private final class CameraCaptureEngine: NSObject, AVCaptureVideoDat
             connection.automaticallyAdjustsVideoMirroring = false
             connection.isVideoMirrored = true
         }
+    }
+
+    /// The 720p session preset doesn't pin the device format - camera.mov
+    /// still came out 1080p when the writer was sized from `activeFormat` -
+    /// so scale the output explicitly, keeping the device's aspect ratio.
+    /// Runs after the configuration is committed.
+    private func configureOutputSize(device: AVCaptureDevice) {
+        guard let output else { return }
+        let native = CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription)
+        let scale = min(
+            1,
+            Self.maxOutputSize.width / CGFloat(max(native.width, 1)),
+            Self.maxOutputSize.height / CGFloat(max(native.height, 1))
+        )
+        let dimensions = CMVideoDimensions(
+            width: Int32(Self.evenRounded(CGFloat(native.width) * scale)),
+            height: Int32(Self.evenRounded(CGFloat(native.height) * scale))
+        )
+        output.videoSettings = [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+            kCVPixelBufferWidthKey as String: Int(dimensions.width),
+            kCVPixelBufferHeightKey as String: Int(dimensions.height)
+        ]
+        outputDimensions = dimensions
+    }
+
+    private static func evenRounded(_ value: CGFloat) -> Int {
+        max(2, Int((value / 2).rounded()) * 2)
     }
 
     private func stopSession() async {
@@ -383,6 +420,7 @@ nonisolated private final class CameraCaptureEngine: NSObject, AVCaptureVideoDat
         input = nil
         output = nil
         activeDevice = nil
+        outputDimensions = nil
     }
 
     func captureOutput(
@@ -421,7 +459,10 @@ nonisolated private final class CameraMovieWriter: @unchecked Sendable {
             AVVideoHeightKey: height,
             AVVideoCompressionPropertiesKey: [
                 AVVideoAverageBitRateKey: max(6_000_000, width * height * 6),
-                AVVideoExpectedSourceFrameRateKey: 30
+                AVVideoExpectedSourceFrameRateKey: 30,
+                // 4:2:0 frames reach the encoder without a copy, so B-frame
+                // reordering would hold the capture pool's buffers.
+                AVVideoAllowFrameReorderingKey: false
             ] as [String: Any]
         ]
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
