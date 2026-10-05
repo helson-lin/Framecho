@@ -293,16 +293,6 @@
         }
       }
     },
-    "Click a shortcut, then press the new keys. Each needs at least one modifier key." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "点按快捷键，然后按下新的组合键。每个组合至少包含一个修饰键。"
-          }
-        }
-      }
-    },
     "Click to record a new shortcut." : {
       "localizations" : {
         "zh-Hans" : {
@@ -489,16 +479,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "开始使用"
-          }
-        }
-      }
-    },
-    "How screenshots are taken and saved, and what happens after each one." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "截取方式、图像格式，以及截图后自动执行的操作。"
           }
         }
       }
@@ -1169,32 +1149,12 @@
         }
       }
     },
-    "Upload captures to your own Cloudflare Worker and share their links." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "上传到你自己的 Cloudflare Worker，并分享链接。"
-          }
-        }
-      }
-    },
     "Upload quality" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "上传质量"
-          }
-        }
-      }
-    },
-    "Version, updates and project information." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "版本、更新和项目信息。"
           }
         }
       }
@@ -1215,36 +1175,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "欢迎使用 Framecho"
-          }
-        }
-      }
-    },
-    "What happens after a recording and after its export." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "录制结束和导出完成后自动执行的操作。"
-          }
-        }
-      }
-    },
-    "Where captures are saved, what Framecho can access, and how it starts." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "存储位置、系统权限和启动方式。"
-          }
-        }
-      }
-    },
-    "Where the floating preview appears, how large it is, and what it offers." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "截图后浮动预览卡片的位置、大小和操作。"
           }
         }
       }

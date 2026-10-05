@@ -41,19 +41,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         }
     }
 
-    /// One line under the pane title saying what the pane controls.
-    var summary: String {
-        switch self {
-        case .general: String(localized: "Where captures are saved, what Framecho can access, and how it starts.")
-        case .shortcuts: String(localized: "Click a shortcut, then press the new keys. Each needs at least one modifier key.")
-        case .screenshots: String(localized: "How screenshots are taken and saved, and what happens after each one.")
-        case .video: String(localized: "What happens after a recording and after its export.")
-        case .overlay: String(localized: "Where the floating preview appears, how large it is, and what it offers.")
-        case .cloud: String(localized: "Upload captures to your own Cloudflare Worker and share their links.")
-        case .about: String(localized: "Version, updates and project information.")
-        }
-    }
-
     /// The glyph color inside the sidebar's icon tile.
     var tint: Color {
         switch self {
@@ -191,34 +178,8 @@ private struct SettingsDetailView: View {
                 SettingsAboutPane()
             }
         }
-        .safeAreaBarIfAvailable(edge: .top) {
-            SettingsPaneHeader(tab: tab)
-        }
         .navigationTitle(tab.title)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-}
-
-/// The pane's title and summary, centered above its form. The window's own
-/// title stays hidden so the name isn't shown twice.
-private struct SettingsPaneHeader: View {
-    let tab: SettingsTab
-
-    var body: some View {
-        VStack(spacing: 4) {
-            Text(tab.title)
-                .font(.title2.weight(.bold))
-                .accessibilityAddTraits(.isHeader)
-            Text(tab.summary)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 32)
-        .padding(.top, 4)
-        .padding(.bottom, 10)
     }
 }
 

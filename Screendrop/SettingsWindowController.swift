@@ -50,7 +50,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         guard let window else { return }
 
         window.title = String(localized: "Settings")
-        window.titleVisibility = .hidden
+        window.titleVisibility = .visible
         window.titlebarAppearsTransparent = false
         window.toolbarStyle = .automatic
         // AppKit's inferred order-front transition animates the custom
