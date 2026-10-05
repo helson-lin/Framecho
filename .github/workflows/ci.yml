@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+  # Run by hand on any branch, e.g. before a release.
+  workflow_dispatch:
   push:
     branches: [main]
     paths-ignore:
@@ -64,8 +66,16 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
+      # Each check's result is added to the job summary.
       - name: Run scripts/run-checks.sh
         run: scripts/run-checks.sh
+
+      - name: Upload check logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: check-logs
+          path: ${{ runner.temp }}/screendrop-checks/logs
 
   release-tool:
     name: Release tool
