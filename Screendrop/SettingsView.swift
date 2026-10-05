@@ -113,6 +113,7 @@ private struct SettingsSidebarView: View {
         }
         .listStyle(.sidebar)
         .scrollEdgeEffectSoftIfAvailable()
+        .sidebarPanel()
         .navigationTitle("Settings")
     }
 }

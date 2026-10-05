@@ -46,8 +46,9 @@ struct CaptureLibraryView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 20)
-                .padding(.bottom, 8)
+                .padding(.bottom, 16)
             }
+            .sidebarPanel()
         } detail: {
             VStack(spacing: 0) {
                 browser
