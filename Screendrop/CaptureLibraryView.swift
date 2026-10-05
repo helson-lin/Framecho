@@ -55,7 +55,7 @@ struct CaptureLibraryView: View {
             }
             .modifier(LibraryDetailCorners(showsSidebar: columnVisibility != .detailOnly))
             .navigationTitle(activeFilter.title)
-            .navigationSubtitle("Framecho")
+            .navigationSubtitle(captureCountText)
         }
         .navigationSplitViewStyle(.balanced)
         .searchable(text: $model.searchText, placement: .toolbar, prompt: "Search captures")
@@ -162,6 +162,11 @@ struct CaptureLibraryView: View {
         .tag(filter)
     }
 
+    private var captureCountText: String {
+        let count = model.visibleItems.count
+        return count == 1 ? String(localized: "1 capture") : String(localized: "\(count) captures")
+    }
+
     private var trashAlertTitle: String {
         let count = model.pendingTrash.count
         return count == 1
@@ -195,7 +200,7 @@ struct CaptureLibraryView: View {
                 ProgressView().controlSize(.mini)
                 Text(title)
             } else {
-                Text(model.visibleItems.count == 1 ? "1 capture" : "\(model.visibleItems.count) captures")
+                Text(captureCountText)
                 if !model.selection.isEmpty { Text("· \(model.selection.count) selected") }
             }
             Spacer()
@@ -257,25 +262,6 @@ struct CaptureLibraryView: View {
                     .keyboardShortcut("r", modifiers: .command)
             } label: { Label("Sort", systemImage: "arrow.up.arrow.down") }
             .help("Sort captures")
-        }
-        ToolbarItemGroup(placement: .primaryAction) {
-            Button { model.perform(.preview) } label: { Label("Quick Look", systemImage: "eye") }
-                .disabled(model.selection.count != 1 || model.isBusy)
-                .help("Quick Look (Space)")
-            Button { model.perform(.edit) } label: { Label("Edit", systemImage: "slider.horizontal.3") }
-                .disabled(model.selection.count != 1 || model.isBusy)
-                .help("Open in the screenshot or recording editor")
-            Menu {
-                Button("Copy", systemImage: "doc.on.doc") { model.perform(.copy) }
-                Button("Export…", systemImage: "square.and.arrow.up") { model.perform(.export) }
-                Button("Rename…", systemImage: "pencil") { model.perform(.rename) }
-                    .disabled(model.selection.count != 1)
-                Button("Reveal in Finder", systemImage: "folder") { model.perform(.reveal) }
-                Divider()
-                Button("Move to Trash…", systemImage: "trash", role: .destructive) { model.perform(.trash) }
-            } label: { Label("Actions", systemImage: "ellipsis.circle") }
-            .disabled(model.selection.isEmpty || model.isBusy)
-            .help("Capture actions")
         }
         ToolbarItem(placement: .primaryAction) {
             Button { inspectorVisible.toggle() } label: {
