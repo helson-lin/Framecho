@@ -77,6 +77,16 @@
         }
       }
     },
+    "Allow Screen Recording…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允许屏幕录制…"
+          }
+        }
+      }
+    },
     "Allowed" : {
       "localizations" : {
         "zh-Hans" : {

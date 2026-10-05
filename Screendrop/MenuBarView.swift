@@ -17,8 +17,20 @@ struct MenuBarView: View {
     @State private var hotkeyManager = HotkeyManager.shared
     @State private var recorder = ScreenRecordingManager.shared
 
+    @State private var permissionCenter = AppPermissionCenter.shared
+
     var body: some View {
         Group {
+            // Every capture would fail; say so before the capture items.
+            if !permissionCenter.isScreenRecordingGranted {
+                Button {
+                    OnboardingWindowController.show(page: .permissions, reason: .screenRecordingNeeded)
+                } label: {
+                    Label("Allow Screen Recording…", systemImage: "exclamationmark.triangle")
+                }
+                Divider()
+            }
+
             Button {
                 CaptureCoordinator.shared.captureFullscreen()
             } label: {
