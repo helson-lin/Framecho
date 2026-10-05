@@ -255,6 +255,7 @@ final class LibraryCollectionLayout: NSCollectionViewFlowLayout {
 
     override func prepare() {
         let width = max(200, collectionView?.enclosingScrollView?.contentSize.width ?? 800)
+        preparedWidth = collectionView?.bounds.width ?? 0
         minimumInteritemSpacing = 16
         minimumLineSpacing = displayLayout == .grid ? 16 : 2
         if displayLayout == .grid {
@@ -268,8 +269,12 @@ final class LibraryCollectionLayout: NSCollectionViewFlowLayout {
         super.prepare()
     }
 
+    /// AppKit applies the new bounds before asking, so compare against the
+    /// width the current layout was built for, not the collection's bounds.
+    private var preparedWidth: CGFloat = 0
+
     override func shouldInvalidateLayout(forBoundsChange newBounds: NSRect) -> Bool {
-        newBounds.width != collectionView?.bounds.width
+        newBounds.width != preparedWidth
     }
 }
 
