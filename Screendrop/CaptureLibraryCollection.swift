@@ -284,35 +284,48 @@ struct LibraryCellContent: View {
                     }
                 }
                 .padding(6)
-                .background(
-                    Color.primary.opacity(selected ? 0.075 : isHovering ? 0.035 : 0.012),
-                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                )
+                .background(cardFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(
-                            Color.primary.opacity(selected ? (contrast == .increased ? 0.65 : 0.28) : 0.08),
-                            lineWidth: selected ? 1 : 0.5
-                        )
+                        .strokeBorder(cardStroke, lineWidth: selected ? 2 : 0.5)
                 }
                 .onHover { isHovering = $0 }
                 .onChange(of: item.id) { _, _ in isHovering = false }
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: selected)
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovering)
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(item.name), \(item.kindTitle), \(item.subtitle)")
+                .accessibilityLabel(accessibilityLabel(for: item))
                 .accessibilityAddTraits(selected ? [.isSelected] : [])
             } else { Color.clear }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    private func accessibilityLabel(for item: CaptureLibraryItem) -> String {
+        var parts = [item.name, item.kindTitle, item.subtitle]
+        if item.hasDraft { parts.append(String(localized: "Draft")) }
+        if item.cloudURL != nil { parts.append(String(localized: "Shared")) }
+        return parts.joined(separator: ", ")
+    }
+
+    private var cardFill: Color {
+        if selected { return Color.accentColor.opacity(0.14) }
+        return Color.primary.opacity(isHovering ? 0.035 : 0.012)
+    }
+
+    private var cardStroke: Color {
+        if selected { return Color.accentColor.opacity(contrast == .increased ? 1 : 0.85) }
+        return Color.primary.opacity(0.08)
+    }
+
     private func labels(_ item: CaptureLibraryItem) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 5) {
                 Text(item.name).font(.system(size: 13, weight: .medium)).lineLimit(1).truncationMode(.middle)
-                if item.cloudURL != nil { Image(systemName: "link").foregroundStyle(.secondary) }
-                if item.hasDraft { Image(systemName: "circle.fill").font(.system(size: 6)).foregroundStyle(.orange) }
+                if layout == .list {
+                    if item.cloudURL != nil { Image(systemName: "link").foregroundStyle(.secondary) }
+                    if item.hasDraft { LibraryDraftBadge() }
+                }
             }
             Text(item.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
         }
@@ -327,13 +340,50 @@ struct LibraryCellContent: View {
             }
             .overlay(alignment: .bottomTrailing) {
                 if item.isVideo {
-                    Label(item.durationText, systemImage: "play.fill")
-                        .font(.system(size: 10, weight: .medium).monospacedDigit())
-                        .padding(.horizontal, 5).padding(.vertical, 3)
-                        .foregroundStyle(.white)
-                        .background(.black.opacity(0.65), in: Capsule())
-                        .padding(7)
+                    LibraryThumbnailBadge {
+                        Label(item.durationText, systemImage: "play.fill")
+                            .font(.system(size: 10, weight: .medium).monospacedDigit())
+                    }
                 }
             }
+            .overlay(alignment: .topLeading) {
+                if layout == .grid, item.hasDraft {
+                    LibraryThumbnailBadge {
+                        Text("Draft").font(.system(size: 10, weight: .semibold))
+                    }
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                if layout == .grid, item.cloudURL != nil {
+                    LibraryThumbnailBadge {
+                        Image(systemName: "link").font(.system(size: 10, weight: .semibold))
+                    }
+                    .help("Shared to the cloud")
+                }
+            }
+    }
+}
+
+/// A dark capsule over a thumbnail, legible on light and dark captures.
+private struct LibraryThumbnailBadge<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content
+            .padding(.horizontal, 6).padding(.vertical, 3)
+            .foregroundStyle(.white)
+            .background(.black.opacity(0.65), in: Capsule())
+            .padding(7)
+    }
+}
+
+/// Marks a recording with unsaved edits by word, not only by color.
+struct LibraryDraftBadge: View {
+    var body: some View {
+        Text("Draft")
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundStyle(.orange)
+            .padding(.horizontal, 6).padding(.vertical, 1)
+            .background(.orange.opacity(0.14), in: Capsule())
     }
 }

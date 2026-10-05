@@ -1029,6 +1029,16 @@
         }
       }
     },
+    "Shared to the cloud" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已共享到云端"
+          }
+        }
+      }
+    },
     "Show in Finder" : {
       "localizations" : {
         "zh-Hans" : {
