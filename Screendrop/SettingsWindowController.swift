@@ -88,11 +88,19 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             NSApp.activate(ignoringOtherApps: true)
         }
 
-        let shouldAnimate = !window.isVisible
+        let isOpening = !window.isVisible
+        let shouldAnimate = isOpening
             && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         window.alphaValue = shouldAnimate ? 0 : 1
 
         super.showWindow(sender)
+
+        // AppKit focuses the first control when the window becomes key, which
+        // draws a focus ring on the export folder picker before anything was
+        // pressed. Start with the window itself focused; Tab still moves in.
+        if isOpening {
+            DispatchQueue.main.async { window.makeFirstResponder(nil) }
+        }
 
         guard shouldAnimate else { return }
         window.displayIfNeeded()
