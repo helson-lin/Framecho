@@ -19,8 +19,15 @@ struct SettingsAboutPane: View {
         case let (version?, nil):
             return String(localized: "Version \(version)")
         default:
-            return String(localized: "Version 1.0")
+            return String(localized: "Version \(build ?? "—")")
         }
+    }
+
+    private var lastCheckedText: String {
+        guard let date = updaterManager.lastUpdateCheckDate else {
+            return String(localized: "Not checked yet")
+        }
+        return String(localized: "Last checked \(date.formatted(.relative(presentation: .named)))")
     }
 
     var body: some View {
@@ -40,7 +47,7 @@ struct SettingsAboutPane: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
-                        Text("A native screenshot and recording tool for macOS.")
+                        Text("A native, open-source screenshot and recording tool for macOS.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -49,32 +56,36 @@ struct SettingsAboutPane: View {
 
             if UpdaterManager.isEnabled {
                 Section("Updates") {
-                    Toggle(isOn: Binding(
+                    Toggle("Automatically check for updates", isOn: Binding(
                         get: { updaterManager.automaticallyChecksForUpdates },
                         set: { updaterManager.automaticallyChecksForUpdates = $0 }
-                    )) {
-                        Text("Automatically check for updates")
-                    }
+                    ))
 
-                    Button("Check for Updates...") {
-                        updaterManager.checkForUpdates()
+                    LabeledContent {
+                        Button("Check Now") {
+                            updaterManager.checkForUpdates()
+                        }
+                        .disabled(!updaterManager.canCheckForUpdates)
+                    } label: {
+                        SettingsControlLabel(String(localized: "Check for updates"), detail: lastCheckedText)
                     }
-                    .disabled(!updaterManager.canCheckForUpdates)
                 }
             }
 
             Section("Project") {
-                Text("Framecho is a lightweight opensource app for capturing screenshots and screen recordings on macOS.")
-                    .foregroundStyle(.secondary)
+                LabeledContent {
+                    Link("View on GitHub", destination: URL(string: "https://github.com/helson-lin/Screendrop")!)
+                } label: {
+                    SettingsControlLabel(String(localized: "Source code"), detail: "github.com/helson-lin/Screendrop")
+                }
 
-                Link("GitHub", destination: URL(string: "https://github.com/helson-lin/Screendrop")!)
-            }
-
-            Section("Credits") {
-                Text("Based on Screendrop by Fayaz Ahmed")
-                    .foregroundStyle(.secondary)
-
-                Link("Screendrop on GitHub", destination: URL(string: "https://github.com/fayazara/screendrop")!)
+                LabeledContent {
+                    Link(destination: URL(string: "https://github.com/fayazara/screendrop")!) {
+                        Text(verbatim: "Screendrop")
+                    }
+                } label: {
+                    SettingsControlLabel(String(localized: "Credits"), detail: String(localized: "Based on Screendrop by Fayaz Ahmed"))
+                }
             }
         }
         .settingsFormStyle()

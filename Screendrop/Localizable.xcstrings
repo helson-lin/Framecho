@@ -43,6 +43,16 @@
         }
       }
     },
+    "A native, open-source screenshot and recording tool for macOS." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一款原生、开源的 macOS 截图与录屏工具。"
+          }
+        }
+      }
+    },
     "A screen, a window or an area." : {
       "localizations" : {
         "zh-Hans" : {
@@ -249,6 +259,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "修改快捷键"
+          }
+        }
+      }
+    },
+    "Check for updates" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "检查更新"
+          }
+        }
+      }
+    },
+    "Check Now" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "立即检查"
           }
         }
       }
@@ -513,6 +543,16 @@
         }
       }
     },
+    "Last checked %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上次检查：%@"
+          }
+        }
+      }
+    },
     "Later" : {
       "localizations" : {
         "zh-Hans" : {
@@ -569,6 +609,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "截图和录屏都需要此权限。"
+          }
+        }
+      }
+    },
+    "Not checked yet" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未检查"
           }
         }
       }
@@ -985,6 +1035,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "录屏时用摄像头气泡显示你。"
+          }
+        }
+      }
+    },
+    "Source code" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "源代码"
           }
         }
       }
@@ -1650,16 +1710,6 @@
     },
     "200%" : {
 
-    },
-    "A native screenshot and recording tool for macOS." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "一款原生的 macOS 截图与录屏工具。"
-          }
-        }
-      }
     },
     "A preset with this name already exists." : {
       "localizations" : {
@@ -4859,16 +4909,6 @@
         }
       }
     },
-    "Framecho is a lightweight opensource app for capturing screenshots and screen recordings on macOS." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Framecho 是一款轻量的开源应用，用于在 macOS 上截图和录屏。"
-          }
-        }
-      }
-    },
     "Framecho is already recording." : {
       "localizations" : {
         "zh-Hans" : {
@@ -5005,16 +5045,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "通用"
-          }
-        }
-      }
-    },
-    "GitHub" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub"
           }
         }
       }
@@ -8075,16 +8105,6 @@
         }
       }
     },
-    "Screendrop on GitHub" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub 上的 Screendrop"
-          }
-        }
-      }
-    },
     "Screenshot" : {
       "localizations" : {
         "zh-Hans" : {
@@ -10143,16 +10163,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "版本 %1$@（%2$@）"
-          }
-        }
-      }
-    },
-    "Version 1.0" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "版本 1.0"
           }
         }
       }
