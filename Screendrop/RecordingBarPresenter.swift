@@ -26,6 +26,10 @@ final class RecordingBarPresenter {
     }
 
     private(set) var mode: Mode = .picker
+    /// Whether the picker is actually on screen. The hosting view outlives
+    /// `orderOut`, so its own appear/disappear can't tell - and the picker's
+    /// microphone meter must not keep the input open while hidden.
+    private(set) var isPickerVisible = false
 
     /// The bar's frame inside the panel's content view, reported by SwiftUI.
     /// The panel is deliberately much larger than the bar, so this is what
@@ -62,6 +66,7 @@ final class RecordingBarPresenter {
             await RecordingSourceCatalog.shared.refresh()
         }
         mode = .picker
+        isPickerVisible = true
         position(panel, displayID: ActiveDisplayResolver.activeDisplayID(preferPointer: false))
         panel.orderFrontRegardless()
         // Key without activating (the panel is nonactivating): pointer styles
@@ -81,6 +86,7 @@ final class RecordingBarPresenter {
         let panel = panel ?? makePanel()
         PreviewWindowCaptureExclusion.shared.register(window: panel)
         TeleprompterComposerPresenter.shared.hide()
+        isPickerVisible = false
 
         let isMorphing = panel.isVisible && isPositioned(panel, onDisplayID: displayID)
         if isMorphing {
@@ -101,6 +107,7 @@ final class RecordingBarPresenter {
         // bar hides has to be ended by hand - it holds the pointing hand.
         BarControlHoverView.endActiveHover()
         panel?.orderOut(nil)
+        isPickerVisible = false
         // The composer only makes sense floating above the bar.
         TeleprompterComposerPresenter.shared.hide()
         // Next appearance should always start as the picker, and without

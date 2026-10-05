@@ -61,6 +61,12 @@ enum BarMetrics {
     /// Stop and the recording dot. The system red so it stays legible
     /// whichever variant the glass is in.
     static let recordTint = Color(nsColor: .systemRed)
+    /// The microphone's live level, filling its glyph - green as in the
+    /// system's own input meters.
+    static let levelTint = Color(nsColor: .systemGreen)
+    /// An input that's selected but not working. Never the only cue: the
+    /// glyph changes with it.
+    static let warningTint = Color(nsColor: .systemOrange)
 
     /// The puck that appears behind an icon on hover. Faint enough to read as
     /// the pointer resting on a target rather than as a second control state -
@@ -218,15 +224,32 @@ struct BarActionLabel: View {
     let title: String
     let systemImage: String
     var tint: Color = BarMetrics.activeTint
+    /// 0...1 to fill the glyph from the bottom with a live input level - the
+    /// microphone's meter. Nil for every control that isn't metering.
+    var level: Double?
 
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(BarTooltipModel.self) private var tooltip: BarTooltipModel?
     @State private var isHovering = false
     @State private var frame: CGRect = .zero
 
     var body: some View {
-        Image(systemName: systemImage)
-            .font(.system(size: 17, weight: .regular))
+        glyph
+            .overlay {
+                if let level {
+                    glyph
+                        .foregroundStyle(BarMetrics.levelTint)
+                        .mask(alignment: .bottom) {
+                            GeometryReader { proxy in
+                                Rectangle()
+                                    .frame(height: proxy.size.height * level)
+                                    .frame(maxHeight: .infinity, alignment: .bottom)
+                            }
+                        }
+                        .animation(reduceMotion ? nil : .linear(duration: 0.08), value: level)
+                }
+            }
             .foregroundStyle(tint.opacity(isEnabled ? 1 : 0.3))
             .frame(width: BarMetrics.controlSize, height: BarMetrics.controlSize)
             // As a background so the puck never takes part in layout - it's
@@ -270,6 +293,11 @@ struct BarActionLabel: View {
                 // that never leaves the bar, so no exit event is coming.
                 tooltip?.endHover(id: id)
             }
+    }
+
+    private var glyph: some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 17, weight: .regular))
     }
 
     private func setHovering(_ hovering: Bool) {
