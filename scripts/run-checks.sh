@@ -78,4 +78,7 @@ check annotation-document -default-isolation MainActor -parse-as-library \
   Screendrop/AnnotationPresetStore.swift Screendrop/AnnotationShadowStyle.swift Screendrop/AnnotationMetrics.swift \
   scripts/check-annotation-document.swift
 
+check history-metadata "${strict[@]}" \
+  Screendrop/ScreenshotHistoryItem.swift scripts/check-history-metadata.swift
+
 echo "All checks passed."
