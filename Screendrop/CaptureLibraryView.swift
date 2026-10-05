@@ -10,6 +10,7 @@ struct CaptureLibraryView: View {
     @AppStorage("captureLibrary.inspectorVisible") private var inspectorVisible = true
     @AppStorage("captureLibrary.sort") private var savedSort: CaptureLibrarySort = .newest
     @AppStorage("captureLibrary.thumbnailScale") private var thumbnailScale = 0.3
+    @State private var searchFocusRequest = 0
 
     private var activeFilter: CaptureLibraryFilter { model.filter ?? .all }
 
@@ -54,10 +55,15 @@ struct CaptureLibraryView: View {
                 statusBar
             }
             .navigationTitle(activeFilter.title)
-            .navigationSubtitle(captureCountText)
+            .toolbar(removing: .title)
+            .background {
+                // ⌘F, which `.searchable` used to provide.
+                Button("Find") { searchFocusRequest += 1 }
+                    .keyboardShortcut("f", modifiers: .command)
+                    .hidden()
+            }
         }
         .navigationSplitViewStyle(.balanced)
-        .searchable(text: $model.searchText, placement: .toolbar, prompt: "Search captures")
         .inspector(isPresented: $inspectorVisible) {
             CaptureLibraryInspector(model: model)
                 .inspectorColumnWidth(min: 240, ideal: 280, max: 360)
@@ -262,16 +268,26 @@ struct CaptureLibraryView: View {
     }
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        // The window title is hidden; the filter and its count read as one
+        // line at the leading edge.
+        ToolbarItem(placement: .navigation) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(activeFilter.title)
+                    .font(.title3.weight(.bold))
+                Text(captureCountText)
+                    .font(.callout)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 8)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+        }
+        .sharedBackgroundVisibility(.hidden)
+
         ToolbarItem(placement: .primaryAction) {
-            Menu {
-                Button("Capture Fullscreen", systemImage: "macwindow") { CaptureCoordinator.shared.captureFullscreen() }
-                Button("Capture Window", systemImage: "macwindow.on.rectangle") { CaptureCoordinator.shared.captureWindow() }
-                Button("Capture Area", systemImage: "rectangle.dashed") { CaptureCoordinator.shared.captureArea() }
-                Divider()
-                Button("Record Screen", systemImage: "record.circle") { RecordingPickerPresenter.shared.show() }
-                    .disabled(ScreenRecordingManager.shared.isActive)
-            } label: { Label("New Capture", systemImage: "plus") }
-            .help("New capture")
+            LibrarySearchField(text: $model.searchText, focusRequest: searchFocusRequest)
+                .frame(width: 190)
         }
         ToolbarItem(placement: .primaryAction) {
             Picker("View", selection: $layout) {
@@ -290,9 +306,43 @@ struct CaptureLibraryView: View {
                 Divider()
                 Button("Refresh", systemImage: "arrow.clockwise") { model.refresh() }
                     .keyboardShortcut("r", modifiers: .command)
-            } label: { Label("Sort", systemImage: "arrow.up.arrow.down") }
+            } label: {
+                Text(model.sortOrder.title)
+            }
             .help("Sort captures")
         }
+        ToolbarItem(placement: .primaryAction) {
+            Menu {
+                Button("Capture Fullscreen", systemImage: "macwindow") { CaptureCoordinator.shared.captureFullscreen() }
+                Button("Capture Window", systemImage: "macwindow.on.rectangle") { CaptureCoordinator.shared.captureWindow() }
+                Button("Capture Area", systemImage: "rectangle.dashed") { CaptureCoordinator.shared.captureArea() }
+                Divider()
+                Button("Record Screen", systemImage: "record.circle") { RecordingPickerPresenter.shared.show() }
+                    .disabled(ScreenRecordingManager.shared.isActive)
+            } label: {
+                // Toolbar items ignore prominent button styles, so the
+                // primary action draws its own accent capsule.
+                HStack(spacing: 5) {
+                    Image(systemName: "plus")
+                    Text("New Capture")
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .bold))
+                }
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .frame(height: 30)
+                .background(Color.accentColor, in: Capsule())
+                .contentShape(Capsule())
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("New capture")
+            .accessibilityLabel("New Capture")
+        }
+        .sharedBackgroundVisibility(.hidden)
         ToolbarItem(placement: .primaryAction) {
             Button { inspectorVisible.toggle() } label: {
                 Label(inspectorVisible ? "Hide Inspector" : "Show Inspector", systemImage: "sidebar.right")

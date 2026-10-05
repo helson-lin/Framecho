@@ -493,6 +493,16 @@
         }
       }
     },
+    "Find" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查找"
+          }
+        }
+      }
+    },
     "Framecho can't capture the screen until Screen Recording is allowed. Turn it on, then try again." : {
       "localizations" : {
         "zh-Hans" : {
