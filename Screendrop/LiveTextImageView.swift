@@ -146,7 +146,11 @@ final class LiveTextImageContainer: NSView {
         return self
     }
 
-    override var mouseDownCanMoveWindow: Bool { true }
+    /// Dragging moves the window. Asked for explicitly: the SwiftUI views
+    /// hosting this one don't let the window's background drag through.
+    override func mouseDown(with event: NSEvent) {
+        window?.performDrag(with: event)
+    }
 
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = NSMenu()

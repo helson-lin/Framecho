@@ -156,7 +156,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Library. Login/service launches keep the existing quiet menu-bar mode.
         DispatchQueue.main.async { [weak self] in
             guard let self, !launchedInBackground, !self.openedFilesAtLaunch else { return }
-            CaptureLibraryModel.shared.show()
+            // The first launch opens the setup guide; the Library follows it.
+            if !OnboardingWindowController.showIfNeeded() {
+                CaptureLibraryModel.shared.show()
+            }
         }
     }
 
@@ -172,6 +175,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Finder, Spotlight and the Dock all reopen the same Library window.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        // The guide covers the screen; the Library would open behind it.
+        guard !OnboardingWindowController.isShowingGuide else { return false }
         CaptureLibraryModel.shared.show()
         return false
     }

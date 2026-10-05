@@ -12,76 +12,40 @@ import SwiftUI
 final class PinnedScreenshotPresenter {
     static let shared = PinnedScreenshotPresenter()
 
-    private var panels: Set<NSPanel> = []
+    private var pins: [PinnedScreenshotController] = []
 
     private init() {}
 
     func pin(url: URL) {
-        guard let image = ScreenshotImageLoader.downsampledImage(at: url, maxPixelSize: 1600) else {
+        guard let controller = PinnedScreenshotController(url: url) else { return }
+        controller.onClose = { [weak self, weak controller] in
+            self?.pins.removeAll { $0 === controller }
+        }
+        controller.show(at: cascadedOrigin(for: controller.panel.frame.size))
+        pins.append(controller)
+        // Selected straight away, so its keys work without a click first.
+        controller.panel.makeKey()
+    }
+
+    /// Pins the newest screenshot in History, the one just taken.
+    func pinLatestScreenshot() {
+        guard let item = ScreenshotHistoryStore.shared.items.first(where: { !$0.isVideo }) else {
+            NSSound.beep()
             return
         }
-
-        let contentSize = displaySize(forPixelSize: image.size)
-        let panel = PinnedPanel(
-            contentRect: NSRect(origin: .zero, size: contentSize),
-            styleMask: [.borderless, .resizable, .nonactivatingPanel, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
-        )
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.hasShadow = true
-        panel.level = .floating
-        panel.isFloatingPanel = true
-        panel.isMovableByWindowBackground = true
-        panel.isReleasedWhenClosed = false
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.contentAspectRatio = contentSize
-        panel.minSize = NSSize(width: 80, height: 80)
-
-        panel.contentView = NSHostingView(
-            rootView: PinnedScreenshotView(
-                image: image,
-                url: url,
-                onClose: { [weak self, weak panel] in
-                    guard let panel else { return }
-                    self?.close(panel)
-                }
-            )
-        )
-
-        panel.setFrameOrigin(cascadedOrigin(for: contentSize))
-        panel.orderFrontRegardless()
-        panels.insert(panel)
+        pin(url: item.url)
     }
 
-    private func close(_ panel: NSPanel) {
-        panel.orderOut(nil)
-        panel.contentView = nil
-        panels.remove(panel)
-    }
-
-    /// Convert pixel dimensions to a sensible point size for the pinned window,
-    /// scaled for the display and clamped so pins stay handy but readable.
-    private func displaySize(forPixelSize pixelSize: CGSize) -> NSSize {
-        let scale = NSScreen.main?.backingScaleFactor ?? 2
-        var width = pixelSize.width / scale
-        var height = pixelSize.height / scale
-        guard width > 0, height > 0 else { return NSSize(width: 320, height: 240) }
-
-        let longest = max(width, height)
-        let maxLongest: CGFloat = 560
-        let minLongest: CGFloat = 160
-        let target = min(max(longest, minLongest), maxLongest)
-        let factor = target / longest
-        width *= factor
-        height *= factor
-        return NSSize(width: width.rounded(), height: height.rounded())
+    /// Picks up annotations saved to `url`, wherever they were made.
+    func reloadPins(showing url: URL) {
+        for controller in pins where controller.pin.url == url {
+            controller.reloadImage(from: url)
+        }
     }
 
     private func cascadedOrigin(for size: NSSize) -> CGPoint {
         let visible = NSScreen.main?.visibleFrame ?? CGRect(x: 100, y: 100, width: 800, height: 600)
-        let offset = CGFloat(panels.count % 8) * 28
+        let offset = CGFloat(pins.count % 8) * 28
         return CGPoint(
             x: visible.midX - size.width / 2 + offset,
             y: visible.midY - size.height / 2 - offset
@@ -89,9 +53,530 @@ final class PinnedScreenshotPresenter {
     }
 }
 
-private final class PinnedPanel: NSPanel {
+// MARK: - Pin state
+
+enum PinnedScreenshotFeedback: Equatable {
+    /// Percent of the image's actual size.
+    case zoom(Int)
+    case opacity(Int)
+}
+
+/// What a pin's image view and its toolbar both show.
+@MainActor
+@Observable
+final class PinnedScreenshot {
+    fileprivate(set) var url: URL
+    private(set) var image: NSImage
+    /// Bumped when `image` is replaced, so Live Text analyses the new pixels.
+    private(set) var imageRevision = 0
+    /// The pin is the key window: its toolbar is up and keys act on it.
+    fileprivate(set) var isSelected = false
+    var isLiveTextActive = false
+    var hasText = false
+    fileprivate(set) var didCopy = false
+    /// Shown briefly after a zoom or a change of opacity.
+    fileprivate(set) var feedback: PinnedScreenshotFeedback?
+    /// Mirrors the window's alpha, for the toolbar's opacity menu.
+    fileprivate(set) var opacity: CGFloat = 1
+    /// Present while annotating in place.
+    fileprivate(set) var editor: AnnotationEditorModel?
+
+    init(url: URL, image: NSImage) {
+        self.url = url
+        self.image = image
+    }
+
+    fileprivate func replaceImage(_ image: NSImage, url: URL) {
+        self.image = image
+        self.url = url
+        hasText = false
+        imageRevision &+= 1
+    }
+}
+
+// MARK: - Pin window
+
+/// One pin: the image window, the toolbar that follows it, and its keys.
+@MainActor
+final class PinnedScreenshotController: NSObject, NSWindowDelegate {
+    let pin: PinnedScreenshot
+    let panel: PinnedPanel
+    var onClose: (() -> Void)?
+
+    private let toolbarPanel = PinnedToolbarPanel()
+    private var pixelSize: CGSize
+    private var keyMonitor: Any?
+    private var copyFeedbackTask: Task<Void, Never>?
+    private var feedbackTask: Task<Void, Never>?
+
+    private static let previewPixelSize: CGFloat = 1600
+    private static let toolbarGap: CGFloat = 8
+
+    init?(url: URL) {
+        guard let image = ScreenshotImageLoader.downsampledImage(at: url, maxPixelSize: Self.previewPixelSize) else {
+            return nil
+        }
+        pixelSize = ScreenshotImageLoader.imageSize(at: url) ?? image.size
+        pin = PinnedScreenshot(url: url, image: image)
+
+        let contentSize = PinnedScreenshotGeometry.displaySize(
+            forPixelSize: pixelSize,
+            backingScale: NSScreen.main?.backingScaleFactor ?? 2
+        )
+        panel = PinnedPanel(contentRect: NSRect(origin: .zero, size: contentSize))
+        panel.contentAspectRatio = contentSize
+        super.init()
+
+        panel.delegate = self
+        panel.onZoom = { [weak self] factor, anchor in
+            self?.zoom(by: factor, around: anchor, animated: false)
+        }
+        panel.onFade = { [weak self] delta in
+            guard let self else { return }
+            self.setOpacity(self.panel.alphaValue + delta)
+        }
+        panel.contentView = NSHostingView(rootView: PinnedScreenshotView(pin: pin, controller: self))
+        toolbarPanel.setContent(PinnedScreenshotToolbar(pin: pin, controller: self)) { [weak self] in
+            self?.layoutToolbar()
+        }
+        installKeyMonitor()
+    }
+
+    func show(at origin: CGPoint) {
+        panel.setFrameOrigin(origin)
+        panel.orderFrontRegardless()
+    }
+
+    func close() {
+        if let keyMonitor {
+            NSEvent.removeMonitor(keyMonitor)
+            self.keyMonitor = nil
+        }
+        copyFeedbackTask?.cancel()
+        feedbackTask?.cancel()
+        pin.editor?.releaseEditorResources()
+        pin.editor = nil
+        setToolbarVisible(false)
+        panel.orderOut(nil)
+        // Views hold the controller; dropping them breaks the cycle.
+        panel.contentView = nil
+        toolbarPanel.contentView = nil
+        onClose?()
+    }
+
+    // MARK: Actions
+
+    var menuEntries: [LiveTextMenuEntry] {
+        [
+            .action(String(localized: "Annotate"), { [weak self] in self?.beginAnnotating() }),
+            .action(String(localized: "Open in Editor"), { [weak self] in self?.openInEditor() }),
+            .separator,
+            .action(String(localized: "Copy"), { [weak self] in self?.copyImage() }),
+            .action(String(localized: "Copy Text from Image"), { [weak self] in self?.copyText() }),
+            .action(String(localized: "Save…"), { [weak self] in self?.save() }),
+            .separator,
+            .action(String(localized: "Zoom In (⌘+)"), { [weak self] in self?.zoom(by: Self.zoomStep) }),
+            .action(String(localized: "Zoom Out (⌘−)"), { [weak self] in self?.zoom(by: 1 / Self.zoomStep) }),
+            .action(String(localized: "Actual Size (⌘0)"), { [weak self] in self?.zoomToActualSize() }),
+            .separator,
+            .action(String(localized: "Close Pin"), { [weak self] in self?.close() }),
+        ]
+    }
+
+    func copyImage() {
+        do {
+            try ScreenshotFileActions.copyPNGToClipboard(from: pin.url)
+            showCopyFeedback()
+        } catch {
+            print("Failed to copy pinned screenshot: \(error)")
+        }
+    }
+
+    func copyText() {
+        let url = pin.url
+        Task {
+            await CaptureCoordinator.shared.copyRecognizedText(at: url, from: .image)
+        }
+    }
+
+    func save() {
+        let url = pin.url
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [ScreenshotFileActions.exportContentType]
+        savePanel.nameFieldStringValue = ScreenshotFileActions.exportFileName(for: url)
+        savePanel.canCreateDirectories = true
+        savePanel.title = String(localized: "Save Screenshot")
+        savePanel.begin { response in
+            guard response == .OK, let destURL = savePanel.url else { return }
+            do {
+                try ScreenshotFileActions.save(from: url, to: destURL)
+            } catch {
+                print("Failed to save pinned screenshot: \(error)")
+            }
+        }
+    }
+
+    func toggleLiveText() {
+        pin.isLiveTextActive.toggle()
+        updateToolbarVisibility()
+    }
+
+    func openInEditor() {
+        PreviewPanelPresenter.shared.onAnnotate?(pin.url)
+    }
+
+    private func showCopyFeedback() {
+        withAnimation { pin.didCopy = true }
+        copyFeedbackTask?.cancel()
+        copyFeedbackTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1.5))
+            guard !Task.isCancelled else { return }
+            withAnimation { self?.pin.didCopy = false }
+        }
+    }
+
+    // MARK: Annotating
+
+    /// Swaps the image for the annotation canvas, editing the same document
+    /// the full editor uses, so either can pick up where the other left off.
+    func beginAnnotating(with tool: AnnotationTool? = nil) {
+        if let editor = pin.editor {
+            if let tool { editor.selectTool(tool) }
+            return
+        }
+        let editor = AnnotationEditorModel()
+        editor.load(url: pin.url, appliesBackgroundPreset: false)
+        guard editor.previewImage != nil, editor.imageSize != .zero else {
+            editor.releaseEditorResources()
+            NSSound.beep()
+            return
+        }
+        if let tool { editor.selectTool(tool) }
+
+        pin.isLiveTextActive = false
+        pin.editor = editor
+        panel.makeKey()
+        updateToolbarVisibility()
+    }
+
+    /// Saves the annotations into the screenshot and goes back to viewing.
+    func finishAnnotating() {
+        guard let editor = pin.editor, !editor.isCommitting else { return }
+        editor.commitTextEditing()
+        guard editor.hasUnsavedChanges else {
+            endAnnotating()
+            return
+        }
+
+        let originalURL = pin.url
+        Task {
+            do {
+                if let resultURL = try await editor.commitEdits() {
+                    pin.url = resultURL
+                    // Updating a preview card reloads the pins too.
+                    if ScreenshotPreviewStack.shared.items.contains(where: { $0.url == originalURL }) {
+                        _ = ScreenshotPreviewStack.shared.applyAnnotation(
+                            originalURL: originalURL,
+                            historyURL: resultURL
+                        )
+                    } else {
+                        PinnedScreenshotPresenter.shared.reloadPins(showing: resultURL)
+                    }
+                }
+                endAnnotating()
+            } catch {
+                FailureAlert.present(message: String(localized: "Failed to save annotation"), error: error)
+            }
+        }
+    }
+
+    func discardAnnotating() {
+        guard let editor = pin.editor, !editor.isCommitting else { return }
+        if editor.hasUnsavedChanges {
+            NSApp.activate(ignoringOtherApps: true)
+            let alert = NSAlert()
+            alert.messageText = String(localized: "Discard your annotations?")
+            alert.informativeText = String(localized: "The pinned screenshot stays as it was.")
+            alert.addButton(withTitle: String(localized: "Discard"))
+            alert.addButton(withTitle: String(localized: "Keep Editing"))
+            alert.buttons.first?.hasDestructiveAction = true
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+        }
+        endAnnotating()
+    }
+
+    func copyAnnotatedImage() {
+        guard let editor = pin.editor else { return }
+        Task {
+            do {
+                let url = try await editor.renderCurrentImage()
+                defer { try? FileManager.default.removeItem(at: url) }
+                try ScreenshotFileActions.copyPNGToClipboard(from: url)
+            } catch {
+                FailureAlert.present(message: String(localized: "Failed to copy image"), error: error)
+            }
+        }
+    }
+
+    private func endAnnotating() {
+        pin.editor?.releaseEditorResources()
+        pin.editor = nil
+        updateToolbarVisibility()
+    }
+
+    func reloadImage(from url: URL) {
+        guard let image = ScreenshotImageLoader.downsampledImage(at: url, maxPixelSize: Self.previewPixelSize) else {
+            return
+        }
+        pixelSize = ScreenshotImageLoader.imageSize(at: url) ?? image.size
+        pin.replaceImage(image, url: url)
+
+        // Keep the width and top edge; follow the new aspect ratio, which a
+        // background added in the editor can change.
+        let frame = panel.frame
+        let height = (frame.width * pixelSize.height / max(pixelSize.width, 1)).rounded()
+        let size = NSSize(width: frame.width, height: height)
+        panel.contentAspectRatio = size
+        if abs(height - frame.height) >= 1 {
+            panel.setFrame(NSRect(x: frame.minX, y: frame.maxY - height, width: size.width, height: height), display: true)
+        }
+    }
+
+    // MARK: Size and position
+
+    func nudge(dx: CGFloat, dy: CGFloat) {
+        var origin = panel.frame.origin
+        origin.x += dx
+        origin.y += dy
+        panel.setFrameOrigin(origin)
+    }
+
+    static let zoomStep: CGFloat = 1.25
+
+    /// - Parameter anchor: A screen point that stays put, such as the
+    ///   pointer during a pinch. Defaults to the pin's center.
+    func zoom(by factor: CGFloat, around anchor: CGPoint? = nil, animated: Bool = true) {
+        let frame = panel.frame
+        resize(to: NSSize(width: frame.width * factor, height: frame.height * factor), around: anchor, animated: animated)
+    }
+
+    /// One image pixel per screen pixel, as far as the screen allows.
+    func zoomToActualSize() {
+        resize(to: actualSize, around: nil, animated: true)
+    }
+
+    private var actualSize: NSSize {
+        let scale = panel.screen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+        return NSSize(width: pixelSize.width / scale, height: pixelSize.height / scale)
+    }
+
+    private func resize(to proposed: NSSize, around anchor: CGPoint?, animated: Bool) {
+        let frame = panel.frame
+        let visibleFrame = (panel.screen ?? NSScreen.main)?.visibleFrame ?? CGRect(origin: .zero, size: proposed)
+        guard let target = PinnedScreenshotGeometry.resizedFrame(
+            frame, to: proposed, around: anchor, minSize: panel.minSize, visibleFrame: visibleFrame
+        ) else { return }
+        if target != frame {
+            let animate = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            panel.setFrame(target, display: true, animate: animate)
+        }
+        if let percent = PinnedScreenshotGeometry.zoomPercent(width: target.width, actualWidth: actualSize.width) {
+            showFeedback(.zoom(percent))
+        }
+    }
+
+    // MARK: Opacity
+
+    static let opacityStep: CGFloat = 0.1
+
+    /// Fades the pin, never so far that it can't be found again.
+    func setOpacity(_ opacity: CGFloat) {
+        let opacity = PinnedScreenshotGeometry.clampedOpacity(opacity)
+        panel.alphaValue = opacity
+        pin.opacity = opacity
+        showFeedback(.opacity(Int((opacity * 100).rounded())))
+    }
+
+    private func showFeedback(_ feedback: PinnedScreenshotFeedback) {
+        pin.feedback = feedback
+        feedbackTask?.cancel()
+        feedbackTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1.2))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.2)) { self?.pin.feedback = nil }
+        }
+    }
+
+    // MARK: Toolbar
+
+    /// The toolbar is up while the pin is selected, and stays up while a mode
+    /// that needs it is on, so the way back out is always visible.
+    private func updateToolbarVisibility() {
+        setToolbarVisible(pin.isSelected || pin.editor != nil || pin.isLiveTextActive)
+    }
+
+    private func setToolbarVisible(_ visible: Bool) {
+        if visible {
+            guard toolbarPanel.parent == nil else { return }
+            layoutToolbar()
+            toolbarPanel.alphaValue = 0
+            panel.addChildWindow(toolbarPanel, ordered: .above)
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.12
+                toolbarPanel.animator().alphaValue = 1
+            }
+        } else {
+            guard toolbarPanel.parent != nil else { return }
+            panel.removeChildWindow(toolbarPanel)
+            toolbarPanel.orderOut(nil)
+        }
+    }
+
+    /// Below the pin's right edge, where it covers none of the image; above
+    /// it when the pin sits at the bottom of the screen.
+    private func layoutToolbar() {
+        let size = toolbarPanel.fittingSize
+        guard size.width > 0, size.height > 0 else { return }
+        let pinFrame = panel.frame
+        let visibleFrame = (panel.screen ?? NSScreen.main)?.visibleFrame ?? pinFrame
+        toolbarPanel.setFrame(
+            PinnedScreenshotGeometry.toolbarFrame(size: size, pinFrame: pinFrame, visibleFrame: visibleFrame, gap: Self.toolbarGap),
+            display: true
+        )
+    }
+
+    // MARK: NSWindowDelegate
+
+    func windowDidBecomeKey(_ notification: Notification) {
+        withAnimation(.easeOut(duration: 0.15)) { pin.isSelected = true }
+        updateToolbarVisibility()
+    }
+
+    func windowDidResignKey(_ notification: Notification) {
+        withAnimation(.easeOut(duration: 0.15)) { pin.isSelected = false }
+        updateToolbarVisibility()
+    }
+
+    func windowDidResize(_ notification: Notification) {
+        if toolbarPanel.parent != nil { layoutToolbar() }
+    }
+
+    func windowDidMove(_ notification: Notification) {
+        if toolbarPanel.parent != nil { layoutToolbar() }
+    }
+
+    // MARK: Keys
+
+    /// Keys act on the selected pin only. While annotating, the canvas's own
+    /// key handler takes everything but Escape.
+    private func installKeyMonitor() {
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, self.panel.isKeyWindow else { return event }
+            return self.handleKey(event) ? nil : event
+        }
+    }
+
+    private func handleKey(_ event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
+        let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
+
+        if pin.editor != nil {
+            guard event.keyCode == 53, !(panel.firstResponder is NSTextView) else { return false }
+            finishAnnotating()
+            return true
+        }
+
+        switch (modifiers, event.keyCode, key) {
+        case ([], 53, _):
+            // Escape leaves Live Text first, then closes.
+            if pin.isLiveTextActive {
+                pin.isLiveTextActive = false
+                updateToolbarVisibility()
+            } else {
+                close()
+            }
+        case (.command, _, "w"):
+            close()
+        case (.command, _, "c"):
+            // Live Text copies its own selection.
+            guard !pin.isLiveTextActive else { return false }
+            copyImage()
+        case ([.command, .shift], _, "c"):
+            copyText()
+        case (.command, _, "s"):
+            save()
+        // By key code, so they work whatever the keyboard layout types, and
+        // with or without Command since a pin has no text to type into.
+        case (_, 24, _) where modifiers.subtracting([.command, .shift]).isEmpty,
+             (_, 69, _) where modifiers.subtracting(.command).isEmpty:
+            zoom(by: Self.zoomStep)   // = / +, keypad +
+        case (_, 27, _) where modifiers.subtracting(.command).isEmpty,
+             (_, 78, _) where modifiers.subtracting(.command).isEmpty:
+            zoom(by: 1 / Self.zoomStep)   // -, keypad -
+        case (_, 29, _) where modifiers.subtracting(.command).isEmpty,
+             (_, 82, _) where modifiers.subtracting(.command).isEmpty:
+            zoomToActualSize()   // 0, keypad 0
+        case ([], 123, _), ([.shift], 123, _):
+            nudge(dx: modifiers.contains(.shift) ? -10 : -1, dy: 0)
+        case ([], 124, _), ([.shift], 124, _):
+            nudge(dx: modifiers.contains(.shift) ? 10 : 1, dy: 0)
+        case ([], 125, _), ([.shift], 125, _):
+            nudge(dx: 0, dy: modifiers.contains(.shift) ? -10 : -1)
+        case ([], 126, _), ([.shift], 126, _):
+            nudge(dx: 0, dy: modifiers.contains(.shift) ? 10 : 1)
+        case ([], 33, _):   // [
+            setOpacity(panel.alphaValue - Self.opacityStep)
+        case ([], 30, _):   // ]
+            setOpacity(panel.alphaValue + Self.opacityStep)
+        case ([], _, "e"):
+            beginAnnotating()
+        default:
+            // A tool's key starts annotating with that tool.
+            guard !pin.isLiveTextActive,
+                  modifiers.subtracting(.shift).isEmpty,
+                  key.count == 1,
+                  let tool = AnnotationTool.forShortcut(key: key, shift: modifiers.contains(.shift)) else {
+                return false
+            }
+            beginAnnotating(with: tool)
+        }
+        return true
+    }
+}
+
+// MARK: - Panels
+
+final class PinnedPanel: NSPanel {
+    init(contentRect: NSRect) {
+        super.init(
+            contentRect: contentRect,
+            styleMask: [.borderless, .resizable, .nonactivatingPanel, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        isOpaque = false
+        backgroundColor = .clear
+        hasShadow = true
+        level = .floating
+        isFloatingPanel = true
+        isReleasedWhenClosed = false
+        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        minSize = NSSize(width: 80, height: 80)
+    }
+
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+
+    /// Zoom by a factor around a screen point.
+    var onZoom: ((CGFloat, CGPoint) -> Void)?
+    /// Change opacity by a delta.
+    var onFade: ((CGFloat) -> Void)?
+
+    /// Pinch to zoom around the pointer. While annotating, the canvas takes
+    /// the pinch and zooms inside the pin instead.
+    override func magnify(with event: NSEvent) {
+        onZoom?(1 + event.magnification, NSEvent.mouseLocation)
+    }
 
     /// Scroll over a pin to fade it in/out. Handled at the window level so it
     /// only fires when the cursor is over the pin, and applied via
@@ -100,6 +585,16 @@ private final class PinnedPanel: NSPanel {
     override func scrollWheel(with event: NSEvent) {
         // Ignore momentum coasting so a flick doesn't keep fading after release.
         guard event.momentumPhase.isEmpty else { return }
+
+        // Command-scroll zooms around the pointer, like Command-plus and
+        // minus; a plain scroll fades.
+        if event.modifierFlags.contains(.command) {
+            let delta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.scrollingDeltaY * 40
+            let physicalUp = event.isDirectionInvertedFromDevice ? -delta : delta
+            guard physicalUp != 0 else { return }
+            onZoom?(exp(physicalUp * 0.004), NSEvent.mouseLocation)
+            return
+        }
 
         // Trackpads report pixel deltas; discrete wheels report lines, which
         // Apple docs say to scale by a line height for parity.
@@ -117,142 +612,50 @@ private final class PinnedPanel: NSPanel {
         let physicalUp = event.isDirectionInvertedFromDevice ? -points : points
 
         let sensitivity: CGFloat = 0.002
-        alphaValue = min(1, max(0.2, alphaValue + physicalUp * sensitivity))
+        onFade?(physicalUp * sensitivity)
     }
 }
 
-private struct PinnedScreenshotView: View {
-    let image: NSImage
-    let url: URL
-    let onClose: () -> Void
-
-    @State private var isHovered = false
-    @State private var didCopy = false
-    @State private var hasText = false
-    @State private var isLiveTextActive = false
-
-    var body: some View {
-        LiveTextImageView(
-            image: image,
-            url: url,
-            cornerRadius: 10,
-            isLiveTextActive: isLiveTextActive,
-            menuEntries: [
-                .action(String(localized: "Copy"), copy),
-                .action(String(localized: "Copy Text from Image"), copyText),
-                .action(String(localized: "Save…"), save),
-                .separator,
-                .action(String(localized: "Close Pin"), onClose),
-            ],
-            onAnalysisFinished: { hasText = $0 }
+/// The toolbar never takes key, so clicking it leaves the pin selected and
+/// the pin's keys working.
+private final class PinnedToolbarPanel: NSPanel {
+    init() {
+        super.init(
+            contentRect: .zero,
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: true
         )
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(.white.opacity(0.25), lineWidth: 1)
-                .allowsHitTesting(false)
-        }
-        .overlay(alignment: .top) {
-            // Stays up while Live Text is on, so the way back out is visible.
-            if isHovered || isLiveTextActive {
-                toolbar
-                    .padding(8)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-        .onHover { hovering in
-            withAnimation(.easeOut(duration: 0.15)) {
-                isHovered = hovering
-            }
-        }
+        isOpaque = false
+        backgroundColor = .clear
+        hasShadow = false
+        isReleasedWhenClosed = false
+        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
     }
 
-    private var toolbar: some View {
-        HStack(spacing: 6) {
-            toolbarButton(systemImage: "xmark", help: String(localized: "Close pin"), action: onClose)
+    override var canBecomeKey: Bool { false }
+    override var canBecomeMain: Bool { false }
 
-            Spacer(minLength: 0)
+    var fittingSize: NSSize { contentView?.fittingSize ?? .zero }
 
-            if hasText {
-                liveTextButton
-            }
-            toolbarButton(
-                systemImage: didCopy ? "checkmark" : "doc.on.doc",
-                help: String(localized: "Copy to clipboard"),
-                action: copy
-            )
-            toolbarButton(systemImage: "square.and.arrow.down", help: String(localized: "Save…"), action: save)
-        }
-        .padding(.horizontal, 8)
-        .frame(height: 30)
-        .background(.ultraThinMaterial, in: Capsule())
-        .environment(\.colorScheme, .dark)
+    func setContent(_ view: some View, onSizeChange: @escaping () -> Void) {
+        let host = PinnedToolbarHostingView(rootView: AnyView(view))
+        host.sizingOptions = [.intrinsicContentSize]
+        host.onSizeChange = onSizeChange
+        contentView = host
     }
+}
 
-    /// Switches the pin between moving (drag anywhere) and selecting the text
-    /// in it, so a pin full of text can still be dragged around by default.
-    private var liveTextButton: some View {
-        toolbarButton(
-            systemImage: "text.viewfinder",
-            help: isLiveTextActive
-                ? String(localized: "Stop selecting text")
-                : String(localized: "Select text in the image"),
-            action: { isLiveTextActive.toggle() }
-        )
-        .background {
-            if isLiveTextActive {
-                Circle().fill(.white.opacity(0.25))
-            }
-        }
-        .accessibilityLabel(String(localized: "Live Text"))
-        .accessibilityAddTraits(isLiveTextActive ? .isSelected : [])
-    }
+private final class PinnedToolbarHostingView: NSHostingView<AnyView> {
+    var onSizeChange: (() -> Void)?
 
-    private func toolbarButton(systemImage: String, help: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 22, height: 22)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(help)
-    }
+    /// Buttons answer the first click even though the panel is never key.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    private func copy() {
-        do {
-            try ScreenshotFileActions.copyPNGToClipboard(from: url)
-            withAnimation { didCopy = true }
-            Task {
-                try? await Task.sleep(for: .seconds(1.5))
-                withAnimation { didCopy = false }
-            }
-        } catch {
-            print("Failed to copy pinned screenshot: \(error)")
-        }
-    }
-
-    private func copyText() {
-        let url = url
-        Task {
-            await CaptureCoordinator.shared.copyRecognizedText(at: url, from: .image)
-        }
-    }
-
-    private func save() {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [ScreenshotFileActions.exportContentType]
-        panel.nameFieldStringValue = ScreenshotFileActions.exportFileName(for: url)
-        panel.canCreateDirectories = true
-        panel.title = String(localized: "Save Screenshot")
-        panel.begin { response in
-            guard response == .OK, let destURL = panel.url else { return }
-            do {
-                try ScreenshotFileActions.save(from: url, to: destURL)
-            } catch {
-                print("Failed to save pinned screenshot: \(error)")
-            }
-        }
+    /// SwiftUI calls this when the toolbar changes between viewing and
+    /// annotating; the panel is resized to match on the next pass.
+    override func invalidateIntrinsicContentSize() {
+        super.invalidateIntrinsicContentSize()
+        DispatchQueue.main.async { [weak self] in self?.onSizeChange?() }
     }
 }

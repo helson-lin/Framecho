@@ -142,10 +142,8 @@ struct RecordingPickerControls: View {
                 Text(sources.errorMessage ?? String(localized: "No screens are available."))
                 Button("Retry") { Task { await sources.refresh() } }
                 if !CGPreflightScreenCaptureAccess() {
-                    Button("Open Screen Recording Settings…") {
-                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
-                            NSWorkspace.shared.open(url)
-                        }
+                    Button("Allow Screen Recording…") {
+                        OnboardingWindowController.show(page: .permissions, reason: .screenRecordingNeeded)
                     }
                 }
             } label: {

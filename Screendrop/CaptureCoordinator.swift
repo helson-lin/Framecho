@@ -49,6 +49,10 @@ final class CaptureCoordinator {
         Task { await performCaptureText() }
     }
 
+    func captureAreaAndPin() {
+        Task { await performCaptureAreaAndPin() }
+    }
+
     func captureOnTimer() {
         Task { await performCaptureOnTimer() }
     }
@@ -87,6 +91,7 @@ final class CaptureCoordinator {
 
     @discardableResult
     private func performCaptureFullscreen() async -> URL? {
+        guard AppPermissionCenter.shared.ensureScreenRecording() else { return nil }
         let displayID = ActiveDisplayResolver.activeDisplayID(preferPointer: false)
         PreviewWindowPlacement.shared.setTargetDisplayID(displayID)
 
@@ -100,6 +105,7 @@ final class CaptureCoordinator {
 
     @discardableResult
     private func performCaptureWindow() async -> URL? {
+        guard AppPermissionCenter.shared.ensureScreenRecording() else { return nil }
         // The self-timer is handled by screencapture's `-T` so the delay
         // happens *after* the window is picked, not before.
         guard let url = await ScreenshotManager.shared.captureWindow(
@@ -112,6 +118,7 @@ final class CaptureCoordinator {
 
     @discardableResult
     private func performCaptureArea() async -> URL? {
+        guard AppPermissionCenter.shared.ensureScreenRecording() else { return nil }
         // The self-timer is handled by screencapture's `-T` so the delay
         // happens *after* the area is drawn, not before.
         guard let url = await ScreenshotManager.shared.captureArea(
@@ -120,6 +127,22 @@ final class CaptureCoordinator {
         ) else { return nil }
         let displayID = ActiveDisplayResolver.activeDisplayID(preferPointer: true)
         return finishCapture(url: url, displayID: displayID)
+    }
+
+    /// Pins the drawn area straight to the screen. The capture still goes to
+    /// History, so the pin can be annotated and found again, but there is no
+    /// preview card or after-capture action: the pin is the result. Skips
+    /// the self-timer, which is for staging a screen, not grabbing a reference.
+    private func performCaptureAreaAndPin() async {
+        guard AppPermissionCenter.shared.ensureScreenRecording() else { return }
+        guard let url = await ScreenshotManager.shared.captureArea(
+            includeShadow: ScreendropPreferences.captureWindowShadow
+        ) else { return }
+        if ScreendropPreferences.playSounds {
+            CaptureFeedbackSound.play()
+        }
+        let historyURL = ScreenshotHistoryStore.shared.importScreenshot(from: url, movingSource: true)
+        PinnedScreenshotPresenter.shared.pin(url: historyURL)
     }
 
     /// Capture Text is the odd one out: it recognizes the text inside the drawn
@@ -132,6 +155,7 @@ final class CaptureCoordinator {
     /// after the area is drawn, matching Capture Area.
     @discardableResult
     private func performCaptureText() async -> CaptureTextOutcome {
+        guard AppPermissionCenter.shared.ensureScreenRecording() else { return .cancelled }
         guard let url = await ScreenshotManager.shared.captureArea(
             delaySeconds: ScreendropPreferences.captureDelaySeconds
         ) else { return .cancelled }
@@ -184,6 +208,7 @@ final class CaptureCoordinator {
     /// delay and never the self-timer, so the two never stack.
     @discardableResult
     private func performCaptureOnTimer() async -> URL? {
+        guard AppPermissionCenter.shared.ensureScreenRecording() else { return nil }
         guard await CaptureCountdownPresenter.shared.runIfNeeded(
             seconds: ScreendropPreferences.timedCaptureDelaySeconds,
             displayID: ActiveDisplayResolver.activeDisplayID(preferPointer: true)

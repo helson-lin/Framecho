@@ -30,6 +30,8 @@ struct AnnotationCanvas: View {
     @Bindable var model: AnnotationEditorModel
     let image: NSImage
     let onEditorInteraction: () -> Void
+    /// Room kept around the fitted canvas. A pin draws edge to edge.
+    var fitInsets = CGSize(width: 34, height: 28)
 
     @Environment(\.displayScale) private var displayScale
     @State private var hasActiveInteraction = false
@@ -206,7 +208,7 @@ struct AnnotationCanvas: View {
             canvasSize: model.canvasPixelSize,
             viewportSize: size,
             displayScale: displayScale,
-            fitInsets: CGSize(width: 34 + cropMargin, height: 28 + cropMargin)
+            fitInsets: CGSize(width: fitInsets.width + cropMargin, height: fitInsets.height + cropMargin)
         ))
         return viewport
     }

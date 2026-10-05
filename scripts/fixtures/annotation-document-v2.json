@@ -1,0 +1,356 @@
+{
+  "background" : {
+    "alignment" : "center",
+    "aspectRatio" : "auto",
+    "border" : {
+      "color" : {
+        "alpha" : 1,
+        "blue" : 0.96,
+        "green" : 0.96,
+        "id" : "white",
+        "red" : 0.96,
+        "title" : "White"
+      },
+      "isEnabled" : false,
+      "opacity" : 1,
+      "thickness" : 0.012
+    },
+    "camera" : {
+      "fieldOfViewDegrees" : 24,
+      "panX" : 0,
+      "panY" : 0,
+      "projectionVersion" : 2,
+      "rollDegrees" : 0,
+      "rotationXDegrees" : 0,
+      "rotationYDegrees" : 0,
+      "tiltXDegrees" : 0,
+      "tiltYDegrees" : 0,
+      "zoom" : 1
+    },
+    "cornerRadius" : 0.018,
+    "padding" : 0.1,
+    "progressiveBlur" : {
+      "directionDegrees" : 0,
+      "edgeMode" : "bleed",
+      "falloff" : 0.55,
+      "focusSize" : 0.45,
+      "focusX" : 0.5,
+      "focusY" : 0.5,
+      "isBokehEnabled" : false,
+      "isEnabled" : false,
+      "mode" : "radial",
+      "strength" : 18
+    },
+    "shadow" : 0.36,
+    "shadowStyle" : "soft",
+    "style" : {
+      "gradient" : {
+        "_0" : {
+          "colors" : [
+            {
+              "alpha" : 1,
+              "blue" : 0.58,
+              "green" : 0.31,
+              "id" : "aurora-a",
+              "red" : 0.98,
+              "title" : "Aurora A"
+            },
+            {
+              "alpha" : 1,
+              "blue" : 0.95,
+              "green" : 0.32,
+              "id" : "aurora-b",
+              "red" : 0.4,
+              "title" : "Aurora B"
+            },
+            {
+              "alpha" : 1,
+              "blue" : 0.8,
+              "green" : 0.84,
+              "id" : "aurora-c",
+              "red" : 0.29,
+              "title" : "Aurora C"
+            }
+          ],
+          "endX" : 1,
+          "endY" : 1,
+          "id" : "aurora",
+          "startX" : 0,
+          "startY" : 0,
+          "title" : "Aurora"
+        }
+      }
+    },
+    "watermark" : {
+      "color" : {
+        "alpha" : 1,
+        "blue" : 0.9,
+        "green" : 0.9,
+        "red" : 0.9
+      },
+      "density" : 4,
+      "fontSize" : 72,
+      "isEnabled" : false,
+      "opacity" : 0.18,
+      "rotationDegrees" : 45,
+      "text" : ""
+    }
+  },
+  "baseImageFileName" : "Framecho_2026-10-05-12-00-00.base.png",
+  "bindings" : [
+    {
+      "arrowId" : {
+        "raw" : "arrow"
+      },
+      "isExact" : false,
+      "isPrecise" : false,
+      "normalizedAnchor" : {
+        "x" : 0.5,
+        "y" : 0.5,
+        "z" : 1
+      },
+      "terminal" : "start",
+      "toId" : {
+        "raw" : "rect"
+      }
+    }
+  ],
+  "shapes" : [
+    {
+      "id" : {
+        "raw" : "rect"
+      },
+      "kind" : {
+        "geo" : {
+          "_0" : {
+            "cornerRadius" : 12,
+            "dash" : "solid",
+            "fill" : "none",
+            "geo" : "rectangle",
+            "h" : 240,
+            "strokeWidth" : 8,
+            "swatch" : {
+              "alpha" : 1,
+              "blue" : 0.2,
+              "green" : 0.22,
+              "id" : "red",
+              "red" : 0.97,
+              "title" : "Red"
+            },
+            "w" : 400
+          }
+        }
+      },
+      "opacity" : 1,
+      "rotation" : 0,
+      "x" : 120,
+      "y" : 80
+    },
+    {
+      "id" : {
+        "raw" : "ellipse"
+      },
+      "kind" : {
+        "geo" : {
+          "_0" : {
+            "cornerRadius" : 0,
+            "dash" : "dashed",
+            "fill" : "solid",
+            "geo" : "ellipse",
+            "h" : 120,
+            "strokeWidth" : 6,
+            "swatch" : {
+              "alpha" : 1,
+              "blue" : 1,
+              "green" : 0.48,
+              "id" : "blue",
+              "red" : 0.18,
+              "title" : "Blue"
+            },
+            "w" : 200
+          }
+        }
+      },
+      "opacity" : 0.8,
+      "rotation" : 0.25,
+      "x" : 700,
+      "y" : 90
+    },
+    {
+      "id" : {
+        "raw" : "arrow"
+      },
+      "kind" : {
+        "arrow" : {
+          "_0" : {
+            "arrowheadEnd" : "arrow",
+            "arrowheadStart" : "none",
+            "bend" : 20,
+            "dash" : "solid",
+            "end" : {
+              "x" : 300,
+              "y" : 150,
+              "z" : 1
+            },
+            "start" : {
+              "x" : 0,
+              "y" : 0,
+              "z" : 1
+            },
+            "strokeWidth" : 8,
+            "swatch" : {
+              "alpha" : 1,
+              "blue" : 0.08,
+              "green" : 0.53,
+              "id" : "orange",
+              "red" : 1,
+              "title" : "Orange"
+            }
+          }
+        }
+      },
+      "opacity" : 1,
+      "rotation" : 0,
+      "x" : 320,
+      "y" : 200
+    },
+    {
+      "id" : {
+        "raw" : "pen"
+      },
+      "kind" : {
+        "draw" : {
+          "_0" : {
+            "isClosed" : false,
+            "isComplete" : true,
+            "isPen" : false,
+            "points" : [
+              {
+                "x" : 0,
+                "y" : 0,
+                "z" : 0.5
+              },
+              {
+                "x" : 10,
+                "y" : 5,
+                "z" : 0.6
+              },
+              {
+                "x" : 20,
+                "y" : 0,
+                "z" : 0.5
+              }
+            ],
+            "strokeWidth" : 6,
+            "swatch" : {
+              "alpha" : 1,
+              "blue" : 0.36,
+              "green" : 0.72,
+              "id" : "green",
+              "red" : 0.18,
+              "title" : "Green"
+            }
+          }
+        }
+      },
+      "opacity" : 1,
+      "rotation" : 0,
+      "x" : 50,
+      "y" : 600
+    },
+    {
+      "id" : {
+        "raw" : "text"
+      },
+      "kind" : {
+        "text" : {
+          "_0" : {
+            "align" : "middle",
+            "autoSize" : false,
+            "fontFamily" : "pro",
+            "fontSize" : 48,
+            "isBold" : true,
+            "isItalic" : false,
+            "isUnderline" : false,
+            "swatch" : {
+              "alpha" : 1,
+              "blue" : 0.024,
+              "green" : 0.02,
+              "id" : "black",
+              "red" : 0.02,
+              "title" : "Black"
+            },
+            "text" : "Hello 你好",
+            "w" : 220
+          }
+        }
+      },
+      "opacity" : 1,
+      "rotation" : 0,
+      "x" : 900,
+      "y" : 500
+    },
+    {
+      "id" : {
+        "raw" : "blur"
+      },
+      "kind" : {
+        "redaction" : {
+          "_0" : {
+            "density" : 0.7,
+            "h" : 60,
+            "kind" : "pixelate",
+            "w" : 180
+          }
+        }
+      },
+      "opacity" : 1,
+      "rotation" : 0,
+      "x" : 1000,
+      "y" : 100
+    },
+    {
+      "id" : {
+        "raw" : "spot"
+      },
+      "kind" : {
+        "highlight" : {
+          "_0" : {
+            "h" : 200,
+            "w" : 300
+          }
+        }
+      },
+      "opacity" : 1,
+      "rotation" : 0,
+      "x" : 10,
+      "y" : 10
+    },
+    {
+      "id" : {
+        "raw" : "one"
+      },
+      "kind" : {
+        "numbered" : {
+          "_0" : {
+            "diameter" : 72,
+            "swatch" : {
+              "alpha" : 1,
+              "blue" : 0.2,
+              "green" : 0.22,
+              "id" : "red",
+              "red" : 0.97,
+              "title" : "Red"
+            },
+            "value" : 3
+          }
+        }
+      },
+      "opacity" : 1,
+      "rotation" : 0,
+      "x" : 1500,
+      "y" : 700
+    }
+  ],
+  "version" : 2
+}

@@ -582,33 +582,10 @@ final class ScreenRecordingManager {
     }
 
     /// Screen-recording TCC must be granted before SCStream will start; a
-    /// missing grant otherwise fails with a silent -3801. Trigger the system
-    /// prompt on first use and route the user to System Settings after that
-    /// (macOS only shows the prompt once per app).
+    /// missing grant otherwise fails with a silent -3801. Without it the
+    /// setup window opens on its permissions page.
     private static func ensureScreenCapturePermission() -> Bool {
-        if CGPreflightScreenCaptureAccess() {
-            return true
-        }
-        if CGRequestScreenCaptureAccess() {
-            return true
-        }
-
-        NSApp.activate(ignoringOtherApps: true)
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = String(localized: "Screen Recording permission needed")
-        alert.informativeText = String(localized: """
-        Framecho can't record until it's allowed under Privacy & Security > \
-        Screen & System Audio Recording. After turning it on, quit and reopen \
-        Framecho - macOS applies the permission on relaunch.
-        """)
-        alert.addButton(withTitle: String(localized: "Open System Settings"))
-        alert.addButton(withTitle: String(localized: "Cancel"))
-        if alert.runModal() == .alertFirstButtonReturn,
-           let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
-            NSWorkspace.shared.open(url)
-        }
-        return false
+        AppPermissionCenter.shared.ensureScreenRecording()
     }
 
     /// A recording that never started produced no file, so silence here reads

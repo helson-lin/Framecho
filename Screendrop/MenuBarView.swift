@@ -17,8 +17,20 @@ struct MenuBarView: View {
     @State private var hotkeyManager = HotkeyManager.shared
     @State private var recorder = ScreenRecordingManager.shared
 
+    @State private var permissionCenter = AppPermissionCenter.shared
+
     var body: some View {
         Group {
+            // Every capture would fail; say so before the capture items.
+            if !permissionCenter.isScreenRecordingGranted {
+                Button {
+                    OnboardingWindowController.show(page: .permissions, reason: .screenRecordingNeeded)
+                } label: {
+                    Label("Allow Screen Recording…", systemImage: "exclamationmark.triangle")
+                }
+                Divider()
+            }
+
             Button {
                 CaptureCoordinator.shared.captureFullscreen()
             } label: {
@@ -53,6 +65,21 @@ struct MenuBarView: View {
                 Label("Capture on Timer", systemImage: "timer")
             }
             .keyboardShortcut(hotkeyManager.activeShortcuts[.timedCapture]?.keyboardShortcut)
+
+            Button {
+                CaptureCoordinator.shared.captureAreaAndPin()
+            } label: {
+                Label("Capture Area and Pin", systemImage: "pin")
+            }
+            .keyboardShortcut(hotkeyManager.activeShortcuts[.pinArea]?.keyboardShortcut)
+
+            Button {
+                PinnedScreenshotPresenter.shared.pinLatestScreenshot()
+            } label: {
+                Label("Pin Latest Screenshot", systemImage: "pin.square")
+            }
+            .keyboardShortcut(hotkeyManager.activeShortcuts[.pinLatest]?.keyboardShortcut)
+            .disabled(!historyStore.items.contains { !$0.isVideo })
 
             // Mirrors the recording shortcut, which stops a running recording.
             if recorder.isActive {

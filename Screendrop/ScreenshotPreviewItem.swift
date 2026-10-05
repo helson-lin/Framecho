@@ -5,11 +5,6 @@
 
 import AppKit
 
-enum PreviewMediaKind: String, Equatable, Codable {
-    case image
-    case video
-}
-
 struct ScreenshotPreviewItem: Identifiable, Equatable {
     let id = UUID()
     var url: URL
