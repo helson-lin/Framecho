@@ -134,7 +134,7 @@ struct CaptureLibraryView: View {
                 }
             }
         } else {
-            CaptureLibraryCollection(items: model.visibleItems, revision: model.contentRevision, layout: layout,
+            CaptureLibraryCollection(sections: model.sections, revision: model.contentRevision, layout: layout,
                 selection: $model.selection, isBusy: model.isBusy, onAction: model.perform)
         }
     }

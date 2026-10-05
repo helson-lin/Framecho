@@ -803,6 +803,16 @@
         }
       }
     },
+    "Previous 7 Days" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "过去 7 天"
+          }
+        }
+      }
+    },
     "Quit & Reopen" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1169,6 +1179,16 @@
         }
       }
     },
+    "Today" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天"
+          }
+        }
+      }
+    },
     "Try it now: press these keys and drag over any part of the screen." : {
       "localizations" : {
         "zh-Hans" : {
@@ -1265,6 +1285,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "可加入旁白、摄像头气泡和按键提示。"
+          }
+        }
+      }
+    },
+    "Yesterday" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昨天"
           }
         }
       }

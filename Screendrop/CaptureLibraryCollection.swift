@@ -26,7 +26,7 @@ enum CaptureLibraryAction: String {
 /// Both layouts use NSCollectionView's reuse queue. Changing selection doesn't
 /// reload the collection; data changes reconcile selection by stable media IDs.
 struct CaptureLibraryCollection: NSViewRepresentable {
-    let items: [CaptureLibraryItem]
+    let sections: [CaptureLibrarySection]
     let revision: Int
     let layout: CaptureLibraryLayout
     @Binding var selection: Set<String>
@@ -70,36 +70,83 @@ struct CaptureLibraryCollection: NSViewRepresentable {
         defer { coordinator.updating = false }
         if old.revision != revision || old.layout != layout || coordinator.initialLoad {
             coordinator.initialLoad = false
-            coordinator.indices = Dictionary(uniqueKeysWithValues: items.enumerated().map { ($0.element.id, $0.offset) })
+            coordinator.indices = Dictionary(uniqueKeysWithValues: sections.enumerated().flatMap { section in
+                section.element.items.enumerated().map { ($0.element.id, IndexPath(item: $0.offset, section: section.offset)) }
+            })
             (collection.collectionViewLayout as? LibraryCollectionLayout)?.displayLayout = layout
             collection.reloadData()
             collection.collectionViewLayout?.invalidateLayout()
         }
-        let paths = Set(selection.compactMap { id in
-            coordinator.indices[id].map { IndexPath(item: $0, section: 0) }
-        })
+        let paths = Set(selection.compactMap { coordinator.indices[$0] })
         if collection.selectionIndexPaths != paths { collection.selectionIndexPaths = paths }
     }
 
-    final class Coordinator: NSObject, NSCollectionViewDataSource, NSCollectionViewDelegate {
+    final class Coordinator: NSObject, NSCollectionViewDataSource, NSCollectionViewDelegateFlowLayout {
         var parent: CaptureLibraryCollection
         weak var collection: LibraryCollectionView?
         var updating = false
         var initialLoad = true
-        var indices: [String: Int] = [:]
+        var indices: [String: IndexPath] = [:]
 
         init(_ parent: CaptureLibraryCollection) { self.parent = parent }
 
+        func item(at indexPath: IndexPath) -> CaptureLibraryItem? {
+            guard parent.sections.indices.contains(indexPath.section) else { return nil }
+            let items = parent.sections[indexPath.section].items
+            return items.indices.contains(indexPath.item) ? items[indexPath.item] : nil
+        }
+
+        func numberOfSections(in collectionView: NSCollectionView) -> Int {
+            parent.sections.count
+        }
+
         func collectionView(_ collectionView: NSCollectionView, numberOfItemsInSection section: Int) -> Int {
-            parent.items.count
+            parent.sections.indices.contains(section) ? parent.sections[section].items.count : 0
         }
 
         func collectionView(_ collectionView: NSCollectionView, itemForRepresentedObjectAt indexPath: IndexPath) -> NSCollectionViewItem {
             let cell = collectionView.makeItem(withIdentifier: LibraryCollectionItem.identifier, for: indexPath)
-            if let cell = cell as? LibraryCollectionItem, parent.items.indices.contains(indexPath.item) {
-                cell.configure(parent.items[indexPath.item], layout: parent.layout)
+            if let cell = cell as? LibraryCollectionItem, let item = item(at: indexPath) {
+                cell.configure(item, layout: parent.layout)
             }
             return cell
+        }
+
+        func collectionView(
+            _ collectionView: NSCollectionView,
+            viewForSupplementaryElementOfKind kind: NSCollectionView.SupplementaryElementKind,
+            at indexPath: IndexPath
+        ) -> NSView {
+            let view = collectionView.makeSupplementaryView(
+                ofKind: kind, withIdentifier: LibrarySectionHeader.identifier, for: indexPath
+            )
+            if let header = view as? LibrarySectionHeader, parent.sections.indices.contains(indexPath.section) {
+                let section = parent.sections[indexPath.section]
+                header.configure(title: section.title ?? "", count: section.items.count)
+            }
+            return view
+        }
+
+        func collectionView(
+            _ collectionView: NSCollectionView,
+            layout collectionViewLayout: NSCollectionViewLayout,
+            referenceSizeForHeaderInSection section: Int
+        ) -> NSSize {
+            hasTitle(section) ? NSSize(width: collectionView.bounds.width, height: 34) : .zero
+        }
+
+        func collectionView(
+            _ collectionView: NSCollectionView,
+            layout collectionViewLayout: NSCollectionViewLayout,
+            insetForSectionAt section: Int
+        ) -> NSEdgeInsets {
+            hasTitle(section)
+                ? NSEdgeInsets(top: 2, left: 16, bottom: 14, right: 16)
+                : NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
+        }
+
+        private func hasTitle(_ section: Int) -> Bool {
+            parent.sections.indices.contains(section) && parent.sections[section].title != nil
         }
 
         func collectionView(_ collectionView: NSCollectionView, didSelectItemsAt indexPaths: Set<IndexPath>) {
@@ -115,16 +162,14 @@ struct CaptureLibraryCollection: NSViewRepresentable {
         }
 
         func collectionView(_ collectionView: NSCollectionView, willDisplay item: NSCollectionViewItem, forRepresentedObjectAt indexPath: IndexPath) {
-            if let cell = item as? LibraryCollectionItem, parent.items.indices.contains(indexPath.item) {
-                cell.configure(parent.items[indexPath.item], layout: parent.layout)
+            if let cell = item as? LibraryCollectionItem, let entry = self.item(at: indexPath) {
+                cell.configure(entry, layout: parent.layout)
             }
         }
 
         private func selectionChanged() {
             guard !updating, let collection else { return }
-            parent.selection = Set(collection.selectionIndexPaths.compactMap {
-                parent.items.indices.contains($0.item) ? parent.items[$0.item].id : nil
-            })
+            parent.selection = Set(collection.selectionIndexPaths.compactMap { item(at: $0)?.id })
         }
 
         func menu(for event: NSEvent) -> NSMenu? {
@@ -168,6 +213,11 @@ final class LibraryCollectionView: NSCollectionView {
         // dequeue fall back to a nonexistent CaptureLibraryCell nib.
         collectionViewLayout = flow
         register(LibraryCollectionItem.self, forItemWithIdentifier: LibraryCollectionItem.identifier)
+        register(
+            LibrarySectionHeader.self,
+            forSupplementaryViewOfKind: NSCollectionView.elementKindSectionHeader,
+            withIdentifier: LibrarySectionHeader.identifier
+        )
     }
 
     override func menu(for event: NSEvent) -> NSMenu? { contextMenuProvider?(event) }
@@ -196,7 +246,6 @@ final class LibraryCollectionLayout: NSCollectionViewFlowLayout {
 
     override func prepare() {
         let width = max(200, collectionView?.enclosingScrollView?.contentSize.width ?? 800)
-        sectionInset = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
         minimumInteritemSpacing = 16
         minimumLineSpacing = displayLayout == .grid ? 16 : 6
         if displayLayout == .grid {
@@ -211,6 +260,54 @@ final class LibraryCollectionLayout: NSCollectionViewFlowLayout {
 
     override func shouldInvalidateLayout(forBoundsChange newBounds: NSRect) -> Bool {
         newBounds.width != collectionView?.bounds.width
+    }
+}
+
+/// A date heading with its capture count, aligned with the cards' content.
+final class LibrarySectionHeader: NSView, NSCollectionViewElement {
+    static let identifier = NSUserInterfaceItemIdentifier("CaptureLibrarySectionHeader")
+    private let host = NSHostingView(rootView: LibrarySectionHeaderContent(title: "", count: 0))
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        host.sizingOptions = []
+        host.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(host)
+        NSLayoutConstraint.activate([
+            host.leadingAnchor.constraint(equalTo: leadingAnchor),
+            host.trailingAnchor.constraint(equalTo: trailingAnchor),
+            host.topAnchor.constraint(equalTo: topAnchor),
+            host.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func configure(title: String, count: Int) {
+        host.rootView = LibrarySectionHeaderContent(title: title, count: count)
+    }
+}
+
+private struct LibrarySectionHeaderContent: View {
+    let title: String
+    let count: Int
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(title)
+                .font(.headline)
+            Text(count, format: .number)
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        .padding(.leading, 22)
+        .padding(.bottom, 6)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 }
 
