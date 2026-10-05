@@ -22,8 +22,9 @@ private struct SidebarPanel: ViewModifier {
     func body(content: Content) -> some View {
         content
             .scrollContentBackground(.hidden)
-            // Keep rows and their selection inside the panel's edges.
-            .contentMargins(.horizontal, Self.inset, for: .scrollContent)
+            // The sidebar list ignores content margins for its selection, so
+            // inset the list itself to keep rows clear of the panel's edges.
+            .padding(.horizontal, Self.inset)
             .background {
                 ZStack {
                     Color(nsColor: .windowBackgroundColor)
