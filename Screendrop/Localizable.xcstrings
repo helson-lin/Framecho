@@ -17,6 +17,16 @@
         }
       }
     },
+    "Annotate (E)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标注 (E)"
+          }
+        }
+      }
+    },
     "Annotation tools" : {
       "localizations" : {
         "zh-Hans" : {
@@ -33,6 +43,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "AVIF（更小）"
+          }
+        }
+      }
+    },
+    "Close Pin (Esc)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭置顶 (Esc)"
+          }
+        }
+      }
+    },
+    "Copy (⌘C)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拷贝 (⌘C)"
           }
         }
       }
@@ -67,6 +97,46 @@
         }
       }
     },
+    "Discard" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放弃"
+          }
+        }
+      }
+    },
+    "Discard annotations" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放弃标注"
+          }
+        }
+      }
+    },
+    "Discard your annotations?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要放弃标注吗？"
+          }
+        }
+      }
+    },
+    "Failed to copy image" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法拷贝图像"
+          }
+        }
+      }
+    },
     "Failed to copy the image: %@" : {
       "localizations" : {
         "zh-Hans" : {
@@ -77,12 +147,42 @@
         }
       }
     },
+    "Failed to save annotation" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法存储标注"
+          }
+        }
+      }
+    },
     "Image Uploads" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "图片上传"
+          }
+        }
+      }
+    },
+    "Keep Editing" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续编辑"
+          }
+        }
+      }
+    },
+    "Open in Editor" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在编辑器中打开"
           }
         }
       }
@@ -107,6 +207,16 @@
         }
       }
     },
+    "Save annotations (Esc)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存储标注 (Esc)"
+          }
+        }
+      }
+    },
     "Save As…" : {
       "localizations" : {
         "zh-Hans" : {
@@ -123,6 +233,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "存储、导出或上传"
+          }
+        }
+      }
+    },
+    "Save… (⌘S)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存储… (⌘S)"
           }
         }
       }
@@ -163,6 +283,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "截图将按资料库中保存的原样上传。"
+          }
+        }
+      }
+    },
+    "Stop selecting text (Esc)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止选择文字 (Esc)"
+          }
+        }
+      }
+    },
+    "The pinned screenshot stays as it was." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "置顶的截图会保持原样。"
           }
         }
       }

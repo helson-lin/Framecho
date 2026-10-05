@@ -1,0 +1,240 @@
+//
+//  PinnedScreenshotViews.swift
+//  Screendrop
+//
+//  A pin's image, and the toolbar that sits outside it while it's selected,
+//  so nothing covers the picture just because the pointer passed over it.
+//
+
+import SwiftUI
+
+struct PinnedScreenshotView: View {
+    let pin: PinnedScreenshot
+    let controller: PinnedScreenshotController
+
+    private let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+
+    var body: some View {
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipShape(shape)
+            .overlay {
+                // The accent ring marks the pin keys act on.
+                let isActive = pin.isSelected || pin.editor != nil
+                shape
+                    .strokeBorder(isActive ? Color.accentColor : .white.opacity(0.25), lineWidth: isActive ? 2 : 1)
+                    .allowsHitTesting(false)
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if let editor = pin.editor, let image = editor.previewImage {
+            AnnotationCanvas(model: editor, image: image, onEditorInteraction: {}, fitInsets: .zero)
+                .background(AnnotationKeyCommandHandler(
+                    isEnabled: { !editor.isCommitting },
+                    onDelete: editor.deleteSelectedAnnotation,
+                    onSave: controller.finishAnnotating,
+                    onSaveAs: controller.save,
+                    onCopy: controller.copyAnnotatedImage,
+                    onUndo: editor.undo,
+                    onRedo: editor.redo,
+                    onSelectAll: editor.selectAllAnnotations,
+                    onSelectTool: editor.selectTool,
+                    onZoomIn: editor.zoomIn,
+                    onZoomOut: editor.zoomOut,
+                    onFitCanvas: editor.fitCanvas,
+                    onActualSize: { editor.setZoomPercent(100) },
+                    // A pin has no crop: it would change the pin's shape.
+                    onToggleCrop: {},
+                    onApplyCrop: {},
+                    onCancelCrop: {},
+                    isCropping: { false }
+                ))
+        } else {
+            LiveTextImageView(
+                image: pin.image,
+                url: pin.url,
+                cornerRadius: 10,
+                isLiveTextActive: pin.isLiveTextActive,
+                menuEntries: controller.menuEntries,
+                onAnalysisFinished: { pin.hasText = $0 }
+            )
+            .id(pin.imageRevision)
+        }
+    }
+}
+
+// MARK: - Toolbar
+
+struct PinnedScreenshotToolbar: View {
+    let pin: PinnedScreenshot
+    let controller: PinnedScreenshotController
+
+    var body: some View {
+        Group {
+            if let editor = pin.editor {
+                PinnedAnnotationBar(editor: editor, controller: controller)
+            } else {
+                viewingBar
+            }
+        }
+        .fixedSize()
+    }
+
+    private var viewingBar: some View {
+        HStack(spacing: 2) {
+            PinnedToolbarButton(
+                title: "Annotate",
+                systemImage: "pencil.tip.crop.circle",
+                help: "Annotate (E)",
+                action: { controller.beginAnnotating() }
+            )
+            if pin.hasText {
+                PinnedToolbarButton(
+                    title: "Live Text",
+                    systemImage: "text.viewfinder",
+                    help: pin.isLiveTextActive ? "Stop selecting text (Esc)" : "Select text in the image",
+                    isActive: pin.isLiveTextActive,
+                    action: controller.toggleLiveText
+                )
+            }
+            PinnedToolbarButton(
+                title: "Open in Editor",
+                systemImage: "square.and.pencil",
+                help: "Open in Editor",
+                action: controller.openInEditor
+            )
+
+            PinnedToolbarDivider()
+
+            PinnedToolbarButton(
+                title: "Copy",
+                systemImage: pin.didCopy ? "checkmark" : "doc.on.doc",
+                help: "Copy (⌘C)",
+                action: controller.copyImage
+            )
+            PinnedToolbarButton(
+                title: "Save…",
+                systemImage: "square.and.arrow.down",
+                help: "Save… (⌘S)",
+                action: controller.save
+            )
+
+            PinnedToolbarDivider()
+
+            PinnedToolbarButton(
+                title: "Close Pin",
+                systemImage: "xmark",
+                help: "Close Pin (Esc)",
+                action: controller.close
+            )
+        }
+        .padding(4)
+        .glassEffect(.regular, in: .rect(cornerRadius: 14))
+    }
+}
+
+/// The editor's tool strip, with colour, history and the way out below it.
+private struct PinnedAnnotationBar: View {
+    @Bindable var editor: AnnotationEditorModel
+    let controller: PinnedScreenshotController
+
+    /// The colours worth a click on a small toolbar; the full editor has the rest.
+    private static let swatches: [AnnotationSwatch] = [.red, .orange, .yellow, .green, .blue, .black, .white]
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 6) {
+            AnnotationToolStrip(selectedTool: editor.selectedTool, onSelect: editor.selectTool)
+
+            HStack(spacing: 6) {
+                swatchRow
+                AnnotationHistoryControl(model: editor, onAction: {})
+
+                Button("Discard", action: controller.discardAnnotating)
+                    .buttonStyle(.glass)
+                    .help("Discard annotations")
+                Button("Done", action: controller.finishAnnotating)
+                    .buttonStyle(.glassProminent)
+                    .help("Save annotations (Esc)")
+            }
+            .controlSize(.regular)
+            .disabled(editor.isCommitting)
+        }
+    }
+
+    private var swatchRow: some View {
+        HStack(spacing: 4) {
+            ForEach(Self.swatches) { swatch in
+                let isSelected = editor.selectedSwatch == swatch
+                Button {
+                    editor.setSwatch(swatch)
+                } label: {
+                    Circle()
+                        .fill(swatch.color)
+                        .overlay { Circle().strokeBorder(.primary.opacity(0.2), lineWidth: 1) }
+                        .frame(width: 16, height: 16)
+                        .padding(3)
+                        .overlay {
+                            if isSelected {
+                                Circle().strokeBorder(Color.accentColor, lineWidth: 2)
+                            }
+                        }
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help(swatch.title)
+                .accessibilityLabel(swatch.title)
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
+        }
+        .padding(.horizontal, 6)
+        .frame(height: 30)
+        .glassEffect(.regular, in: .capsule)
+        .disabled(!editor.isColorStyleAvailable)
+        .opacity(editor.isColorStyleAvailable ? 1 : 0.4)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Color")
+    }
+}
+
+/// Sized and highlighted like the editor's tool strip buttons, so the two
+/// toolbars read as one family.
+private struct PinnedToolbarButton: View {
+    let title: LocalizedStringResource
+    let systemImage: String
+    let help: LocalizedStringResource
+    var isActive = false
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 14, weight: .medium))
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: 32, height: 28)
+                .foregroundStyle(isActive ? Color.white : Color.primary)
+                .background {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(isActive ? Color.accentColor : (isHovering ? Color.primary.opacity(0.08) : .clear))
+                }
+                .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .focusEffectDisabled()
+        .onHover { isHovering = $0 }
+        .help(Text(help))
+        .accessibilityLabel(Text(title))
+        .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
+}
+
+private struct PinnedToolbarDivider: View {
+    var body: some View {
+        Divider()
+            .frame(height: 18)
+            .padding(.horizontal, 4)
+    }
+}

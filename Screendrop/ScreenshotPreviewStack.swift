@@ -646,12 +646,13 @@ final class ScreenshotPreviewStack {
         }
     }
 
-    /// Refreshes a preview item after a (non-destructive) annotation commit and
-    /// re-publishes the latest version: re-copying it to the clipboard and
+    /// Refreshes a preview item, and any pin of it, after a (non-destructive)
+    /// annotation commit and re-publishes the latest version: re-copying it to the clipboard and
     /// overwriting the existing auto-saved file so we never leave a stale copy
     /// behind or accumulate duplicates.
     @discardableResult
     func applyAnnotation(originalURL: URL, historyURL: URL) -> Bool {
+        PinnedScreenshotPresenter.shared.reloadPins(showing: historyURL)
         guard let image = ScreenshotImageLoader.downsampledImage(at: historyURL, maxPixelSize: 520) else {
             return false
         }
