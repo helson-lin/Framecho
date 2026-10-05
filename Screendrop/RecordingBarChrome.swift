@@ -61,6 +61,12 @@ enum BarMetrics {
     /// Stop and the recording dot. The system red so it stays legible
     /// whichever variant the glass is in.
     static let recordTint = Color(nsColor: .systemRed)
+    /// The microphone's live level, filling its glyph - green as in the
+    /// system's own input meters.
+    static let levelTint = Color(nsColor: .systemGreen)
+    /// An input that's selected but not working. Never the only cue: the
+    /// glyph changes with it.
+    static let warningTint = Color(nsColor: .systemOrange)
 
     /// The puck that appears behind an icon on hover. Faint enough to read as
     /// the pointer resting on a target rather than as a second control state -
@@ -108,6 +114,7 @@ enum BarTooltipID: String {
     case timer
     case close
 
+    case microphoneLevel
     case pauseResume
     case restart
     case stop
@@ -218,15 +225,35 @@ struct BarActionLabel: View {
     let title: String
     let systemImage: String
     var tint: Color = BarMetrics.activeTint
+    /// 0...1 to fill the glyph from the bottom with a live input level - the
+    /// microphone's meter. Nil for every control that isn't metering.
+    var level: Double?
+    /// False for a readout that only wants the tooltip: no puck and no
+    /// pointing hand, which would promise a click that does nothing.
+    var isInteractive = true
 
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(BarTooltipModel.self) private var tooltip: BarTooltipModel?
     @State private var isHovering = false
     @State private var frame: CGRect = .zero
 
     var body: some View {
-        Image(systemName: systemImage)
-            .font(.system(size: 17, weight: .regular))
+        glyph
+            .overlay {
+                if let level {
+                    glyph
+                        .foregroundStyle(BarMetrics.levelTint)
+                        .mask(alignment: .bottom) {
+                            GeometryReader { proxy in
+                                Rectangle()
+                                    .frame(height: proxy.size.height * level)
+                                    .frame(maxHeight: .infinity, alignment: .bottom)
+                            }
+                        }
+                        .animation(reduceMotion ? nil : .linear(duration: 0.08), value: level)
+                }
+            }
             .foregroundStyle(tint.opacity(isEnabled ? 1 : 0.3))
             .frame(width: BarMetrics.controlSize, height: BarMetrics.controlSize)
             // As a background so the puck never takes part in layout - it's
@@ -238,7 +265,7 @@ struct BarActionLabel: View {
                         width: BarMetrics.hoverDiameter,
                         height: BarMetrics.hoverDiameter
                     )
-                    .opacity(isHovering ? 1 : 0)
+                    .opacity(isHovering && isInteractive ? 1 : 0)
             }
             .animation(.easeOut(duration: 0.12), value: isHovering)
             .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -250,14 +277,14 @@ struct BarActionLabel: View {
             // panel key when showing it. While Screendrop is inactive the
             // engine doesn't consult it at all and BarControlHover's NSCursor
             // path takes over.
-            .pointerStyle(isEnabled ? .link : nil)
+            .pointerStyle(isEnabled && isInteractive ? .link : nil)
             .onGeometryChange(for: CGRect.self) {
                 $0.frame(in: .named(BarCoordinateSpace.bar))
             } action: {
                 frame = $0
             }
             .background {
-                BarControlHover(isEnabled: isEnabled, onChange: setHovering)
+                BarControlHover(isEnabled: isEnabled, claimsPointer: isInteractive, onChange: setHovering)
             }
             .onChange(of: title) { _, title in
                 // Pause becomes Resume under a pointer that never moved; the
@@ -270,6 +297,11 @@ struct BarActionLabel: View {
                 // that never leaves the bar, so no exit event is coming.
                 tooltip?.endHover(id: id)
             }
+    }
+
+    private var glyph: some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 17, weight: .regular))
     }
 
     private func setHovering(_ hovering: Bool) {
@@ -350,18 +382,21 @@ enum BarCoordinateSpace {
 /// in both states.
 struct BarControlHover: NSViewRepresentable {
     let isEnabled: Bool
+    var claimsPointer = true
     let onChange: (Bool) -> Void
 
     func makeNSView(context: Context) -> BarControlHoverView {
         let view = BarControlHoverView()
         view.onChange = onChange
         view.isTrackingEnabled = isEnabled
+        view.claimsPointer = claimsPointer
         return view
     }
 
     func updateNSView(_ view: BarControlHoverView, context: Context) {
         view.onChange = onChange
         view.isTrackingEnabled = isEnabled
+        view.claimsPointer = claimsPointer
     }
 
     /// A morph tears controls down under a pointer that never left the bar;
@@ -374,6 +409,7 @@ struct BarControlHover: NSViewRepresentable {
 
 final class BarControlHoverView: NSView {
     var onChange: ((Bool) -> Void)?
+    var claimsPointer = true
     var isTrackingEnabled = true {
         didSet {
             if !isTrackingEnabled {
@@ -439,7 +475,9 @@ final class BarControlHoverView: NSView {
 
     private func beginHover() {
         guard isTrackingEnabled else { return }
-        claimHand()
+        if claimsPointer {
+            claimHand()
+        }
         guard !isHovering else { return }
         isHovering = true
         onChange?(true)

@@ -26,6 +26,10 @@ final class RecordingBarPresenter {
     }
 
     private(set) var mode: Mode = .picker
+    /// Whether the picker is actually on screen. The hosting view outlives
+    /// `orderOut`, so its own appear/disappear can't tell - and the picker's
+    /// microphone meter must not keep the input open while hidden.
+    private(set) var isPickerVisible = false
 
     /// The bar's frame inside the panel's content view, reported by SwiftUI.
     /// The panel is deliberately much larger than the bar, so this is what
@@ -47,8 +51,14 @@ final class RecordingBarPresenter {
 
     // MARK: Picker
 
+    /// The recording shortcut is a toggle across the whole flow: it opens the
+    /// picker, closes it again, and - once a recording is running - stops and
+    /// saves it, so the hand that started a recording can end it.
     func togglePicker() {
-        if let panel, panel.isVisible, mode == .picker {
+        let recorder = ScreenRecordingManager.shared
+        if recorder.isActive {
+            recorder.stopRecording()
+        } else if let panel, panel.isVisible, mode == .picker {
             hide()
         } else {
             showPicker()
@@ -56,12 +66,19 @@ final class RecordingBarPresenter {
     }
 
     func showPicker() {
+        // A running recording owns the bar. Swapping in the picker would hide
+        // its transport controls while capture carries on underneath.
+        if ScreenRecordingManager.shared.isActive {
+            panel?.orderFrontRegardless()
+            return
+        }
         let panel = panel ?? makePanel()
         PreviewWindowCaptureExclusion.shared.register(window: panel)
         Task {
             await RecordingSourceCatalog.shared.refresh()
         }
         mode = .picker
+        isPickerVisible = true
         position(panel, displayID: ActiveDisplayResolver.activeDisplayID(preferPointer: false))
         panel.orderFrontRegardless()
         // Key without activating (the panel is nonactivating): pointer styles
@@ -81,6 +98,7 @@ final class RecordingBarPresenter {
         let panel = panel ?? makePanel()
         PreviewWindowCaptureExclusion.shared.register(window: panel)
         TeleprompterComposerPresenter.shared.hide()
+        isPickerVisible = false
 
         let isMorphing = panel.isVisible && isPositioned(panel, onDisplayID: displayID)
         if isMorphing {
@@ -101,6 +119,7 @@ final class RecordingBarPresenter {
         // bar hides has to be ended by hand - it holds the pointing hand.
         BarControlHoverView.endActiveHover()
         panel?.orderOut(nil)
+        isPickerVisible = false
         // The composer only makes sense floating above the bar.
         TeleprompterComposerPresenter.shared.hide()
         // Next appearance should always start as the picker, and without

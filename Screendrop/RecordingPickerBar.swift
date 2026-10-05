@@ -39,6 +39,7 @@ extension RecordingBarPresenter {
 
 struct RecordingPickerControls: View {
     @State private var sources = RecordingSourceCatalog.shared
+    @State private var microphoneLevel = MicrophoneLevelMonitor.shared
     @AppStorage(ScreendropPreferences.recordingCameraDeviceIDKey) private var cameraID = ""
     @AppStorage(ScreendropPreferences.recordingMicrophoneDeviceIDKey) private var microphoneID = ""
     @AppStorage(ScreendropPreferences.recordingSystemAudioKey) private var systemAudio = false
@@ -273,15 +274,19 @@ struct RecordingPickerControls: View {
         return String(localized: "Camera on - \(camera.localizedName), right-click to switch")
     }
 
-    /// The pill only has room for the state, so an attached-but-missing
-    /// device is worth calling out there - it's the one case where the icon
-    /// alone is misleading.
+    /// The pill only has room for the state, so a microphone that's
+    /// selected but not working is worth calling out there - it's the case
+    /// where the icon alone would be misleading.
     private var microphoneTooltip: String {
         guard !microphoneID.isEmpty else { return String(localized: "Microphone off") }
         guard RecordingDeviceCatalog.microphone(withID: microphoneID) != nil else {
             return String(localized: "Microphone unavailable")
         }
-        return String(localized: "Microphone on")
+        switch microphoneLevel.status {
+        case .silent: return String(localized: "Microphone muted - no sound")
+        case .unavailable: return String(localized: "Microphone not responding")
+        case .idle, .starting, .live: return String(localized: "Microphone on")
+        }
     }
 
     private var microphoneAccessibilityLabel: String {
@@ -291,7 +296,28 @@ struct RecordingPickerControls: View {
         guard let microphone = RecordingDeviceCatalog.microphone(withID: microphoneID) else {
             return String(localized: "Microphone unavailable - choose another input")
         }
-        return String(localized: "Microphone on - \(microphone.localizedName)")
+        switch microphoneLevel.status {
+        case .silent:
+            return String(localized: "Microphone muted - \(microphone.localizedName) is sending no sound")
+        case .unavailable:
+            return String(localized: "Microphone not responding - \(microphone.localizedName), choose another input")
+        case .idle, .starting, .live:
+            return String(localized: "Microphone on - \(microphone.localizedName)")
+        }
+    }
+
+    private var isMicrophoneFaulty: Bool {
+        guard !microphoneID.isEmpty else { return false }
+        return RecordingDeviceCatalog.microphone(withID: microphoneID) == nil
+            || microphoneLevel.status == .silent
+            || microphoneLevel.status == .unavailable
+    }
+
+    /// The device the meter should be listening to: the selected one, and
+    /// only while the picker is on screen.
+    private var meteredMicrophoneID: String? {
+        guard RecordingBarPresenter.shared.isPickerVisible, !microphoneID.isEmpty else { return nil }
+        return microphoneID
     }
 
     @ViewBuilder
@@ -337,14 +363,20 @@ struct RecordingPickerControls: View {
             BarActionLabel(
                 id: .microphone,
                 title: microphoneTooltip,
-                systemImage: microphoneID.isEmpty ? "mic.slash" : "mic.fill",
-                tint: microphoneID.isEmpty ? BarMetrics.inactiveTint : BarMetrics.activeTint
+                systemImage: microphoneID.isEmpty ? "mic.slash" : isMicrophoneFaulty ? "mic.badge.xmark" : "mic.fill",
+                tint: microphoneID.isEmpty
+                    ? BarMetrics.inactiveTint
+                    : isMicrophoneFaulty ? BarMetrics.warningTint : BarMetrics.activeTint,
+                level: microphoneLevel.status == .live ? microphoneLevel.level : nil
             )
         }
         .menuStyle(.button)
         .buttonStyle(BarButtonStyle())
         .menuIndicator(.hidden)
         .accessibilityLabel(microphoneAccessibilityLabel)
+        .onChange(of: meteredMicrophoneID, initial: true) { _, deviceID in
+            microphoneLevel.monitor(deviceID: deviceID)
+        }
     }
 
     /// Replaces the old gear button that opened Settings: a self-contained

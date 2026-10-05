@@ -1933,6 +1933,26 @@
         }
       }
     },
+    "Click again to discard" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再次点击以丢弃"
+          }
+        }
+      }
+    },
+    "Click again to start over" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再次点击以重新开始"
+          }
+        }
+      }
+    },
     "Click highlights" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2119,6 +2139,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "压缩质量"
+          }
+        }
+      }
+    },
+    "Confirm discard - delete this recording without saving" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确认丢弃 - 删除此录制且不保存"
+          }
+        }
+      }
+    },
+    "Confirm restart - discard what's recorded and start again" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确认重新开始 - 丢弃已录制内容并重新录制"
           }
         }
       }
@@ -4673,6 +4713,46 @@
         }
       }
     },
+    "Microphone muted - %@ is sending no sound" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "麦克风已静音 - %@ 没有传入声音"
+          }
+        }
+      }
+    },
+    "Microphone muted - no sound" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "麦克风已静音 - 没有声音"
+          }
+        }
+      }
+    },
+    "Microphone not responding" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "麦克风无响应"
+          }
+        }
+      }
+    },
+    "Microphone not responding - %@, choose another input" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "麦克风无响应 - %@，请选择其他输入设备"
+          }
+        }
+      }
+    },
     "Microphone on" : {
       "localizations" : {
         "zh-Hans" : {
@@ -6095,6 +6175,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "录制失败：%@"
+          }
+        }
+      }
+    },
+    "Recording microphone" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在录制麦克风"
           }
         }
       }
