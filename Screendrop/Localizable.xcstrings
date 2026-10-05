@@ -6139,6 +6139,16 @@
         }
       }
     },
+    "Recording microphone" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在录制麦克风"
+          }
+        }
+      }
+    },
     "Recording paused at %@" : {
       "localizations" : {
         "zh-Hans" : {

@@ -202,9 +202,11 @@ final class ScreenRecordingManager {
                     writer.writeVideoSample(sampleBuffer)
                 }
                 let teleprompterEngine = TeleprompterController.shared.activeEngine
+                let microphoneLevelTap = options.microphoneDeviceID != nil ? MicrophoneLevelTap() : nil
                 capture.onAudioSample = { [writer] sampleBuffer, kind in
                     if kind == .microphone {
                         teleprompterEngine?.ingest(sampleBuffer)
+                        microphoneLevelTap?.ingest(sampleBuffer)
                     }
                     writer.writeAudioSample(sampleBuffer, kind: kind)
                 }
@@ -270,6 +272,9 @@ final class ScreenRecordingManager {
                 accumulatedPauseDuration = 0
                 elapsedTime = 0
                 state = .recording
+                if microphoneLevelTap != nil {
+                    MicrophoneLevelMonitor.shared.beginRecording()
+                }
                 beginActivity()
                 startTimer()
             } catch {
@@ -351,6 +356,7 @@ final class ScreenRecordingManager {
         isStopping = true
         state = .finishing
         timer?.invalidate()
+        MicrophoneLevelMonitor.shared.endRecording()
         pointerActivityRecorder.stop()
         keystrokeRecorder.stop()
 
@@ -669,6 +675,7 @@ final class ScreenRecordingManager {
         pointerActivityRecorder.stop()
         keystrokeRecorder.stop()
         TeleprompterController.shared.endRecordingSession()
+        MicrophoneLevelMonitor.shared.endRecording()
         endActivity()
         session = nil
         displayID = nil

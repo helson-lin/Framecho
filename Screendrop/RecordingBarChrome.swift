@@ -114,6 +114,7 @@ enum BarTooltipID: String {
     case timer
     case close
 
+    case microphoneLevel
     case pauseResume
     case restart
     case stop
@@ -227,6 +228,9 @@ struct BarActionLabel: View {
     /// 0...1 to fill the glyph from the bottom with a live input level - the
     /// microphone's meter. Nil for every control that isn't metering.
     var level: Double?
+    /// False for a readout that only wants the tooltip: no puck and no
+    /// pointing hand, which would promise a click that does nothing.
+    var isInteractive = true
 
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -261,7 +265,7 @@ struct BarActionLabel: View {
                         width: BarMetrics.hoverDiameter,
                         height: BarMetrics.hoverDiameter
                     )
-                    .opacity(isHovering ? 1 : 0)
+                    .opacity(isHovering && isInteractive ? 1 : 0)
             }
             .animation(.easeOut(duration: 0.12), value: isHovering)
             .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -273,14 +277,14 @@ struct BarActionLabel: View {
             // panel key when showing it. While Screendrop is inactive the
             // engine doesn't consult it at all and BarControlHover's NSCursor
             // path takes over.
-            .pointerStyle(isEnabled ? .link : nil)
+            .pointerStyle(isEnabled && isInteractive ? .link : nil)
             .onGeometryChange(for: CGRect.self) {
                 $0.frame(in: .named(BarCoordinateSpace.bar))
             } action: {
                 frame = $0
             }
             .background {
-                BarControlHover(isEnabled: isEnabled, onChange: setHovering)
+                BarControlHover(isEnabled: isEnabled, claimsPointer: isInteractive, onChange: setHovering)
             }
             .onChange(of: title) { _, title in
                 // Pause becomes Resume under a pointer that never moved; the
@@ -378,18 +382,21 @@ enum BarCoordinateSpace {
 /// in both states.
 struct BarControlHover: NSViewRepresentable {
     let isEnabled: Bool
+    var claimsPointer = true
     let onChange: (Bool) -> Void
 
     func makeNSView(context: Context) -> BarControlHoverView {
         let view = BarControlHoverView()
         view.onChange = onChange
         view.isTrackingEnabled = isEnabled
+        view.claimsPointer = claimsPointer
         return view
     }
 
     func updateNSView(_ view: BarControlHoverView, context: Context) {
         view.onChange = onChange
         view.isTrackingEnabled = isEnabled
+        view.claimsPointer = claimsPointer
     }
 
     /// A morph tears controls down under a pointer that never left the bar;
@@ -402,6 +409,7 @@ struct BarControlHover: NSViewRepresentable {
 
 final class BarControlHoverView: NSView {
     var onChange: ((Bool) -> Void)?
+    var claimsPointer = true
     var isTrackingEnabled = true {
         didSet {
             if !isTrackingEnabled {
@@ -467,7 +475,9 @@ final class BarControlHoverView: NSView {
 
     private func beginHover() {
         guard isTrackingEnabled else { return }
-        claimHand()
+        if claimsPointer {
+            claimHand()
+        }
         guard !isHovering else { return }
         isHovering = true
         onChange?(true)

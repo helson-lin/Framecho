@@ -30,6 +30,11 @@ extension RecordingBarPresenter {
 
 struct RecordingSessionControls: View {
     @State private var manager = ScreenRecordingManager.shared
+    @State private var microphoneLevel = MicrophoneLevelMonitor.shared
+    /// Present from the morph onwards rather than from the first audio
+    /// buffer, so the bar doesn't widen again a moment after it settles. A
+    /// microphone that can't be used is cleared here before capture starts.
+    @AppStorage(ScreendropPreferences.recordingMicrophoneDeviceIDKey) private var microphoneID = ""
 
     private var isPaused: Bool {
         manager.state == .paused
@@ -44,6 +49,10 @@ struct RecordingSessionControls: View {
     var body: some View {
         HStack(spacing: BarMetrics.itemSpacing) {
             elapsed
+
+            if !microphoneID.isEmpty {
+                microphoneReadout
+            }
 
             BarDivider()
 
@@ -90,6 +99,31 @@ struct RecordingSessionControls: View {
                 manager.deleteRecording()
             }
             .disabled(manager.state == .starting)
+        }
+    }
+
+    /// The recording's own microphone level. A readout, not a control: the
+    /// input can't change mid-recording, but whether it's still delivering
+    /// sound is exactly what's worth a glance.
+    private var microphoneReadout: some View {
+        let isFaulty = microphoneLevel.status == .silent || microphoneLevel.status == .unavailable
+        return BarActionLabel(
+            id: .microphoneLevel,
+            title: microphoneReadoutTitle,
+            systemImage: isFaulty ? "mic.badge.xmark" : "mic.fill",
+            tint: isFaulty ? BarMetrics.warningTint : BarMetrics.activeTint,
+            level: microphoneLevel.status == .live ? microphoneLevel.level : nil,
+            isInteractive: false
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(microphoneReadoutTitle)
+    }
+
+    private var microphoneReadoutTitle: String {
+        switch microphoneLevel.status {
+        case .silent: String(localized: "Microphone muted - no sound")
+        case .unavailable: String(localized: "Microphone not responding")
+        case .idle, .starting, .live: String(localized: "Recording microphone")
         }
     }
 
