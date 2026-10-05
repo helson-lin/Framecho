@@ -903,8 +903,16 @@ nonisolated final class ScreenRecordingCapture: NSObject, SCStreamOutput, SCStre
             configuration.sourceRect = sourceRect
         }
         configuration.minimumFrameInterval = CMTime(value: 1, timescale: 60)
-        configuration.pixelFormat = kCVPixelFormatType_32BGRA
-        configuration.queueDepth = 3
+        // HEVC Main stores 4:2:0, so BGRA frames only cost 4 bytes a pixel
+        // (31 MB a frame on a 16-inch Retina panel) plus a conversion pool
+        // inside the encoder. Biplanar 4:2:0 is 1.5 bytes a pixel and is
+        // handed to VideoToolbox as is.
+        configuration.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+        configuration.colorMatrix = CGDisplayStream.yCbCrMatrix_ITU_R_709_2
+        // Without a conversion the encoder holds the stream's own surfaces
+        // until it is done with them; a depth of 3 starved the stream to a
+        // handful of frames. See also AVVideoAllowFrameReorderingKey below.
+        configuration.queueDepth = 5
         // The OS cursor stays out of the pixels; its position is logged to
         // input.json and Studio/exports draw a synthetic, smoothed pointer
         // instead (see RecordingPointerTimeline).
@@ -1021,7 +1029,10 @@ nonisolated private final class ScreenRecordingWriter: @unchecked Sendable {
             AVVideoCompressionPropertiesKey: [
                 AVVideoAverageBitRateKey: bitRate,
                 AVVideoExpectedSourceFrameRateKey: 60,
-                AVVideoMaxKeyFrameIntervalKey: 60
+                AVVideoMaxKeyFrameIntervalKey: 60,
+                // B-frames make the encoder hold capture surfaces for
+                // reordering, which is what can drain the stream's pool.
+                AVVideoAllowFrameReorderingKey: false
             ] as [String: Any]
         ]
 
@@ -1045,13 +1056,11 @@ nonisolated private final class ScreenRecordingWriter: @unchecked Sendable {
             microphoneInput = audioInput
         }
 
+        // Frames come straight from ScreenCaptureKit's own pool, so the
+        // adaptor never needs to allocate a pool of its own.
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(
             assetWriterInput: input,
-            sourcePixelBufferAttributes: [
-                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-                kCVPixelBufferWidthKey as String: videoWidth,
-                kCVPixelBufferHeightKey as String: videoHeight
-            ]
+            sourcePixelBufferAttributes: nil
         )
 
         guard writer.startWriting() else {
