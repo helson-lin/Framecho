@@ -25,6 +25,18 @@ struct PinnedScreenshotView: View {
                     .strokeBorder(isActive ? Color.accentColor : .white.opacity(0.25), lineWidth: isActive ? 2 : 1)
                     .allowsHitTesting(false)
             }
+            .overlay {
+                if let percent = pin.zoomPercent {
+                    Text("\(percent)%")
+                        .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .glassEffect(.regular, in: .capsule)
+                        .allowsHitTesting(false)
+                        .transition(.opacity)
+                        .accessibilityLabel(Text("Zoom \(percent)%"))
+                }
+            }
     }
 
     @ViewBuilder

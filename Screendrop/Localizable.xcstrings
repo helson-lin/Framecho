@@ -17,6 +17,16 @@
         }
       }
     },
+    "Actual Size (⌘0)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实际大小 (⌘0)"
+          }
+        }
+      }
+    },
     "Annotate (E)" : {
       "localizations" : {
         "zh-Hans" : {
@@ -353,6 +363,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "上传质量"
+          }
+        }
+      }
+    },
+    "Zoom %lld%%" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缩放 %lld%%"
+          }
+        }
+      }
+    },
+    "Zoom In (⌘+)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放大 (⌘+)"
+          }
+        }
+      }
+    },
+    "Zoom Out (⌘−)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缩小 (⌘−)"
           }
         }
       }

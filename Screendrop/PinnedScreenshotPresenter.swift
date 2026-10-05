@@ -23,6 +23,8 @@ final class PinnedScreenshotPresenter {
         }
         controller.show(at: cascadedOrigin(for: controller.panel.frame.size))
         pins.append(controller)
+        // Selected straight away, so its keys work without a click first.
+        controller.panel.makeKey()
     }
 
     /// Pins the newest screenshot in History, the one just taken.
@@ -66,6 +68,8 @@ final class PinnedScreenshot {
     var isLiveTextActive = false
     var hasText = false
     fileprivate(set) var didCopy = false
+    /// Shown briefly after a zoom, as a percentage of the image's actual size.
+    fileprivate(set) var zoomPercent: Int?
     /// Present while annotating in place.
     fileprivate(set) var editor: AnnotationEditorModel?
 
@@ -95,6 +99,7 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
     private var pixelSize: CGSize
     private var keyMonitor: Any?
     private var copyFeedbackTask: Task<Void, Never>?
+    private var zoomFeedbackTask: Task<Void, Never>?
 
     private static let previewPixelSize: CGFloat = 1600
     private static let toolbarGap: CGFloat = 8
@@ -112,6 +117,9 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
         super.init()
 
         panel.delegate = self
+        panel.onZoom = { [weak self] factor, anchor in
+            self?.zoom(by: factor, around: anchor, animated: false)
+        }
         panel.contentView = NSHostingView(rootView: PinnedScreenshotView(pin: pin, controller: self))
         toolbarPanel.setContent(PinnedScreenshotToolbar(pin: pin, controller: self)) { [weak self] in
             self?.layoutToolbar()
@@ -130,6 +138,7 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
             self.keyMonitor = nil
         }
         copyFeedbackTask?.cancel()
+        zoomFeedbackTask?.cancel()
         pin.editor?.releaseEditorResources()
         pin.editor = nil
         setToolbarVisible(false)
@@ -150,6 +159,10 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
             .action(String(localized: "Copy"), { [weak self] in self?.copyImage() }),
             .action(String(localized: "Copy Text from Image"), { [weak self] in self?.copyText() }),
             .action(String(localized: "Save…"), { [weak self] in self?.save() }),
+            .separator,
+            .action(String(localized: "Zoom In (⌘+)"), { [weak self] in self?.zoom(by: Self.zoomStep) }),
+            .action(String(localized: "Zoom Out (⌘−)"), { [weak self] in self?.zoom(by: 1 / Self.zoomStep) }),
+            .action(String(localized: "Actual Size (⌘0)"), { [weak self] in self?.zoomToActualSize() }),
             .separator,
             .action(String(localized: "Close Pin"), { [weak self] in self?.close() }),
         ]
@@ -323,20 +336,28 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
         panel.setFrameOrigin(origin)
     }
 
-    func zoom(by factor: CGFloat) {
+    static let zoomStep: CGFloat = 1.25
+
+    /// - Parameter anchor: A screen point that stays put, such as the
+    ///   pointer during a pinch. Defaults to the pin's center.
+    func zoom(by factor: CGFloat, around anchor: CGPoint? = nil, animated: Bool = true) {
         let frame = panel.frame
-        resize(to: NSSize(width: frame.width * factor, height: frame.height * factor))
+        resize(to: NSSize(width: frame.width * factor, height: frame.height * factor), around: anchor, animated: animated)
     }
 
     /// One image pixel per screen pixel, as far as the screen allows.
     func zoomToActualSize() {
-        let scale = panel.screen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
-        resize(to: NSSize(width: pixelSize.width / scale, height: pixelSize.height / scale))
+        resize(to: actualSize, around: nil, animated: true)
     }
 
-    /// Resizes around the pin's center, kept between the minimum size and
-    /// the screen it is on.
-    private func resize(to proposed: NSSize) {
+    private var actualSize: NSSize {
+        let scale = panel.screen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+        return NSSize(width: pixelSize.width / scale, height: pixelSize.height / scale)
+    }
+
+    /// Resizes around `anchor`, kept between the minimum size and the screen
+    /// the pin is on.
+    private func resize(to proposed: NSSize, around anchor: CGPoint?, animated: Bool) {
         guard proposed.width > 0, proposed.height > 0 else { return }
         let frame = panel.frame
         let visible = (panel.screen ?? NSScreen.main)?.visibleFrame.size ?? proposed
@@ -344,13 +365,33 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
         let shrink = min(visible.width / proposed.width, visible.height / proposed.height, 1)
         let factor = grow > 1 ? grow : shrink
         let size = NSSize(width: (proposed.width * factor).rounded(), height: (proposed.height * factor).rounded())
+
+        let anchor = anchor ?? CGPoint(x: frame.midX, y: frame.midY)
+        let fx = (anchor.x - frame.minX) / frame.width
+        let fy = (anchor.y - frame.minY) / frame.height
         let target = NSRect(
-            x: (frame.midX - size.width / 2).rounded(),
-            y: (frame.midY - size.height / 2).rounded(),
+            x: (anchor.x - fx * size.width).rounded(),
+            y: (anchor.y - fy * size.height).rounded(),
             width: size.width,
             height: size.height
         )
-        panel.setFrame(target, display: true, animate: !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+        if target != frame {
+            let animate = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            panel.setFrame(target, display: true, animate: animate)
+        }
+        showZoomFeedback(width: size.width)
+    }
+
+    private func showZoomFeedback(width: CGFloat) {
+        let actualWidth = actualSize.width
+        guard actualWidth > 0 else { return }
+        pin.zoomPercent = Int((width / actualWidth * 100).rounded())
+        zoomFeedbackTask?.cancel()
+        zoomFeedbackTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1.2))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.2)) { self?.pin.zoomPercent = nil }
+        }
     }
 
     /// Convert pixel dimensions to a sensible point size for the pinned window,
@@ -474,12 +515,17 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
             copyText()
         case (.command, _, "s"):
             save()
-        case (.command, _, "="), ([.command, .shift], _, "+"):
-            zoom(by: 1.25)
-        case (.command, _, "-"):
-            zoom(by: 0.8)
-        case (.command, _, "0"):
-            zoomToActualSize()
+        // By key code, so they work whatever the keyboard layout types, and
+        // with or without Command since a pin has no text to type into.
+        case (_, 24, _) where modifiers.subtracting([.command, .shift]).isEmpty,
+             (_, 69, _) where modifiers.subtracting(.command).isEmpty:
+            zoom(by: Self.zoomStep)   // = / +, keypad +
+        case (_, 27, _) where modifiers.subtracting(.command).isEmpty,
+             (_, 78, _) where modifiers.subtracting(.command).isEmpty:
+            zoom(by: 1 / Self.zoomStep)   // -, keypad -
+        case (_, 29, _) where modifiers.subtracting(.command).isEmpty,
+             (_, 82, _) where modifiers.subtracting(.command).isEmpty:
+            zoomToActualSize()   // 0, keypad 0
         case ([], 123, _), ([.shift], 123, _):
             nudge(dx: modifiers.contains(.shift) ? -10 : -1, dy: 0)
         case ([], 124, _), ([.shift], 124, _):
@@ -527,6 +573,15 @@ final class PinnedPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 
+    /// Zoom by a factor around a screen point.
+    var onZoom: ((CGFloat, CGPoint) -> Void)?
+
+    /// Pinch to zoom around the pointer. While annotating, the canvas takes
+    /// the pinch and zooms inside the pin instead.
+    override func magnify(with event: NSEvent) {
+        onZoom?(1 + event.magnification, NSEvent.mouseLocation)
+    }
+
     /// Scroll over a pin to fade it in/out. Handled at the window level so it
     /// only fires when the cursor is over the pin, and applied via
     /// `alphaValue` so the compositor blends the existing buffer without
@@ -534,6 +589,16 @@ final class PinnedPanel: NSPanel {
     override func scrollWheel(with event: NSEvent) {
         // Ignore momentum coasting so a flick doesn't keep fading after release.
         guard event.momentumPhase.isEmpty else { return }
+
+        // Command-scroll zooms around the pointer, like Command-plus and
+        // minus; a plain scroll fades.
+        if event.modifierFlags.contains(.command) {
+            let delta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.scrollingDeltaY * 40
+            let physicalUp = event.isDirectionInvertedFromDevice ? -delta : delta
+            guard physicalUp != 0 else { return }
+            onZoom?(exp(physicalUp * 0.004), NSEvent.mouseLocation)
+            return
+        }
 
         // Trackpads report pixel deltas; discrete wheels report lines, which
         // Apple docs say to scale by a line height for parity.
