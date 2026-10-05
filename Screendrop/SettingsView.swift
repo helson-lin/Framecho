@@ -143,7 +143,7 @@ private struct SettingsSidebarRow: View {
     }
 }
 
-/// A neutral rounded tile with a tinted glyph, so the sidebar reads by
+/// A filled neutral tile with a tinted glyph, so the sidebar reads by
 /// shape and color without six saturated blocks competing for attention.
 private struct SettingsIconTile: View {
     let systemImage: String
@@ -152,12 +152,17 @@ private struct SettingsIconTile: View {
     private let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
 
     var body: some View {
+        // The sidebar resizes label icons to its row metrics, so the glyph
+        // gets an explicit size to keep padding inside the tile.
         Image(systemName: systemImage)
-            .font(.system(size: 12, weight: .medium))
+            .resizable()
+            .scaledToFit()
+            .fontWeight(.medium)
             .foregroundStyle(tint)
-            .frame(width: 22, height: 22)
-            .background(.background, in: shape)
-            .overlay { shape.strokeBorder(.separator.opacity(0.6), lineWidth: 0.5) }
+            .frame(width: 14, height: 14)
+            .frame(width: 24, height: 24)
+            .background(Color(nsColor: .controlBackgroundColor), in: shape)
+            .shadow(color: .black.opacity(0.12), radius: 0.5, y: 0.5)
             .accessibilityHidden(true)
     }
 }
