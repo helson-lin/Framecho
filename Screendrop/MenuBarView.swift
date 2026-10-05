@@ -54,6 +54,21 @@ struct MenuBarView: View {
             }
             .keyboardShortcut(hotkeyManager.activeShortcuts[.timedCapture]?.keyboardShortcut)
 
+            Button {
+                CaptureCoordinator.shared.captureAreaAndPin()
+            } label: {
+                Label("Capture Area and Pin", systemImage: "pin")
+            }
+            .keyboardShortcut(hotkeyManager.activeShortcuts[.pinArea]?.keyboardShortcut)
+
+            Button {
+                PinnedScreenshotPresenter.shared.pinLatestScreenshot()
+            } label: {
+                Label("Pin Latest Screenshot", systemImage: "pin.square")
+            }
+            .keyboardShortcut(hotkeyManager.activeShortcuts[.pinLatest]?.keyboardShortcut)
+            .disabled(!historyStore.items.contains { !$0.isVideo })
+
             // Mirrors the recording shortcut, which stops a running recording.
             if recorder.isActive {
                 Button {

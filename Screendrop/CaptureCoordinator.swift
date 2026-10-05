@@ -49,6 +49,10 @@ final class CaptureCoordinator {
         Task { await performCaptureText() }
     }
 
+    func captureAreaAndPin() {
+        Task { await performCaptureAreaAndPin() }
+    }
+
     func captureOnTimer() {
         Task { await performCaptureOnTimer() }
     }
@@ -120,6 +124,21 @@ final class CaptureCoordinator {
         ) else { return nil }
         let displayID = ActiveDisplayResolver.activeDisplayID(preferPointer: true)
         return finishCapture(url: url, displayID: displayID)
+    }
+
+    /// Pins the drawn area straight to the screen. The capture still goes to
+    /// History, so the pin can be annotated and found again, but there is no
+    /// preview card or after-capture action: the pin is the result. Skips
+    /// the self-timer, which is for staging a screen, not grabbing a reference.
+    private func performCaptureAreaAndPin() async {
+        guard let url = await ScreenshotManager.shared.captureArea(
+            includeShadow: ScreendropPreferences.captureWindowShadow
+        ) else { return }
+        if ScreendropPreferences.playSounds {
+            CaptureFeedbackSound.play()
+        }
+        let historyURL = ScreenshotHistoryStore.shared.importScreenshot(from: url, movingSource: true)
+        PinnedScreenshotPresenter.shared.pin(url: historyURL)
     }
 
     /// Capture Text is the odd one out: it recognizes the text inside the drawn

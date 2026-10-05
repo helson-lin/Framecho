@@ -199,6 +199,8 @@ enum CaptureHotkeyAction: String, CaseIterable, Identifiable {
     case screenRecording
     case textCapture
     case timedCapture
+    case pinArea
+    case pinLatest
 
     var id: Self { self }
 
@@ -210,6 +212,8 @@ enum CaptureHotkeyAction: String, CaseIterable, Identifiable {
         case .screenRecording: 4
         case .textCapture: 5
         case .timedCapture: 6
+        case .pinArea: 7
+        case .pinLatest: 8
         }
     }
 
@@ -221,6 +225,8 @@ enum CaptureHotkeyAction: String, CaseIterable, Identifiable {
         case .screenRecording: String(localized: "Screen Recording")
         case .textCapture: String(localized: "Capture Text")
         case .timedCapture: String(localized: "Capture on Timer")
+        case .pinArea: String(localized: "Capture Area and Pin")
+        case .pinLatest: String(localized: "Pin Latest Screenshot")
         }
     }
 
@@ -238,6 +244,10 @@ enum CaptureHotkeyAction: String, CaseIterable, Identifiable {
             HotkeyShortcut(modifiers: [.option], keyCode: Int(kVK_ANSI_5))
         case .timedCapture:
             HotkeyShortcut(modifiers: [.option], keyCode: Int(kVK_ANSI_6))
+        case .pinArea:
+            HotkeyShortcut(modifiers: [.option], keyCode: Int(kVK_ANSI_7))
+        case .pinLatest:
+            HotkeyShortcut(modifiers: [.option], keyCode: Int(kVK_ANSI_8))
         }
     }
 
@@ -255,6 +265,10 @@ enum CaptureHotkeyAction: String, CaseIterable, Identifiable {
             ScreendropPreferences.textCaptureHotkeyKey
         case .timedCapture:
             ScreendropPreferences.timedCaptureHotkeyKey
+        case .pinArea:
+            ScreendropPreferences.pinAreaHotkeyKey
+        case .pinLatest:
+            ScreendropPreferences.pinLatestHotkeyKey
         }
     }
 
@@ -282,6 +296,10 @@ enum CaptureHotkeyAction: String, CaseIterable, Identifiable {
             CaptureCoordinator.shared.captureText()
         case .timedCapture:
             CaptureCoordinator.shared.captureOnTimer()
+        case .pinArea:
+            CaptureCoordinator.shared.captureAreaAndPin()
+        case .pinLatest:
+            PinnedScreenshotPresenter.shared.pinLatestScreenshot()
         }
     }
 }
