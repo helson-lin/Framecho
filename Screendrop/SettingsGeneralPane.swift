@@ -38,7 +38,7 @@ struct GeneralSettingsPane: View {
             Section("Save Location") {
                 LabeledContent {
                     HStack(spacing: 6) {
-                        ExportFolderMenu(
+                        ExportFolderPicker(
                             exportDirectoryPath: $exportDirectoryPath,
                             chooseOther: chooseExportDirectory
                         )
@@ -188,7 +188,7 @@ struct GeneralSettingsPane: View {
 
 /// The export folder as a pop-up: the default, the usual user folders, the
 /// current custom folder, and Other… to pick any folder.
-private struct ExportFolderMenu: View {
+private struct ExportFolderPicker: View {
     @Binding var exportDirectoryPath: String
     let chooseOther: () -> Void
 
@@ -217,25 +217,30 @@ private struct ExportFolderMenu: View {
         return choices
     }
 
+    private static let otherID = "other"
+
     var body: some View {
-        Menu {
-            ForEach(choices) { choice in
-                Toggle(isOn: Binding(
-                    get: { choice.id == current.standardizedFileURL.path },
-                    set: { if $0 { select(choice) } }
-                )) {
-                    Label(choice.title, systemImage: "folder")
+        Picker("Export folder", selection: Binding(
+            get: { current.standardizedFileURL.path },
+            set: { id in
+                if id == Self.otherID {
+                    // Let the menu close before the open panel runs modally.
+                    DispatchQueue.main.async(execute: chooseOther)
+                } else if let choice = choices.first(where: { $0.id == id }) {
+                    select(choice)
                 }
             }
+        )) {
+            ForEach(choices) { choice in
+                Label(choice.title, systemImage: "folder").tag(choice.id)
+            }
             Divider()
-            Button("Other…", action: chooseOther)
-        } label: {
-            Label(FileManager.default.displayName(atPath: current.path), systemImage: "folder.fill")
+            Text("Other…").tag(Self.otherID)
         }
+        .labelsHidden()
+        .pickerStyle(.menu)
         .fixedSize()
         .help(current.path)
-        .accessibilityLabel("Export folder")
-        .accessibilityValue(current.abbreviatedPath)
     }
 
     private func select(_ choice: Choice) {
