@@ -227,14 +227,11 @@ private struct PinnedAnnotationBar: View {
                 swatchRow
                 AnnotationHistoryControl(model: editor, onAction: {})
 
-                Button("Discard", action: controller.discardAnnotating)
-                    .buttonStyle(.glass)
+                PinnedTextButton(title: "Discard", isProminent: false, action: controller.discardAnnotating)
                     .help("Discard annotations")
-                Button("Done", action: controller.finishAnnotating)
-                    .buttonStyle(.glassProminent)
+                PinnedTextButton(title: "Done", isProminent: true, action: controller.finishAnnotating)
                     .help("Save annotations (Esc)")
             }
-            .controlSize(.regular)
             .disabled(editor.isCommitting)
         }
     }
@@ -304,6 +301,40 @@ private struct PinnedToolbarButton: View {
         .help(Text(help))
         .accessibilityLabel(Text(title))
         .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
+}
+
+/// Drawn by hand: the toolbar's window never becomes key, and system
+/// prominent buttons drew there as if disabled.
+private struct PinnedTextButton: View {
+    let title: LocalizedStringResource
+    let isProminent: Bool
+    let action: () -> Void
+
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: isProminent ? .semibold : .regular))
+                .foregroundStyle(isProminent ? Color.white : Color.primary)
+                .padding(.horizontal, 14)
+                .frame(height: 30)
+                .background {
+                    if isProminent {
+                        Capsule().fill(Color.accentColor.opacity(isHovering ? 0.85 : 1))
+                    } else {
+                        Capsule().fill(Color.primary.opacity(isHovering ? 0.08 : 0))
+                    }
+                }
+                .glassEffect(.regular, in: .capsule)
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .focusEffectDisabled()
+        .opacity(isEnabled ? 1 : 0.5)
+        .onHover { isHovering = $0 }
     }
 }
 
