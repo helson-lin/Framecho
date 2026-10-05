@@ -53,4 +53,7 @@ check pinned-geometry "${strict[@]}" \
 check app-permissions "${strict[@]}" \
   Screendrop/AppPermission.swift scripts/check-app-permissions.swift
 
+check onboarding-launch "${strict[@]}" \
+  Screendrop/OnboardingLaunch.swift scripts/check-onboarding-launch.swift
+
 echo "All checks passed."

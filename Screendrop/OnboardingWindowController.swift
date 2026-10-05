@@ -6,12 +6,6 @@
 import AppKit
 import SwiftUI
 
-enum OnboardingPage: Hashable, CaseIterable {
-    case welcome
-    case permissions
-    case ready
-}
-
 /// Why the guide was asked for. A capture that needs Screen Recording gets a
 /// small window that explains just that; anything else gets the full guide.
 enum OnboardingReason {
@@ -45,14 +39,20 @@ enum OnboardingWindowController {
     @discardableResult
     static func showIfNeeded() -> Bool {
         let defaults = UserDefaults.standard
-        guard !defaults.bool(forKey: completedKey) else { return false }
-        let isResuming = defaults.bool(forKey: startedKey)
-        if !isResuming, CGPreflightScreenCaptureAccess() {
+        switch OnboardingLaunch.decision(
+            isCompleted: defaults.bool(forKey: completedKey),
+            isResuming: defaults.bool(forKey: startedKey),
+            isScreenRecordingGranted: CGPreflightScreenCaptureAccess()
+        ) {
+        case .none:
+            return false
+        case .markCompleted:
             defaults.set(true, forKey: completedKey)
             return false
+        case .show(let page):
+            showGuide(page: page)
+            return true
         }
-        showGuide(page: isResuming ? .permissions : .welcome)
-        return true
     }
 
     static func show(page: OnboardingPage, reason: OnboardingReason) {
