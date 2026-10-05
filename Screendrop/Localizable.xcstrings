@@ -273,6 +273,16 @@
         }
       }
     },
+    "Change Shortcuts…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改快捷键…"
+          }
+        }
+      }
+    },
     "Check for updates" : {
       "localizations" : {
         "zh-Hans" : {

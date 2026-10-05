@@ -125,13 +125,7 @@ struct CaptureLibraryView: View {
                 } description: {
                     Text(emptyLibraryDescription)
                 } actions: {
-                    if activeFilter == .all || activeFilter == .screenshots {
-                        Button("Capture Area") { CaptureCoordinator.shared.captureArea() }
-                    }
-                    if activeFilter == .all || activeFilter == .recordings {
-                        Button("Record Screen") { RecordingPickerPresenter.shared.show() }
-                            .disabled(ScreenRecordingManager.shared.isActive)
-                    }
+                    emptyLibraryActions
                 }
             }
         } else {
@@ -160,6 +154,43 @@ struct CaptureLibraryView: View {
         }
         .padding(.vertical, 3)
         .tag(filter)
+    }
+
+    /// Start a capture from the empty Library, showing each action's shortcut
+    /// so it can be used next time without opening the window.
+    @ViewBuilder private var emptyLibraryActions: some View {
+        let showsCapture = activeFilter == .all || activeFilter == .screenshots
+        let showsRecording = activeFilter == .all || activeFilter == .recordings
+        if showsCapture || showsRecording {
+            VStack(spacing: 12) {
+                HStack(spacing: 10) {
+                    if showsCapture {
+                        Button { CaptureCoordinator.shared.captureArea() } label: {
+                            shortcutLabel("Capture Area", action: .area)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    if showsRecording {
+                        Button { RecordingPickerPresenter.shared.show() } label: {
+                            shortcutLabel("Record Screen", action: .screenRecording)
+                        }
+                        .disabled(ScreenRecordingManager.shared.isActive)
+                    }
+                }
+                .controlSize(.large)
+
+                Button("Change Shortcuts…") { SettingsWindowController.show(tab: .shortcuts) }
+                    .buttonStyle(.link)
+                    .controlSize(.small)
+            }
+        }
+    }
+
+    private func shortcutLabel(_ title: LocalizedStringResource, action: CaptureHotkeyAction) -> some View {
+        HStack(spacing: 8) {
+            Text(title)
+            HotkeyShortcutDisplay(shortcut: CaptureHotkeyPreferences.shortcut(for: action))
+        }
     }
 
     private var captureCountText: String {
