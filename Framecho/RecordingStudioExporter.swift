@@ -197,13 +197,12 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             duration: CMTime(seconds: clipTimeline.duration, preferredTimescale: 600)
         )
 
-        let outputSize = Self.outputSize(
+        let canvasSize = Self.deliveredCanvasSize(
             source: configuration.canvasSize,
             resolution: configuration.exportSettings.resolution
         )
-        let canvasWidth = max(2, Int(outputSize.width.rounded()) & ~1)
-        let canvasHeight = max(2, Int(outputSize.height.rounded()) & ~1)
-        let canvasSize = CGSize(width: canvasWidth, height: canvasHeight)
+        let canvasWidth = Int(canvasSize.width)
+        let canvasHeight = Int(canvasSize.height)
 
         // Readers
         let screenReader = try AVAssetReader(asset: screenAsset)
@@ -554,6 +553,19 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
         return directory.appendingPathComponent("\(UUID().uuidString).\(container.fileExtension)")
     }
 
+    /// Pixel size of the exported video for a Studio canvas: scaled down to
+    /// the chosen resolution, then rounded to even dimensions for the encoder.
+    static func deliveredCanvasSize(
+        source: CGSize,
+        resolution: VideoCompressionResolution
+    ) -> CGSize {
+        let size = outputSize(source: source, resolution: resolution)
+        return CGSize(
+            width: max(2, Int(size.width.rounded()) & ~1),
+            height: max(2, Int(size.height.rounded()) & ~1)
+        )
+    }
+
     private static func outputSize(
         source: CGSize,
         resolution: VideoCompressionResolution
@@ -686,6 +698,8 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
     private let timing: RecordingExportTiming
     private var metalRenderer: StudioMetalScreenRenderer?
     private var metalFailed = false
+    /// The projected card's screen layer, over a transparent backdrop.
+    private var projectedScreenRenderer: StudioMetalScreenRenderer?
     private(set) var metalFrameCount = 0
     /// Wall time submitting and waiting on Metal passes. With a frame in
     /// flight this is only the GPU time the CPU could not overlap.
@@ -775,6 +789,8 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         /// cache; the restore itself waits for finish, which runs in order.
         fileprivate let plansRestore: Bool
         fileprivate let submission: StudioMetalScreenRenderer.Submission?
+        /// The projected card's flat layer this frame draws into.
+        fileprivate var foreground: CVPixelBuffer?
         let destination: CVPixelBuffer
     }
 
@@ -793,9 +809,12 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
             layout.frameRect(for: viewportFrame(at: time))
         }
         if projectsCard {
-            // The projected path composes every frame on the CPU and Core
-            // Image; neither the Metal pass nor the flat screen cache apply.
+            // The projected path draws the flat card layer, then projects it
+            // with Core Image; the flat screen cache doesn't apply. Its
+            // screen pass starts now, so the GPU renders this frame while
+            // the previous one is finished.
             plannedCacheKey = nil
+            let foreground = nextCardForeground()
             return PendingFrame(
                 screenFrame: screenFrame,
                 cameraFrame: cameraFrame,
@@ -804,7 +823,10 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
                 sampleRects: sampleRects,
                 shouldCacheScreen: false,
                 plansRestore: false,
-                submission: nil,
+                submission: foreground.flatMap {
+                    submitProjectedScreen(screenFrame: screenFrame, sampleRects: sampleRects, into: $0)
+                },
+                foreground: foreground,
                 destination: destination
             )
         }
@@ -959,8 +981,10 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         .integral
 
     /// Flat card content - video, pointer, keystroke caption - in canvas
-    /// space before projection. Reused for every frame.
-    private lazy var cardForeground: CVPixelBuffer? = {
+    /// space before projection. Two alternate, so the GPU can draw one
+    /// frame's layer while the previous frame's is still being projected;
+    /// with one frame in flight, a buffer is free again when it comes round.
+    private lazy var cardForegrounds: [CVPixelBuffer] = (0..<2).compactMap { _ in
         var buffer: CVPixelBuffer?
         CVPixelBufferCreate(
             kCFAllocatorDefault,
@@ -974,7 +998,14 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
             &buffer
         )
         return buffer
-    }()
+    }
+    private var cardForegroundIndex = 0
+
+    private func nextCardForeground() -> CVPixelBuffer? {
+        guard !cardForegrounds.isEmpty else { return nil }
+        defer { cardForegroundIndex = (cardForegroundIndex + 1) % cardForegrounds.count }
+        return cardForegrounds[cardForegroundIndex]
+    }
 
     /// No color management: values pass through exactly as Core Graphics
     /// drew them, so the projected card matches the flat path's colors.
@@ -989,12 +1020,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
     private var shadowLayerCache: (pose: RecordingCardPose, image: CGImage, rect: CGRect)?
 
     private func projection(at editorTime: TimeInterval) -> RecordingCardProjection {
-        RecordingCardProjection(
-            cardRect: layout.cardRect,
-            canvasSize: canvasSize,
-            pose: motionTimeline.pose(at: editorTime),
-            projectionVersion: motionTimeline.projectionVersion
-        )
+        projection(for: motionTimeline.pose(at: editorTime))
     }
 
     /// Card poses across the frame's shutter. The subframe count follows
@@ -1016,32 +1042,28 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
     private func finishProjected(_ frame: PendingFrame) throws {
         let projection = projection(at: frame.editorTime)
         let shutterProjections = shutterProjections(at: frame.editorTime)
-        guard let foreground = cardForeground else {
+        guard let foreground = frame.foreground else {
             throw RecordingStudioExporter.ExportError.writerFailed(nil)
         }
 
         // The card content is drawn once; every shutter pose projects the
-        // same video frame, so only the card's own motion smears.
+        // same video frame, so only the card's own motion smears. The screen
+        // and its zoom blur take the same Metal pass as flat frames, over a
+        // transparent backdrop; the pass writes every pixel of the layer.
+        let screenOnGPU = finishProjectedScreen(frame)
         try withBitmapContext(foreground) { context in
-            context.clear(CGRect(origin: .zero, size: canvasSize))
-            if let screenImage = Self.makeImage(from: frame.screenFrame, colorSpace: colorSpace) {
-                drawScreenSamples(screenImage, sampleRects: frame.sampleRects, in: context)
+            if !screenOnGPU {
+                context.clear(CGRect(origin: .zero, size: canvasSize))
+                if let screenImage = Self.makeImage(from: frame.screenFrame, colorSpace: colorSpace) {
+                    drawScreenSamples(screenImage, sampleRects: frame.sampleRects, in: context)
+                }
             }
             drawPointer(editorTime: frame.editorTime, in: context)
             drawKeystrokeCaption(at: frame.sourceTime, in: context)
         }
 
         try withBitmapContext(frame.destination) { context in
-            let canvasRect = CGRect(origin: .zero, size: canvasSize)
-            if let backdrop {
-                context.draw(backdrop, in: canvasRect)
-            } else {
-                context.setFillColor(CGColor(gray: 0, alpha: 1))
-                context.fill(canvasRect)
-            }
-            if let shadow = projectedShadow(for: projection) {
-                context.draw(shadow.image, in: shadow.rect)
-            }
+            drawProjectedBackdrop(for: projection.pose, into: context)
         }
 
         try renderProjectedCard(foreground, projections: shutterProjections, into: frame.destination)
@@ -1052,6 +1074,131 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
             }
             drawSubtitleBar(at: frame.sourceTime, in: context)
         }
+    }
+
+    /// A canvas-sized pixel copy, in the output buffers' format.
+    private struct CanvasPixels {
+        var bytes: [UInt8]
+        let bytesPerRow: Int
+    }
+
+    /// Backdrop plus card shadow for the last settled pose. Both are drawn
+    /// across the whole canvas - the shadow scaled up from a reduced layer -
+    /// which costs more on the CPU than the rest of a frame, yet repeat
+    /// exactly while the card holds still. A pose seen on two consecutive
+    /// frames is kept; each later frame with that pose copies it back.
+    private var settledBackdrop: (pose: RecordingCardPose, pixels: CanvasPixels)?
+    private var previousBackdropPose: RecordingCardPose?
+
+    private func drawProjectedBackdrop(for pose: RecordingCardPose, into context: CGContext) {
+        defer { previousBackdropPose = pose }
+        if let settledBackdrop, settledBackdrop.pose == pose,
+           copy(settledBackdrop.pixels, into: context) {
+            return
+        }
+        let canvasRect = CGRect(origin: .zero, size: canvasSize)
+        if let backdrop {
+            context.draw(backdrop, in: canvasRect)
+        } else {
+            context.setFillColor(CGColor(gray: 0, alpha: 1))
+            context.fill(canvasRect)
+        }
+        if let shadow = projectedShadow(for: projection(for: pose)) {
+            context.draw(shadow.image, in: shadow.rect)
+        }
+        if pose == previousBackdropPose {
+            context.flush()
+            settledBackdrop = capture(context).map { (pose, $0) }
+        }
+    }
+
+    private func projection(for pose: RecordingCardPose) -> RecordingCardProjection {
+        RecordingCardProjection(
+            cardRect: layout.cardRect,
+            canvasSize: canvasSize,
+            pose: pose,
+            projectionVersion: motionTimeline.projectionVersion
+        )
+    }
+
+    private func capture(_ context: CGContext) -> CanvasPixels? {
+        guard let data = context.data, context.width == Int(canvasSize.width),
+              context.height == Int(canvasSize.height) else { return nil }
+        let count = context.bytesPerRow * context.height
+        // Take the old copy's storage so it is overwritten, not duplicated.
+        var bytes = settledBackdrop.take()?.pixels.bytes ?? []
+        if bytes.count != count {
+            bytes = [UInt8](repeating: 0, count: count)
+        }
+        bytes.withUnsafeMutableBytes { raw in
+            raw.baseAddress?.copyMemory(from: data, byteCount: count)
+        }
+        return CanvasPixels(bytes: bytes, bytesPerRow: context.bytesPerRow)
+    }
+
+    /// False when the context doesn't match the copy's layout.
+    private func copy(_ pixels: CanvasPixels, into context: CGContext) -> Bool {
+        guard let destination = context.data,
+              context.width == Int(canvasSize.width),
+              context.height == Int(canvasSize.height) else { return false }
+        let rowLength = context.width * 4
+        guard pixels.bytesPerRow >= rowLength, context.bytesPerRow >= rowLength else { return false }
+        pixels.bytes.withUnsafeBytes { source in
+            guard let sourceBase = source.baseAddress else { return }
+            if context.bytesPerRow == pixels.bytesPerRow {
+                destination.copyMemory(from: sourceBase, byteCount: min(pixels.bytes.count, context.bytesPerRow * context.height))
+            } else {
+                for row in 0..<context.height {
+                    (destination + row * context.bytesPerRow)
+                        .copyMemory(from: sourceBase + row * pixels.bytesPerRow, byteCount: rowLength)
+                }
+            }
+        }
+        return true
+    }
+
+    /// Starts the Metal pass for the projected card's flat screen layer.
+    /// Nil means Core Graphics draws it - for this frame, or for the rest of
+    /// the export after a GPU failure, as on the flat path.
+    private func submitProjectedScreen(
+        screenFrame: CVPixelBuffer,
+        sampleRects: [CGRect],
+        into foreground: CVPixelBuffer
+    ) -> StudioMetalScreenRenderer.Submission? {
+        guard !forceCoreGraphics, !metalFailed,
+              StudioMetalScreenRenderer.shouldAccelerate(screenFrame: screenFrame, sampleRects: sampleRects)
+        else { return nil }
+        if projectedScreenRenderer == nil {
+            projectedScreenRenderer = StudioMetalScreenRenderer(
+                canvasSize: canvasSize, backdrop: nil, clearsBackdrop: true,
+                cardPath: roundedPath(for: layout.cardRect, radius: layout.cardCornerRadius),
+                colorSpace: colorSpace
+            )
+        }
+        let start = CFAbsoluteTimeGetCurrent()
+        defer { metalSeconds += CFAbsoluteTimeGetCurrent() - start }
+        guard let submission = projectedScreenRenderer?.submit(
+            screenFrame: screenFrame, sampleRects: sampleRects, into: foreground
+        ) else {
+            metalFailed = true
+            return nil
+        }
+        return submission
+    }
+
+    /// Waits for a frame's screen pass; true when its layer is ready.
+    private func finishProjectedScreen(_ frame: PendingFrame) -> Bool {
+        guard let submission = frame.submission, let renderer = projectedScreenRenderer else {
+            return false
+        }
+        let start = CFAbsoluteTimeGetCurrent()
+        defer { metalSeconds += CFAbsoluteTimeGetCurrent() - start }
+        guard renderer.wait(for: submission) else {
+            metalFailed = true
+            return false
+        }
+        metalFrameCount += 1
+        return true
     }
 
     private func withBitmapContext(_ buffer: CVPixelBuffer, _ draw: (CGContext) -> Void) throws {
