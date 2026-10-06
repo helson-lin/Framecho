@@ -3888,7 +3888,7 @@ private struct StudioMotionLane: View {
     private static let dragCreateThreshold: CGFloat = 4
     /// A drawn motion starts as this preset; the inspector opens on it to
     /// pick another.
-    private static let drawnPreset: RecordingMotionPreset = .tiltLeft
+    private static let drawnPreset: RecordingMotionPreset = .tiltRight
 
     /// Held as a time rather than a position so a zoom change mid-drag can't
     /// reinterpret where the drag began.
@@ -4907,7 +4907,7 @@ private struct StudioInspector: View {
 
             VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
                 InspectorActionButton("Add Motion at Playhead", systemImage: "plus") {
-                    model.addMotionCue(preset: .tiltLeft, at: model.currentTime)
+                    model.addMotionCue(preset: .tiltRight, at: model.currentTime)
                 }
                 .help("Add a motion block at the playhead, then shape its pose above")
 
