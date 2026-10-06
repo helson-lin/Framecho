@@ -29,6 +29,7 @@ struct CardMotionChecks {
     static func main() {
         checkProjection()
         checkTimeline()
+        checkEasing()
         checkClipMapping()
         checkPreviewMatchesExport()
         print("Card motion checks passed: \(checks)")
@@ -146,6 +147,42 @@ struct CardMotionChecks {
         check(RecordingMotionTimeline.build(settings: RecordingMotionSettings(isEnabled: true, cues: [off]),
                                             clipTimeline: clips).isIdentity, "Disabled cue is identity")
         check(RecordingMotionSettings(isEnabled: true, cues: [off]).isInert, "Disabled cue is inert")
+    }
+
+    static func checkEasing() {
+        for easing in RecordingMotionEasing.allCases {
+            near(easing.value(at: 0), 0, "\(easing) starts at 0")
+            near(easing.value(at: 1), 1, "\(easing) ends at 1")
+        }
+        near(RecordingMotionEasing.linear.value(at: 0.25), 0.25, "Linear is linear")
+        check(RecordingMotionEasing.easeIn.value(at: 0.5) < 0.5, "Ease in starts slowly")
+        check(RecordingMotionEasing.easeOut.value(at: 0.5) > 0.5, "Ease out starts quickly")
+        let overshootPeak = stride(from: 0.0, through: 1, by: 0.01).map(RecordingMotionEasing.overshoot.value).max() ?? 0
+        check(overshootPeak > 1.05, "Overshoot passes the target")
+        let springPeak = stride(from: 0.0, through: 1, by: 0.01).map(RecordingMotionEasing.spring.value).max() ?? 0
+        check(springPeak > 1.05, "Spring passes the target")
+
+        // Entrance and exit each run their own curve forward in time.
+        let clips = RecordingClipTimeline.full(sourceDuration: 20)
+        let target = RecordingCardPose(yawDegrees: 20)
+        let cue = RecordingMotionCue(
+            start: 2, end: 6, enterDuration: 1, exitDuration: 1, targetPose: target,
+            enterEasing: .linear, exitEasing: .easeIn
+        )
+        let timeline = RecordingMotionTimeline.build(
+            settings: RecordingMotionSettings(isEnabled: true, cues: [cue]), clipTimeline: clips
+        )
+        near(timeline.pose(at: 2.25).yawDegrees, 5, "Linear entrance quarter")
+        check(timeline.pose(at: 5.5).yawDegrees > 10, "Ease-in exit leaves the target slowly")
+        near(timeline.pose(at: 6).yawDegrees, 0, "Exit returns to base")
+
+        // Projects saved before easing was choosable keep the original curve.
+        let legacy = #"{"start":1,"end":3,"targetPose":{"yawDegrees":10,"pitchDegrees":0,"rollDegrees":0,"scale":1,"translationX":0,"translationY":0}}"#
+        let decoded = try! JSONDecoder().decode(RecordingMotionCue.self, from: Data(legacy.utf8))
+        check(decoded.enterEasing == .smooth && decoded.exitEasing == .smooth, "Legacy cue decodes smooth")
+        let unknown = #"{"start":1,"end":3,"enterEasing":"wobble","exitEasing":"linear"}"#
+        let future = try! JSONDecoder().decode(RecordingMotionCue.self, from: Data(unknown.utf8))
+        check(future.enterEasing == .smooth && future.exitEasing == .linear, "Unknown easing falls back to smooth")
     }
 
     /// The Studio preview draws the same layout at a smaller canvas. Its

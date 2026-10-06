@@ -513,12 +513,52 @@
         }
       }
     },
+    "Ease In" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缓入"
+          }
+        }
+      }
+    },
+    "Ease Out" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缓出"
+          }
+        }
+      }
+    },
+    "Entrance curve" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "入场曲线"
+          }
+        }
+      }
+    },
     "Every capture mode counts down first, which helps when you need to open a menu." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "所有截图方式都会先倒计时，适合需要先展开菜单的场景。"
+          }
+        }
+      }
+    },
+    "Exit curve" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出场曲线"
           }
         }
       }
@@ -669,6 +709,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "稍后"
+          }
+        }
+      }
+    },
+    "Linear" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "线性"
           }
         }
       }
@@ -869,6 +919,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "其他…"
+          }
+        }
+      }
+    },
+    "Overshoot" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回弹"
           }
         }
       }
@@ -1329,6 +1389,16 @@
         }
       }
     },
+    "Smooth" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平滑"
+          }
+        }
+      }
+    },
     "Sort by %@" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1345,6 +1415,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "源代码"
+          }
+        }
+      }
+    },
+    "Spring" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "弹簧"
           }
         }
       }

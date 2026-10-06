@@ -5010,6 +5010,21 @@ private struct StudioInspector: View {
                 } trailing: {
                     motionTimingSlider("Out", cue: cue, keyPath: \.exitDuration)
                 }
+                InspectorFieldPair {
+                    motionEasingMenu(
+                        cue: cue,
+                        keyPath: \.enterEasing,
+                        accessibilityLabel: "Entrance curve",
+                        isEnabled: cue.enterDuration > 0
+                    )
+                } trailing: {
+                    motionEasingMenu(
+                        cue: cue,
+                        keyPath: \.exitEasing,
+                        accessibilityLabel: "Exit curve",
+                        isEnabled: cue.exitDuration > 0
+                    )
+                }
                 if let segment {
                     Text(motionTimingSummary(cue: cue, segment: segment))
                         .font(.inspectorLabel)
@@ -5069,6 +5084,61 @@ private struct StudioInspector: View {
         let inText = format.displayString(for: CGFloat(segment.enter))
         let outText = format.displayString(for: CGFloat(segment.exit))
         return String(localized: "Shortened to fit: in \(inText), out \(outText)")
+    }
+
+    /// The curve of one transition, chosen from a menu that draws each
+    /// curve beside its name. Dimmed when that transition has no length.
+    private func motionEasingMenu(
+        cue: RecordingMotionCue,
+        keyPath: WritableKeyPath<RecordingMotionCue, RecordingMotionEasing>,
+        accessibilityLabel: LocalizedStringResource,
+        isEnabled: Bool
+    ) -> some View {
+        let easing = cue[keyPath: keyPath]
+        return Menu {
+            Picker(selection: Binding(
+                get: { cue[keyPath: keyPath] },
+                set: { newValue in
+                    guard var updated = currentMotionCue(id: cue.id) else { return }
+                    updated[keyPath: keyPath] = newValue
+                    model.updateMotionCue(updated)
+                }
+            )) {
+                ForEach(RecordingMotionEasing.allCases) { option in
+                    Text(option.title).tag(option)
+                }
+            } label: {
+                Text(accessibilityLabel)
+            }
+            .pickerStyle(.inline)
+        } label: {
+            HStack(spacing: 6) {
+                RecordingMotionEasingCurve(easing: easing)
+                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                    .frame(width: 18, height: 12)
+                    .accessibilityHidden(true)
+                Text(easing.title)
+                    .font(.inspectorLabel)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .inspectorField()
+            .contentShape(Rectangle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.48)
+        .help(Text(accessibilityLabel))
+        .accessibilityLabel(Text(accessibilityLabel))
+        .accessibilityValue(Text(easing.title))
     }
 
     private func motionTimingSlider(
@@ -5746,3 +5816,24 @@ private extension RecordingStudioModel {
     }
 }
 
+/// A small plot of an easing curve from the lower left to the upper right,
+/// leaving headroom so the overshooting curves show their swing.
+private struct RecordingMotionEasingCurve: Shape {
+    let easing: RecordingMotionEasing
+
+    func path(in rect: CGRect) -> Path {
+        let headroom = rect.height * 0.2
+        let plotHeight = rect.height - headroom
+        return Path { path in
+            let steps = 24
+            for step in 0...steps {
+                let u = Double(step) / Double(steps)
+                let point = CGPoint(
+                    x: rect.minX + rect.width * CGFloat(u),
+                    y: rect.maxY - plotHeight * CGFloat(easing.value(at: u))
+                )
+                if step == 0 { path.move(to: point) } else { path.addLine(to: point) }
+            }
+        }
+    }
+}
