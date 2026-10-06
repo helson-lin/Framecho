@@ -27,6 +27,31 @@
     -->
 
     <item>
+      <title>Version 0.41.0</title>
+      <sparkle:version>44</sparkle:version>
+      <sparkle:shortVersionString>0.41.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.4</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 06 Oct 2026 05:11:08 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.41.0</h2>
+        <ul>
+          <li>编辑记录、录屏项目和背景预设改用 Framecho 自己的文件格式（.framecho / .framechorec / .framechopreset）。升级后首次启动会自动迁移已有文件，旧版导出的 .screendroppreset 预设仍可导入</li>
+          <li>升级后请勿退回 0.40.0 及更早版本，旧版本无法读取迁移后的编辑记录</li>
+          <li>Intel Mac 导出视频时可以使用 GPU 加速，此前会退回较慢的 CPU 渲染（未经 Intel 实机测试）</li>
+          <li>修复 Framecho 改名前录制的视频在编辑器中显示原始文件名的问题</li>
+          <li>云端设置指南移除了来自上游服务器的演示视频</li>
+          <li>应用声明的最低系统版本统一为 macOS 26.4</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Screendrop/releases/download/v0.41.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="2REwSFqhVKiVDEBZU84zNkj+qO3Gm5yJvwzLriCrr0TeI1/Prn/06uQEl3ugiFdZ9lAMzpLz6U+QGpfKLnj4AA=="
+        length="8423452"
+      />
+    </item>
+
+    <item>
       <title>Version 0.40.0</title>
       <sparkle:version>43</sparkle:version>
       <sparkle:shortVersionString>0.40.0</sparkle:shortVersionString>
