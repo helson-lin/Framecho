@@ -1008,12 +1008,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
     private var shadowLayerCache: (pose: RecordingCardPose, image: CGImage, rect: CGRect)?
 
     private func projection(at editorTime: TimeInterval) -> RecordingCardProjection {
-        RecordingCardProjection(
-            cardRect: layout.cardRect,
-            canvasSize: canvasSize,
-            pose: motionTimeline.pose(at: editorTime),
-            projectionVersion: motionTimeline.projectionVersion
-        )
+        projection(for: motionTimeline.pose(at: editorTime))
     }
 
     /// Card poses across the frame's shutter. The subframe count follows
@@ -1056,16 +1051,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         }
 
         try withBitmapContext(frame.destination) { context in
-            let canvasRect = CGRect(origin: .zero, size: canvasSize)
-            if let backdrop {
-                context.draw(backdrop, in: canvasRect)
-            } else {
-                context.setFillColor(CGColor(gray: 0, alpha: 1))
-                context.fill(canvasRect)
-            }
-            if let shadow = projectedShadow(for: projection) {
-                context.draw(shadow.image, in: shadow.rect)
-            }
+            drawProjectedBackdrop(for: projection.pose, into: context)
         }
 
         try renderProjectedCard(foreground, projections: shutterProjections, into: frame.destination)
@@ -1076,6 +1062,87 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
             }
             drawSubtitleBar(at: frame.sourceTime, in: context)
         }
+    }
+
+    /// A canvas-sized pixel copy, in the output buffers' format.
+    private struct CanvasPixels {
+        var bytes: [UInt8]
+        let bytesPerRow: Int
+    }
+
+    /// Backdrop plus card shadow for the last settled pose. Both are drawn
+    /// across the whole canvas - the shadow scaled up from a reduced layer -
+    /// which costs more on the CPU than the rest of a frame, yet repeat
+    /// exactly while the card holds still. A pose seen on two consecutive
+    /// frames is kept; each later frame with that pose copies it back.
+    private var settledBackdrop: (pose: RecordingCardPose, pixels: CanvasPixels)?
+    private var previousBackdropPose: RecordingCardPose?
+
+    private func drawProjectedBackdrop(for pose: RecordingCardPose, into context: CGContext) {
+        defer { previousBackdropPose = pose }
+        if let settledBackdrop, settledBackdrop.pose == pose,
+           copy(settledBackdrop.pixels, into: context) {
+            return
+        }
+        let canvasRect = CGRect(origin: .zero, size: canvasSize)
+        if let backdrop {
+            context.draw(backdrop, in: canvasRect)
+        } else {
+            context.setFillColor(CGColor(gray: 0, alpha: 1))
+            context.fill(canvasRect)
+        }
+        if let shadow = projectedShadow(for: projection(for: pose)) {
+            context.draw(shadow.image, in: shadow.rect)
+        }
+        if pose == previousBackdropPose {
+            context.flush()
+            settledBackdrop = capture(context).map { (pose, $0) }
+        }
+    }
+
+    private func projection(for pose: RecordingCardPose) -> RecordingCardProjection {
+        RecordingCardProjection(
+            cardRect: layout.cardRect,
+            canvasSize: canvasSize,
+            pose: pose,
+            projectionVersion: motionTimeline.projectionVersion
+        )
+    }
+
+    private func capture(_ context: CGContext) -> CanvasPixels? {
+        guard let data = context.data, context.width == Int(canvasSize.width),
+              context.height == Int(canvasSize.height) else { return nil }
+        let count = context.bytesPerRow * context.height
+        // Take the old copy's storage so it is overwritten, not duplicated.
+        var bytes = settledBackdrop.take()?.pixels.bytes ?? []
+        if bytes.count != count {
+            bytes = [UInt8](repeating: 0, count: count)
+        }
+        bytes.withUnsafeMutableBytes { raw in
+            raw.baseAddress?.copyMemory(from: data, byteCount: count)
+        }
+        return CanvasPixels(bytes: bytes, bytesPerRow: context.bytesPerRow)
+    }
+
+    /// False when the context doesn't match the copy's layout.
+    private func copy(_ pixels: CanvasPixels, into context: CGContext) -> Bool {
+        guard let destination = context.data,
+              context.width == Int(canvasSize.width),
+              context.height == Int(canvasSize.height) else { return false }
+        let rowLength = context.width * 4
+        guard pixels.bytesPerRow >= rowLength, context.bytesPerRow >= rowLength else { return false }
+        pixels.bytes.withUnsafeBytes { source in
+            guard let sourceBase = source.baseAddress else { return }
+            if context.bytesPerRow == pixels.bytesPerRow {
+                destination.copyMemory(from: sourceBase, byteCount: min(pixels.bytes.count, context.bytesPerRow * context.height))
+            } else {
+                for row in 0..<context.height {
+                    (destination + row * context.bytesPerRow)
+                        .copyMemory(from: sourceBase + row * pixels.bytesPerRow, byteCount: rowLength)
+                }
+            }
+        }
+        return true
     }
 
     /// Starts the Metal pass for the projected card's flat screen layer.
