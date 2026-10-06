@@ -3999,18 +3999,20 @@ private extension ZoomAnchorMode {
 /// The Studio inspector splits by what a setting changes: the frame the video
 /// sits in, timed camera effects, things drawn over the video, and the cut
 /// and its sound.
+/// Cutting lives on the timeline itself, so the inspector's tabs cover only
+/// what the timeline can't show: the look, motion, overlays and sound.
 private enum StudioInspectorTab: Hashable, CaseIterable {
     case canvas
     case animation
     case overlays
-    case editing
+    case audio
 
     var title: String {
         switch self {
         case .canvas: String(localized: "Canvas")
         case .animation: String(localized: "Animation")
         case .overlays: String(localized: "Overlays")
-        case .editing: String(localized: "Editing")
+        case .audio: String(localized: "Audio")
         }
     }
 }
@@ -4038,6 +4040,8 @@ private struct StudioInspector: View {
     var body: some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 0) {
+                selectionSection
+
                 switch selectedTab {
                 case .canvas:
                     canvasTab
@@ -4045,23 +4049,18 @@ private struct StudioInspector: View {
                     animationTab
                 case .overlays:
                     overlaysTab
-                case .editing:
-                    editingTab
+                case .audio:
+                    audioTab
                 }
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .padding(.bottom, PreviewPeekTab.pillHeight * 1.1)
         }
         .scrollPosition($scrollPosition)
-        // A timeline selection opens the tab that edits it, with its controls
-        // at the top even when the panel was scrolled down.
+        // A timeline selection is edited above whichever tab is open; bring
+        // it into view even when the panel was scrolled down.
         .onChange(of: selectionKey) { _, key in
             guard key != nil else { return }
-            if model.selectedClipID != nil {
-                selectedTab = .editing
-            } else {
-                selectedTab = .animation
-            }
             scrollToTop(animated: true)
         }
         .onChange(of: model.activePoseAdjustment) { _, target in
@@ -4186,50 +4185,6 @@ private struct StudioInspector: View {
 
     @ViewBuilder
     private var animationTab: some View {
-        // Timeline selections edit at the top, where attention lands after
-        // clicking a zoom or motion.
-        if let selected = model.selectedCue {
-            InspectorSection(
-                title: "Selected Zoom",
-                accessory: {
-                    InspectorToggle(
-                        "Use this zoom",
-                        isOn: Binding(
-                            get: { selected.isEnabled },
-                            set: { isEnabled in
-                                var updated = selected
-                                updated.isEnabled = isEnabled
-                                model.updateZoomCue(updated)
-                            }
-                        )
-                    )
-                }
-            ) {
-                selectedZoomControls(for: selected)
-            }
-            InspectorSectionDivider()
-        } else if let selectedMotion = model.selectedMotionCue {
-            InspectorSection(
-                title: "Selected Motion",
-                accessory: {
-                    InspectorToggle(
-                        "Use this motion",
-                        isOn: Binding(
-                            get: { selectedMotion.isEnabled },
-                            set: { isEnabled in
-                                var updated = selectedMotion
-                                updated.isEnabled = isEnabled
-                                model.updateMotionCue(updated)
-                            }
-                        )
-                    )
-                }
-            ) {
-                selectedMotionControls(for: selectedMotion)
-            }
-            InspectorSectionDivider()
-        }
-
         InspectorSection(
             title: "Zoom",
             accessory: {
@@ -4251,6 +4206,81 @@ private struct StudioInspector: View {
         ) {
             if model.motionEnabled {
                 cardMotionControls
+            }
+        }
+    }
+
+    /// Whatever is selected on the timeline, edited above the open tab and
+    /// marked with its lane's colour so it reads as the selected block.
+    @ViewBuilder
+    private var selectionSection: some View {
+        if model.selectedCue != nil || model.selectedMotionCue != nil || model.selectedClip != nil {
+            VStack(alignment: .leading, spacing: 0) {
+                selectionControls
+            }
+            .background(Color.primary.opacity(colorScheme == .dark ? 0.05 : 0.035))
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(selectionTint)
+                    .frame(width: 3)
+            }
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(Color(nsColor: .separatorColor).opacity(0.45))
+                    .frame(height: 0.5)
+            }
+        }
+    }
+
+    private var selectionTint: Color {
+        if model.selectedCue != nil { return .accentColor }
+        if model.selectedMotionCue != nil { return StudioMotionCueBlock.tint }
+        return .secondary
+    }
+
+    @ViewBuilder
+    private var selectionControls: some View {
+        if let selected = model.selectedCue {
+            InspectorSection(
+                title: "Selected Zoom",
+                accessory: {
+                    InspectorToggle(
+                        "Use this zoom",
+                        isOn: Binding(
+                            get: { selected.isEnabled },
+                            set: { isEnabled in
+                                var updated = selected
+                                updated.isEnabled = isEnabled
+                                model.updateZoomCue(updated)
+                            }
+                        )
+                    )
+                }
+            ) {
+                selectedZoomControls(for: selected)
+            }
+        } else if let selectedMotion = model.selectedMotionCue {
+            InspectorSection(
+                title: "Selected Motion",
+                accessory: {
+                    InspectorToggle(
+                        "Use this motion",
+                        isOn: Binding(
+                            get: { selectedMotion.isEnabled },
+                            set: { isEnabled in
+                                var updated = selectedMotion
+                                updated.isEnabled = isEnabled
+                                model.updateMotionCue(updated)
+                            }
+                        )
+                    )
+                }
+            ) {
+                selectedMotionControls(for: selectedMotion)
+            }
+        } else if let selectedClip = model.selectedClip {
+            InspectorSection("Selected Clip") {
+                selectedClipControls(for: selectedClip)
             }
         }
     }
@@ -4337,19 +4367,7 @@ private struct StudioInspector: View {
     }
 
     @ViewBuilder
-    private var editingTab: some View {
-        if let selectedClip = model.selectedClip {
-            InspectorSection("Selected Clip") {
-                selectedClipControls(for: selectedClip)
-            }
-        } else {
-            InspectorSection("Clips") {
-                InspectorHint("Click a clip on the timeline to change its speed or delete it.")
-            }
-        }
-
-        InspectorSectionDivider()
-
+    private var audioTab: some View {
         if model.canTranscribe || model.hasSubtitles {
             InspectorSection("Edit by Text") {
                 editByTextControls
