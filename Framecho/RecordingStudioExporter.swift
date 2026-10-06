@@ -686,6 +686,8 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
     private let timing: RecordingExportTiming
     private var metalRenderer: StudioMetalScreenRenderer?
     private var metalFailed = false
+    /// The projected card's screen layer, over a transparent backdrop.
+    private var projectedScreenRenderer: StudioMetalScreenRenderer?
     private(set) var metalFrameCount = 0
     /// Wall time submitting and waiting on Metal passes. With a frame in
     /// flight this is only the GPU time the CPU could not overlap.
@@ -775,6 +777,8 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         /// cache; the restore itself waits for finish, which runs in order.
         fileprivate let plansRestore: Bool
         fileprivate let submission: StudioMetalScreenRenderer.Submission?
+        /// The projected card's flat layer this frame draws into.
+        fileprivate var foreground: CVPixelBuffer?
         let destination: CVPixelBuffer
     }
 
@@ -793,9 +797,12 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
             layout.frameRect(for: viewportFrame(at: time))
         }
         if projectsCard {
-            // The projected path composes every frame on the CPU and Core
-            // Image; neither the Metal pass nor the flat screen cache apply.
+            // The projected path draws the flat card layer, then projects it
+            // with Core Image; the flat screen cache doesn't apply. Its
+            // screen pass starts now, so the GPU renders this frame while
+            // the previous one is finished.
             plannedCacheKey = nil
+            let foreground = nextCardForeground()
             return PendingFrame(
                 screenFrame: screenFrame,
                 cameraFrame: cameraFrame,
@@ -804,7 +811,10 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
                 sampleRects: sampleRects,
                 shouldCacheScreen: false,
                 plansRestore: false,
-                submission: nil,
+                submission: foreground.flatMap {
+                    submitProjectedScreen(screenFrame: screenFrame, sampleRects: sampleRects, into: $0)
+                },
+                foreground: foreground,
                 destination: destination
             )
         }
@@ -959,8 +969,10 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         .integral
 
     /// Flat card content - video, pointer, keystroke caption - in canvas
-    /// space before projection. Reused for every frame.
-    private lazy var cardForeground: CVPixelBuffer? = {
+    /// space before projection. Two alternate, so the GPU can draw one
+    /// frame's layer while the previous frame's is still being projected;
+    /// with one frame in flight, a buffer is free again when it comes round.
+    private lazy var cardForegrounds: [CVPixelBuffer] = (0..<2).compactMap { _ in
         var buffer: CVPixelBuffer?
         CVPixelBufferCreate(
             kCFAllocatorDefault,
@@ -974,7 +986,14 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
             &buffer
         )
         return buffer
-    }()
+    }
+    private var cardForegroundIndex = 0
+
+    private func nextCardForeground() -> CVPixelBuffer? {
+        guard !cardForegrounds.isEmpty else { return nil }
+        defer { cardForegroundIndex = (cardForegroundIndex + 1) % cardForegrounds.count }
+        return cardForegrounds[cardForegroundIndex]
+    }
 
     /// No color management: values pass through exactly as Core Graphics
     /// drew them, so the projected card matches the flat path's colors.
@@ -1016,16 +1035,21 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
     private func finishProjected(_ frame: PendingFrame) throws {
         let projection = projection(at: frame.editorTime)
         let shutterProjections = shutterProjections(at: frame.editorTime)
-        guard let foreground = cardForeground else {
+        guard let foreground = frame.foreground else {
             throw RecordingStudioExporter.ExportError.writerFailed(nil)
         }
 
         // The card content is drawn once; every shutter pose projects the
-        // same video frame, so only the card's own motion smears.
+        // same video frame, so only the card's own motion smears. The screen
+        // and its zoom blur take the same Metal pass as flat frames, over a
+        // transparent backdrop; the pass writes every pixel of the layer.
+        let screenOnGPU = finishProjectedScreen(frame)
         try withBitmapContext(foreground) { context in
-            context.clear(CGRect(origin: .zero, size: canvasSize))
-            if let screenImage = Self.makeImage(from: frame.screenFrame, colorSpace: colorSpace) {
-                drawScreenSamples(screenImage, sampleRects: frame.sampleRects, in: context)
+            if !screenOnGPU {
+                context.clear(CGRect(origin: .zero, size: canvasSize))
+                if let screenImage = Self.makeImage(from: frame.screenFrame, colorSpace: colorSpace) {
+                    drawScreenSamples(screenImage, sampleRects: frame.sampleRects, in: context)
+                }
             }
             drawPointer(editorTime: frame.editorTime, in: context)
             drawKeystrokeCaption(at: frame.sourceTime, in: context)
@@ -1052,6 +1076,50 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
             }
             drawSubtitleBar(at: frame.sourceTime, in: context)
         }
+    }
+
+    /// Starts the Metal pass for the projected card's flat screen layer.
+    /// Nil means Core Graphics draws it - for this frame, or for the rest of
+    /// the export after a GPU failure, as on the flat path.
+    private func submitProjectedScreen(
+        screenFrame: CVPixelBuffer,
+        sampleRects: [CGRect],
+        into foreground: CVPixelBuffer
+    ) -> StudioMetalScreenRenderer.Submission? {
+        guard !forceCoreGraphics, !metalFailed,
+              StudioMetalScreenRenderer.shouldAccelerate(screenFrame: screenFrame, sampleRects: sampleRects)
+        else { return nil }
+        if projectedScreenRenderer == nil {
+            projectedScreenRenderer = StudioMetalScreenRenderer(
+                canvasSize: canvasSize, backdrop: nil, clearsBackdrop: true,
+                cardPath: roundedPath(for: layout.cardRect, radius: layout.cardCornerRadius),
+                colorSpace: colorSpace
+            )
+        }
+        let start = CFAbsoluteTimeGetCurrent()
+        defer { metalSeconds += CFAbsoluteTimeGetCurrent() - start }
+        guard let submission = projectedScreenRenderer?.submit(
+            screenFrame: screenFrame, sampleRects: sampleRects, into: foreground
+        ) else {
+            metalFailed = true
+            return nil
+        }
+        return submission
+    }
+
+    /// Waits for a frame's screen pass; true when its layer is ready.
+    private func finishProjectedScreen(_ frame: PendingFrame) -> Bool {
+        guard let submission = frame.submission, let renderer = projectedScreenRenderer else {
+            return false
+        }
+        let start = CFAbsoluteTimeGetCurrent()
+        defer { metalSeconds += CFAbsoluteTimeGetCurrent() - start }
+        guard renderer.wait(for: submission) else {
+            metalFailed = true
+            return false
+        }
+        metalFrameCount += 1
+        return true
     }
 
     private func withBitmapContext(_ buffer: CVPixelBuffer, _ draw: (CGContext) -> Void) throws {
