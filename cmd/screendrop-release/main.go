@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/xml"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -563,6 +564,28 @@ func commandExists(name string) bool {
 	return err == nil
 }
 
+// commitVersionBump commits the project file alone and reports whether there
+// was anything to commit. Re-running a release whose bump already landed
+// stages nothing; that is decided from the index rather than from git's
+// wording, which changes when untracked files are present.
+func commitVersionBump(repoDir, projectFile, message string) (bool, error) {
+	if out, err := runCmd("git", "-C", repoDir, "add", "--", projectFile); err != nil {
+		return false, fmt.Errorf("git add (version bump) failed:\n%s", out)
+	}
+	err := exec.Command("git", "-C", repoDir, "diff", "--cached", "--quiet", "--", projectFile).Run()
+	if err == nil {
+		return false, nil
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+		return false, fmt.Errorf("git diff (version bump) failed: %v", err)
+	}
+	if out, err := runCmd("git", "-C", repoDir, "commit", "-m", message, "--", projectFile); err != nil {
+		return false, fmt.Errorf("git commit (version bump) failed:\n%s", out)
+	}
+	return true, nil
+}
+
 func runCmd(name string, args ...string) (string, error) {
 	cmd := exec.Command(name, args...)
 	out, err := cmd.CombinedOutput()
@@ -796,15 +819,15 @@ func runBuildPhase(repoDir, homeDir, appPath string) {
 			fail("Version bump failed: " + err.Error())
 		}
 		commitMsg := versionCommitMessage(setVersionFlag, setBuildFlag)
-		if _, err := runCmd("git", "-C", repoDir, "add", filepath.Join(projectName, "project.pbxproj")); err != nil {
-			fail("git add (version bump) failed: " + err.Error())
+		committed, err := commitVersionBump(repoDir, filepath.Join(projectName, "project.pbxproj"), commitMsg)
+		if err != nil {
+			fail(err.Error())
 		}
-		if out, err := runCmd("git", "-C", repoDir, "commit", "-m", commitMsg); err != nil {
-			if !strings.Contains(out, "nothing to commit") {
-				fail("git commit (version bump) failed:\n" + out)
-			}
+		if committed {
+			success(commitMsg)
+		} else {
+			success("Version already set; nothing to commit")
 		}
-		success(commitMsg)
 	}
 
 	archivePath := filepath.Join(homeDir, "Downloads", archiveName)
