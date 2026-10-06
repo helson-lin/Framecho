@@ -2,10 +2,11 @@
 
 ## Project overview
 
-Screendrop is a native macOS screenshot and screen recording tool. Its Library window opens on normal launch; login launches remain in the menu bar (`LSUIElement = YES`). `AppActivationPolicy` uses `.regular` while Library, Settings, or editor windows are open, and returns to `.accessory` when they close. Built with SwiftUI + AppKit and no Xcode test target.
+Framecho is a native macOS screenshot and screen recording tool. Its Library window opens on normal launch; login launches remain in the menu bar (`LSUIElement = YES`). `AppActivationPolicy` uses `.regular` while Library, Settings, or editor windows are open, and returns to `.accessory` when they close. Built with SwiftUI + AppKit and no Xcode test target.
 
 **Deployment target:** macOS 26.4, built with Xcode 27.1 (macOS 27 SDK).
-**Bundle ID:** `com.jarinhe.Framecho` (the app is named Framecho; the Xcode target and source folder keep the upstream name `Screendrop` to ease merging upstream)
+**Bundle ID:** `com.jarinhe.Framecho`
+**Origin:** started as a fork of [Screendrop](https://github.com/fayazara/screendrop) and is now maintained independently; upstream changes are no longer merged. The GitHub repository is still named `helson-lin/Screendrop`, and the Sparkle feed URL depends on that name.
 
 ## Build
 
@@ -42,15 +43,15 @@ When adding new types, assume `@MainActor` isolation by default. If a type must 
 
 ## Architecture
 
-All source is in `Framecho/` (flat, no subdirectories). Key flow:
+App source is in `Framecho/`, flat except for `Engine/` (the annotation engine). Key flow:
 
-1. **App entry** - `ScreendropApp.swift`: `@main` App struct. Creates a `MenuBarExtra`, a Settings window, and an annotation editor `WindowGroup`.
+1. **App entry** - `FramechoApp.swift`: `@main` App struct. Creates a `MenuBarExtra`, a Settings window, and an annotation editor `WindowGroup`.
 2. **Hotkeys** - `HotkeyManager.swift`: Registers global Carbon hotkeys (Option+1/2/3) at launch via `AppDelegate`.
 3. **Capture** - `CaptureCoordinator.swift` → `ScreenshotManager.swift`: Fullscreen uses `ScreenCaptureKit`; window/area use `/usr/sbin/screencapture` CLI.
 4. **Preview** - `PreviewPanelPresenter.swift` + `PreviewWindowView.swift`: Borderless floating `NSPanel` showing a screenshot stack. Uses `ScreenshotPreviewStack` (an `@Observable` model).
 5. **Annotation** - `AnnotationEditorWindow.swift` + `AnnotationEditorModel.swift` + `AnnotationCanvas.swift`: Full annotation editor with tools (rectangle, ellipse, arrow, freehand, text, numbered circles, pixelate, blur). All coordinates are normalized (0..1) relative to the image.
 6. **Rendering** - `AnnotationRenderer.swift`: Composites annotations onto the source image at full pixel resolution using Core Graphics.
-7. **Preferences** - `ScreendropPreferences.swift` + `SettingsView.swift`: `UserDefaults`-backed settings (auto-save, auto-copy, auto-compress, export directory).
+7. **Preferences** - `FramechoPreferences.swift` + `SettingsView.swift`: `UserDefaults`-backed settings (auto-save, auto-copy, auto-compress, export directory).
 8. **Library** - `CaptureLibraryView.swift` + `CaptureLibraryModel.swift`: Single native sidebar/detail/inspector scene. `CaptureLibraryCollection.swift` reuses AppKit cells for grid/list layouts; `CaptureLibraryThumbnails.swift` bounds decoded image memory and concurrency. The model merges History metadata with recording packages by standardized package path. Existing capture storage and editable sidecars remain authoritative. `CaptureLibraryActions.swift` handles batch operations and prevents trashing captures while their editors are open.
 
 ### Singletons
@@ -63,10 +64,11 @@ All annotation positions/sizes are normalized to `[0, 1]` relative to the source
 
 ## Conventions
 
-- **No SPM packages or external dependencies.** The project uses only Apple frameworks (SwiftUI, AppKit, ScreenCaptureKit, CoreGraphics, CoreImage, ImageIO, Carbon).
+- **Minimal dependencies.** Apart from Apple frameworks, the only Swift packages are Sparkle (updates) and DockProgress. Don't add packages without a strong reason.
 - **`@Observable` macro** (Observation framework) is used for state - not `ObservableObject`/`@Published`.
 - **App sandbox is disabled** (`ENABLE_APP_SANDBOX = NO`) - the app needs screen capture permissions and direct filesystem access.
 - Screenshots are saved as lossless PNG to `NSTemporaryDirectory()` first, then optionally compressed to JPEG on export.
+- **Persisted formats** live in `~/Library/Application Support/Framecho`: `<image>.framecho` edit sidecars beside History images, `.framechorec` recording packages, and `history.json`. Exported presets are `.framechopreset` (`com.jarinhe.framecho.preset`). Files from before the rename (`.screendrop`, `.screendroprec`, `.screendroppreset`) are migrated at launch by `LegacyStorageMigration` or still read; keep that path working and never rename a persisted key or format without a migration.
 
 ## Commits
 

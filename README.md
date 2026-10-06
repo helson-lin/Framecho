@@ -18,7 +18,7 @@
 ---
 
 - **系统要求**：macOS 26.4 或更高版本；发布包同时支持 Apple Silicon 和 Intel。
-- **项目来源**：基于 [Screendrop](https://github.com/fayazara/Screendrop) 开发，由 [helson-lin](https://github.com/helson-lin) 独立维护，使用自己的应用标识、签名、公证、发布渠道和 Sparkle 更新源。源码目录、Xcode 工程与 scheme 保留 `Screendrop` 名称，便于合并上游改进。
+- **项目来源**：基于 [Screendrop](https://github.com/fayazara/Screendrop) 开发，现由 [helson-lin](https://github.com/helson-lin) 完全独立维护，不再同步上游；使用自己的应用标识、签名、公证、发布渠道和 Sparkle 更新源。GitHub 仓库暂沿用 `helson-lin/Screendrop` 名称。
 
 > [!NOTE]
 > 项目仍在持续开发中。反馈问题时，请附上 macOS 版本、Framecho 版本和复现步骤。
@@ -35,7 +35,9 @@
 
 **自动更新**：Framecho 通过 Sparkle 检查更新，更新源为本仓库 `main` 分支上的 [`appcast.xml`](https://raw.githubusercontent.com/helson-lin/Screendrop/main/appcast.xml)，DMG 保存在 GitHub Release 附件中。已是最新版时不会提示；Debug 构建不检查更新。
 
-**Homebrew**：本项目暂未提供自己的 cask。上游的 `fayazara/tap/screendrop` 安装的是 Screendrop，请使用上面的 Framecho 下载链接。
+**从旧版本升级**：早期版本保存的 `.screendrop` 编辑记录、`.screendroprec` 录屏项目会在启动时自动改名为 `.framecho`、`.framechorec`，素材库和编辑记录不受影响。
+
+**Homebrew**：本项目暂未提供 cask，请使用上面的 Framecho 下载链接。
 
 ## 功能
 
@@ -57,10 +59,10 @@
 - **标注**：矩形、圆形、箭头、直线、自由绘制、文字、编号和高亮；工具在画布顶部的悬浮工具条中，每个工具都有单键快捷键。
 - **完成与拷贝**：「完成」存储并关闭；「拷贝」直接拷贝当前画面，未存储的修改也会包含在内；存储、存储为和上传在「共享」菜单中。
 - **遮挡**：模糊、像素化，以及自动识别并遮挡敏感文字。
-- **非破坏性**：裁剪、撤销与重做；保留原图和 `.screendrop` 编辑 sidecar，可随时再次修改。
+- **非破坏性**：裁剪、撤销与重做；保留原图和 `.framecho` 编辑 sidecar，可随时再次修改。
 - **背景**：纯色、渐变、自定义壁纸和按需下载的壁纸包，配合留白、圆角、阴影、边框、水印和画布比例。
 - **效果**：3D 透视（镜头角度、取景、卡片旋转）和渐进模糊。
-- **预设**：导入、导出 `.screendroppreset` 背景预设；本地壁纸文件不随预设导出。
+- **预设**：导入、导出 `.framechopreset` 背景预设（仍可导入旧版 `.screendroppreset`）；本地壁纸文件不随预设导出。
 
 侧边栏按作用范围分为两个标签。选择工具或选中标注时，会自动切回「标注」。
 
@@ -158,7 +160,7 @@
 - 托管包与原始下载包的 SHA-256 一致，包 ID、内部文件名和目录结构不变，已有本地壁纸和已保存的引用可继续使用。
 - 对象路径中的 `Frameecho` 是当前 R2 路径，大小写和拼写须保持一致。
 - 下载失败时，可继续使用已有壁纸、纯色、渐变或自定义图片。下载器目前不校验资源摘要，也没有镜像回退。
-- 资源来自上游壁纸包，保留原作者署名。迁移托管不改变素材许可，本仓库的 CC0 许可不适用于这些壁纸。
+- 资源来自 Screendrop 的壁纸包，保留原作者署名。迁移托管不改变素材许可，本仓库的 CC0 许可不适用于这些壁纸。
 
 </details>
 
@@ -200,7 +202,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 > - Studio 的运动模糊使用 Metal 着色器。构建提示缺少 Metal Toolchain 时，先运行 `xcodebuild -downloadComponent MetalToolchain`。
 > - 签名配置使用维护者的 Apple 开发者团队。请在 Xcode 中换成自己的团队；只做本地编译验证时，可在命令后加 `CODE_SIGNING_ALLOWED=NO`，这样的产物不用于分发。
 
-工程和 scheme 名称为 `Screendrop`，生成的应用为 `Framecho.app`，Bundle ID 为 `com.jarinhe.Framecho`。
+工程为 `Framecho.xcodeproj`，生成的应用为 `Framecho.app`，Bundle ID 为 `com.jarinhe.Framecho`。共享 scheme 有三个：`Framecho`；`Framecho Dev`，构建独立的 `Framecho Dev.app`（Bundle ID `com.jarinhe.Framecho.dev`），可与正式版并存；`Framecho Demo`，以 `--demo-mode` 启动。
 
 ### 自动检查
 
@@ -240,7 +242,6 @@ go run ./cmd/framecho-release -build -yes \
 - 更新说明文件每行一条；每次发布递增 build 号，并先提交待发布的代码。
 - 签名偶尔会因 Apple 时间戳服务暂时不可用而失败。归档和导出遇到这类错误会自动重试，最多 3 次，间隔 20 秒、40 秒；证书缺失等其他签名错误会立即停止，并在报错开头列出 codesign 的错误行。
 - 不加 `-build` 时，工具直接打包已导出到 `~/Downloads/Framecho.app` 的应用。
-- 当前未配置 Homebrew tap，不会发布或更新 cask。
 
 > [!IMPORTANT]
 > Sparkle 的 EdDSA 私钥保存在维护者钥匙串的 `com.jarinhe.Framecho` 账户中。公证凭据和私钥不要提交到仓库，并请安全备份签名密钥，否则已安装的版本将无法收到可信更新。

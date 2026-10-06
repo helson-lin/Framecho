@@ -52,18 +52,18 @@ From the repository root, with Xcode selected and access to the Mac's GPU:
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc \
   -O -swift-version 6 -strict-concurrency=complete -default-isolation MainActor \
-  -module-cache-path /tmp/screendrop-metal-module-cache -parse-as-library \
+  -module-cache-path /tmp/framecho-metal-module-cache -parse-as-library \
   Framecho/StudioMetalScreenRenderer.swift \
   Framecho/StudioScreenLayerCache.swift \
   scripts/benchmark-studio-motion-blur.swift \
-  -o /tmp/screendrop-motion-blur-benchmark-bin
+  -o /tmp/framecho-motion-blur-benchmark-bin
 
-/tmp/screendrop-motion-blur-benchmark-bin
+/tmp/framecho-motion-blur-benchmark-bin
 ```
 
-The harness compiles the actual shader source, exercises 2/8/24-sample cases at 1080p and 4K with 1×/2×/4× input sizes, and reports Core Graphics fallback cases separately. For accelerated fixtures it asserts RGB mean absolute error below 4/255 and PSNR above 31 dB against the original compositor's screen pass. These are regression checks, not a perceptual-quality guarantee. PNG pairs are saved under `/tmp/screendrop-motion-blur-benchmark` for inspection.
+The harness compiles the actual shader source, exercises 2/8/24-sample cases at 1080p and 4K with 1×/2×/4× input sizes, and reports Core Graphics fallback cases separately. For accelerated fixtures it asserts RGB mean absolute error below 4/255 and PSNR above 31 dB against the original compositor's screen pass. These are regression checks, not a perceptual-quality guarantee. PNG pairs are saved under `/tmp/framecho-motion-blur-benchmark` for inspection.
 
-It also writes and decodes six frames each through H.264 and HEVC, exercising the writer's pixel-buffer pool, GPU rendering, a settled Core Graphics frame, screen-layer reuse, a moving CPU-drawn overlay, and a Metal-compatible reader. It checks that the overlay survives in the correct position, does not remain at its old position, and that invalid rectangles are rejected. Use `--encode-only` to rerun just these integration checks. The harness does not launch Screendrop or access user recordings. The [editor resource checks](editor-performance.md#standalone-checks) additionally verify byte-identical screen reuse, overlay isolation, and the snapshot budget.
+It also writes and decodes six frames each through H.264 and HEVC, exercising the writer's pixel-buffer pool, GPU rendering, a settled Core Graphics frame, screen-layer reuse, a moving CPU-drawn overlay, and a Metal-compatible reader. It checks that the overlay survives in the correct position, does not remain at its old position, and that invalid rectangles are rejected. Use `--encode-only` to rerun just these integration checks. The harness does not launch Framecho or access user recordings. The [editor resource checks](editor-performance.md#standalone-checks) additionally verify byte-identical screen reuse, overlay isolation, and the snapshot budget.
 
 ## Compare complete exports
 
@@ -92,13 +92,13 @@ Compare zooms and pans, small text, rounded edges, crops/reframing, camera place
 
 ## Frame-rate and blur option checks
 
-This standalone harness uses the production settings decoder and timing/sampling policy. It checks legacy settings, all four option combinations, cached-settings equality, the unchanged 60 fps shutter samples on analytical fixtures, and blur-off's single sample. It also writes and decodes synthetic H.264 and HEVC movies to verify frame counts, timestamps, nominal frame rates, and one-second playback duration. It does not launch Screendrop, exercise the complete Studio composition, or claim end-to-end export performance.
+This standalone harness uses the production settings decoder and timing/sampling policy. It checks legacy settings, all four option combinations, cached-settings equality, the unchanged 60 fps shutter samples on analytical fixtures, and blur-off's single sample. It also writes and decodes synthetic H.264 and HEVC movies to verify frame counts, timestamps, nominal frame rates, and one-second playback duration. It does not launch Framecho, exercise the complete Studio composition, or claim end-to-end export performance.
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc \
   -O -swift-version 6 -strict-concurrency=complete -default-isolation MainActor \
-  -module-cache-path /tmp/screendrop-metal-module-cache -parse-as-library \
+  -module-cache-path /tmp/framecho-metal-module-cache -parse-as-library \
   Framecho/VideoCompressionModels.swift Framecho/RecordingExportTiming.swift \
-  scripts/check-recording-export-options.swift -o /tmp/screendrop-export-options-check
-/tmp/screendrop-export-options-check
+  scripts/check-recording-export-options.swift -o /tmp/framecho-export-options-check
+/tmp/framecho-export-options-check
 ```
