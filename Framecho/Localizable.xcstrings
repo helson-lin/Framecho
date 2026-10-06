@@ -93,6 +93,16 @@
         }
       }
     },
+    "Add a motion block at the playhead, then shape its pose above" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在播放头处添加一段运镜，再在上方调整它的姿态"
+          }
+        }
+      }
+    },
     "Add Track" : {
       "localizations" : {
         "zh-Hans" : {
@@ -493,6 +503,16 @@
         }
       }
     },
+    "Drag to move the card. Double-click to center it." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动以移动卡片，双击回到中心。"
+          }
+        }
+      }
+    },
     "Every capture mode counts down first, which helps when you need to open a menu." : {
       "localizations" : {
         "zh-Hans" : {
@@ -833,6 +853,16 @@
         }
       }
     },
+    "Or start from a preset" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "或从预设开始"
+          }
+        }
+      }
+    },
     "Other…" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1003,6 +1033,36 @@
         }
       }
     },
+    "Reset position" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置位置"
+          }
+        }
+      }
+    },
+    "Reset rotation" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置旋转"
+          }
+        }
+      }
+    },
+    "Reset scale" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置缩放"
+          }
+        }
+      }
+    },
     "Restore %@ to %@" : {
       "localizations" : {
         "en" : {
@@ -1035,6 +1095,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "恢复默认（%@）"
+          }
+        }
+      }
+    },
+    "Rotation" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "旋转"
           }
         }
       }
@@ -1405,6 +1475,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "现在就试试：按下这些键，框选屏幕上的任意区域。"
+          }
+        }
+      }
+    },
+    "Turn %@ · Tilt %@ · Rotate %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左右转 %@ · 俯仰 %@ · 旋转 %@"
           }
         }
       }

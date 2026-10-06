@@ -926,12 +926,10 @@ private struct StudioPoseAdjustOverlay: View {
     let layout: RecordingStudioLayout
     let canvasSize: CGSize
 
-    /// What a drag changes, decided where it starts.
+    /// What a drag changes, decided where it starts: a part of the rotation
+    /// ball, or the card itself.
     private enum DragMode: Equatable {
-        case trackball
-        case turn
-        case tilt
-        case rotate
+        case ball(RecordingPoseBallGeometry.Mode)
         case move
         case scale
     }
@@ -948,15 +946,6 @@ private struct StudioPoseAdjustOverlay: View {
     @State private var dragStart: DragStart?
     @State private var hoverMode: DragMode?
 
-    /// How far a turn, tilt or trackball drag turns the card per point. Fixed
-    /// rather than tied to the ball's size, so a small ball on a small canvas
-    /// isn't coarser to steer than a large one.
-    private static let degreesPerPoint: Double = 0.6
-    /// Vertical squash of the turn and tilt rings, which is what makes the
-    /// ball read as a sphere rather than a flat target.
-    private static let ringDepth: CGFloat = 0.34
-    /// How close to a ring a press must land to grab it.
-    private static let ringGrabDistance: CGFloat = 7
     private static let handleSize: CGFloat = 9
     private static let coordinateSpace = CoordinateSpace.named(VideoCropOverlay.coordinateSpaceName)
 
@@ -1033,96 +1022,12 @@ private struct StudioPoseAdjustOverlay: View {
     }
 
     private func ball(pose: RecordingCardPose, center: CGPoint, radius: CGFloat) -> some View {
-        let active = dragStart?.mode ?? hoverMode
-        let turnRing = Path(ellipseIn: CGRect(
-            x: center.x - radius,
-            y: center.y - radius * Self.ringDepth,
-            width: radius * 2,
-            height: radius * 2 * Self.ringDepth
-        ))
-        let tiltRing = Path(ellipseIn: CGRect(
-            x: center.x - radius * Self.ringDepth,
-            y: center.y - radius,
-            width: radius * 2 * Self.ringDepth,
-            height: radius * 2
-        ))
-        let rotateRing = Path(ellipseIn: CGRect(
-            x: center.x - radius,
-            y: center.y - radius,
-            width: radius * 2,
-            height: radius * 2
-        ))
-
-        return ZStack(alignment: .topLeading) {
-            // A soft shaded sphere so the controls read as 3D.
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [Color.white.opacity(0.28), Color.black.opacity(0.18)],
-                        center: UnitPoint(x: 0.35, y: 0.3),
-                        startRadius: 0,
-                        endRadius: radius * 1.2
-                    )
-                )
-                .frame(width: radius * 2, height: radius * 2)
-                .position(center)
-
-            ring(rotateRing, color: .blue, isActive: active == .rotate, width: 2.5)
-            ring(turnRing, color: .green, isActive: active == .turn)
-            ring(tiltRing, color: .red, isActive: active == .tilt)
-
-            // Where the card's front faces on each ring.
-            marker(at: turnMarker(pose: pose, center: center, radius: radius), color: .green)
-            marker(at: tiltMarker(pose: pose, center: center, radius: radius), color: .red)
-            marker(at: rotateMarker(pose: pose, center: center, radius: radius), color: .blue)
-
-            Circle()
-                .fill(Color.white.opacity(active == .trackball ? 0.9 : 0.6))
-                .frame(width: 6, height: 6)
-                .position(center)
+        let active: RecordingPoseBallGeometry.Mode? = switch dragStart?.mode ?? hoverMode {
+        case .ball(let mode): mode
+        default: nil
         }
-        .allowsHitTesting(false)
-    }
-
-    private func ring(_ path: Path, color: Color, isActive: Bool, width: CGFloat = 2) -> some View {
-        path
-            .stroke(color.opacity(isActive ? 1 : 0.75), lineWidth: isActive ? width + 1.5 : width)
-            .shadow(color: .black.opacity(0.35), radius: 1, y: 0.5)
-    }
-
-    private func marker(at point: CGPoint, color: Color) -> some View {
-        Circle()
-            .fill(color)
-            .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
-            .frame(width: 9, height: 9)
-            .position(point)
-    }
-
-    /// Yaw as a point travelling around the horizontal ring's front.
-    private func turnMarker(pose: RecordingCardPose, center: CGPoint, radius: CGFloat) -> CGPoint {
-        let angle = pose.yawDegrees * .pi / 180
-        return CGPoint(
-            x: center.x + radius * CGFloat(sin(angle)),
-            y: center.y + radius * Self.ringDepth * CGFloat(cos(angle))
-        )
-    }
-
-    /// Pitch as a point travelling around the vertical ring's front.
-    private func tiltMarker(pose: RecordingCardPose, center: CGPoint, radius: CGFloat) -> CGPoint {
-        let angle = pose.pitchDegrees * .pi / 180
-        return CGPoint(
-            x: center.x + radius * Self.ringDepth * CGFloat(cos(angle)),
-            y: center.y + radius * CGFloat(sin(angle))
-        )
-    }
-
-    /// Roll as a point on the outer ring, starting at the top.
-    private func rotateMarker(pose: RecordingCardPose, center: CGPoint, radius: CGFloat) -> CGPoint {
-        let angle = pose.rollDegrees * .pi / 180
-        return CGPoint(
-            x: center.x + radius * CGFloat(sin(angle)),
-            y: center.y - radius * CGFloat(cos(angle))
-        )
+        return RecordingPoseBallFace(pose: pose, radius: radius, activeMode: active)
+            .position(center)
     }
 
     // MARK: Hit testing
@@ -1136,37 +1041,17 @@ private struct StudioPoseAdjustOverlay: View {
         if quad.contains(where: { hypot(location.x - $0.x, location.y - $0.y) <= 10 }) {
             return .scale
         }
-        let dx = location.x - center.x
-        let dy = location.y - center.y
-        let distance = hypot(dx, dy)
-        if abs(distance - radius) <= Self.ringGrabDistance {
-            return .rotate
-        }
-        if distance < radius {
-            if Self.distance(toEllipseWithRadii: CGSize(width: radius, height: radius * Self.ringDepth),
-                             dx: dx, dy: dy) <= Self.ringGrabDistance {
-                return .turn
-            }
-            if Self.distance(toEllipseWithRadii: CGSize(width: radius * Self.ringDepth, height: radius),
-                             dx: dx, dy: dy) <= Self.ringGrabDistance {
-                return .tilt
-            }
-            return .trackball
+        if let mode = RecordingPoseBallGeometry.mode(
+            at: CGSize(width: location.x - center.x, height: location.y - center.y),
+            radius: radius
+        ) {
+            return .ball(mode)
         }
         let outline = Path { path in
             path.addLines(quad)
             path.closeSubpath()
         }
         return outline.contains(location) ? .move : nil
-    }
-
-    /// Approximate distance from a point to an axis-aligned ellipse's curve.
-    private static func distance(toEllipseWithRadii radii: CGSize, dx: CGFloat, dy: CGFloat) -> CGFloat {
-        guard radii.width > 0, radii.height > 0 else { return .infinity }
-        let normalized = hypot(dx / radii.width, dy / radii.height)
-        guard normalized > 0 else { return min(radii.width, radii.height) }
-        let gradient = hypot(dx / (radii.width * radii.width), dy / (radii.height * radii.height))
-        return abs(normalized * normalized - 1) / (2 * max(gradient, 0.0001))
     }
 
     // MARK: Dragging
@@ -1191,40 +1076,23 @@ private struct StudioPoseAdjustOverlay: View {
         }
         guard let start = dragStart else { return }
 
-        let modifiers = NSEvent.modifierFlags
+        let constrained = NSEvent.modifierFlags.contains(.shift)
         var dx = Double(value.location.x - start.location.x)
         var dy = Double(value.location.y - start.location.y)
-        let degreesPerPoint = Self.degreesPerPoint
         var pose = start.pose
 
         switch start.mode {
-        case .trackball:
-            if modifiers.contains(.shift) {
-                if abs(dx) > abs(dy) { dy = 0 } else { dx = 0 }
-            }
-            // Like rolling the ball: dragging right sends the card's right
-            // edge away, dragging down sends its bottom away.
-            pose.yawDegrees = Self.detent(start.pose.yawDegrees + dx * degreesPerPoint)
-            pose.pitchDegrees = Self.detent(start.pose.pitchDegrees - dy * degreesPerPoint)
-        case .turn:
-            pose.yawDegrees = Self.snapped(start.pose.yawDegrees + dx * degreesPerPoint, modifiers)
-        case .tilt:
-            pose.pitchDegrees = Self.snapped(start.pose.pitchDegrees - dy * degreesPerPoint, modifiers)
-        case .rotate:
-            let startAngle = atan2(
-                Double(start.location.y - start.center.y),
-                Double(start.location.x - start.center.x)
+        case .ball(let mode):
+            pose = RecordingPoseBallGeometry.pose(
+                dragging: mode,
+                from: start.pose,
+                startLocation: start.location,
+                location: value.location,
+                center: start.center,
+                constrained: constrained
             )
-            let angle = atan2(
-                Double(value.location.y - start.center.y),
-                Double(value.location.x - start.center.x)
-            )
-            var delta = (angle - startAngle) * 180 / .pi
-            if delta > 180 { delta -= 360 }
-            if delta < -180 { delta += 360 }
-            pose.rollDegrees = Self.snapped(start.pose.rollDegrees + delta, modifiers)
         case .move:
-            if modifiers.contains(.shift) {
+            if constrained {
                 if abs(dx) > abs(dy) { dy = 0 } else { dx = 0 }
             }
             pose.translationX = start.pose.translationX + dx / Double(max(canvasSize.width, 1))
@@ -1266,19 +1134,19 @@ private struct StudioPoseAdjustOverlay: View {
         switch dragStart?.mode ?? hoverMode {
         case .move: .grabIdle
         case .scale: .frameResize(position: .topLeading)
-        case .turn: .columnResize
-        case .tilt: .rowResize
-        case .trackball, .rotate: .default
+        case .ball(.turn): .columnResize
+        case .ball(.tilt): .rowResize
+        case .ball(.trackball), .ball(.rotate): .default
         case nil: nil
         }
     }
 
     private var helpText: String {
         switch hoverMode {
-        case .turn: String(localized: "Drag the green ring to turn the card left or right")
-        case .tilt: String(localized: "Drag the red ring to tilt the card up or down")
-        case .rotate: String(localized: "Drag the blue ring to rotate the card. Hold Shift for 15° steps.")
-        case .trackball: String(localized: "Drag inside the ball to turn and tilt freely. Hold Shift to keep to one direction.")
+        case .ball(.turn): String(localized: "Drag the green ring to turn the card left or right")
+        case .ball(.tilt): String(localized: "Drag the red ring to tilt the card up or down")
+        case .ball(.rotate): String(localized: "Drag the blue ring to rotate the card. Hold Shift for 15° steps.")
+        case .ball(.trackball): String(localized: "Drag inside the ball to turn and tilt freely. Hold Shift to keep to one direction.")
         case .move: String(localized: "Drag the card to move it")
         case .scale: String(localized: "Drag to scale the card, or press = and -")
         case nil: ""
@@ -1348,16 +1216,6 @@ private struct StudioPoseAdjustOverlay: View {
         let rotate = degrees.displayString(for: CGFloat(pose.rollDegrees))
         let scale = percent.displayString(for: CGFloat(pose.scale))
         return String(localized: "Turn \(turn) · Tilt \(tilt) · Rotate \(rotate) · Scale \(scale)")
-    }
-
-    /// Lands exactly on zero when a drag passes close to it.
-    private static func detent(_ degrees: Double) -> Double {
-        abs(degrees) < 1.5 ? 0 : degrees
-    }
-
-    /// Shift snaps a single-axis drag to 15° steps.
-    private static func snapped(_ degrees: Double, _ modifiers: NSEvent.ModifierFlags) -> Double {
-        modifiers.contains(.shift) ? (degrees / 15).rounded() * 15 : detent(degrees)
     }
 }
 
@@ -4407,7 +4265,7 @@ private struct StudioInspector: View {
     @Bindable var model: RecordingStudioModel
     @State private var wallpaperStore = AnnotationWallpaperStore.shared
     @State private var selectedTab: StudioInspectorTab = .canvas
-    @State private var showsBasePoseControls = false
+    @State private var showsBasePoseControls = true
     @State private var isAudioExportOptionsPresented = false
     @State private var scrollPosition = ScrollPosition(edge: .top)
 
@@ -5048,7 +4906,12 @@ private struct StudioInspector: View {
             basePoseDisclosure
 
             VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
-                InspectorGroupLabel("Add motion at playhead")
+                InspectorActionButton("Add Motion at Playhead", systemImage: "plus") {
+                    model.addMotionCue(preset: .tiltLeft, at: model.currentTime)
+                }
+                .help("Add a motion block at the playhead, then shape its pose above")
+
+                InspectorGroupLabel("Or start from a preset")
                 InspectorSegmented(
                     options: RecordingMotionPreset.allCases,
                     isSelected: { _ in false },
@@ -5229,8 +5092,10 @@ private struct StudioInspector: View {
         )
     }
 
-    /// Turn, tilt, rotate, scale and offset for one pose. Reads the live pose
-    /// on every change so scrubbing one value never resets another.
+    /// Rotation, position and scale for one pose, each with a direct control
+    /// beside its numbers: a rotation ball, a position pad and a scale
+    /// slider. Reads the live pose on every change so steering one value
+    /// never resets another.
     private func poseControls(
         current: @escaping () -> RecordingCardPose,
         set: @escaping (RecordingCardPose) -> Void
@@ -5256,30 +5121,108 @@ private struct StudioInspector: View {
                 format: format
             )
         }
+        func clamped(_ updated: RecordingCardPose) -> RecordingCardPose {
+            var pose = updated
+            pose.yawDegrees = min(max(pose.yawDegrees, RecordingCardPose.yawRange.lowerBound), RecordingCardPose.yawRange.upperBound)
+            pose.pitchDegrees = min(max(pose.pitchDegrees, RecordingCardPose.pitchRange.lowerBound), RecordingCardPose.pitchRange.upperBound)
+            pose.rollDegrees = min(max(pose.rollDegrees, RecordingCardPose.rollRange.lowerBound), RecordingCardPose.rollRange.upperBound)
+            return pose
+        }
+        let hasRotation = pose.yawDegrees != 0 || pose.pitchDegrees != 0 || pose.rollDegrees != 0
+        let hasOffset = pose.translationX != 0 || pose.translationY != 0
 
-        return VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
-            InspectorFieldPair {
-                slider("Turn", \.yawDegrees, range: RecordingCardPose.yawRange, format: .degrees(signed: true))
-                    .help("Turn the card left or right")
-            } trailing: {
-                slider("Tilt", \.pitchDegrees, range: RecordingCardPose.pitchRange, format: .degrees(signed: true))
-                    .help("Tilt the card toward or away from you")
+        return VStack(alignment: .leading, spacing: InspectorMetrics.groupSpacing) {
+            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
+                poseGroupLabel("Rotation", resetHelp: "Reset rotation", showsReset: hasRotation) {
+                    var updated = current()
+                    updated.yawDegrees = 0
+                    updated.pitchDegrees = 0
+                    updated.rollDegrees = 0
+                    set(updated)
+                }
+                HStack(alignment: .center, spacing: InspectorMetrics.rowSpacing) {
+                    VStack(spacing: InspectorMetrics.rowSpacing) {
+                        slider("Turn", \.yawDegrees, range: RecordingCardPose.yawRange, format: .degrees(signed: true))
+                            .help("Turn the card left or right")
+                        slider("Tilt", \.pitchDegrees, range: RecordingCardPose.pitchRange, format: .degrees(signed: true))
+                            .help("Tilt the card toward or away from you")
+                        slider("Rotate", \.rollDegrees, range: RecordingCardPose.rollRange, format: .degrees(signed: true))
+                            .help("Rotate the card in the screen plane")
+                    }
+                    RecordingPoseBallControl(pose: pose, onChange: { set(clamped($0)) }, radius: 38)
+                }
             }
-            InspectorFieldPair {
-                slider("Rotate", \.rollDegrees, range: RecordingCardPose.rollRange, format: .degrees(signed: true))
-                    .help("Rotate the card in the screen plane")
-            } trailing: {
-                slider("Scale", \.scale, range: RecordingCardPose.scaleRange, format: .percent())
-                    .help("Card size, separate from zooms")
+
+            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
+                poseGroupLabel("Position", resetHelp: "Reset position", showsReset: hasOffset) {
+                    var updated = current()
+                    updated.translationX = 0
+                    updated.translationY = 0
+                    set(updated)
+                }
+                HStack(alignment: .center, spacing: InspectorMetrics.rowSpacing) {
+                    VStack(spacing: InspectorMetrics.rowSpacing) {
+                        slider("X", \.translationX, range: RecordingCardPose.translationRange, format: .percent(signed: true))
+                            .help("Horizontal offset, as a share of the canvas width")
+                        slider("Y", \.translationY, range: RecordingCardPose.translationRange, format: .percent(signed: true))
+                            .help("Vertical offset, as a share of the canvas height")
+                    }
+                    RecordingPosePositionPad(
+                        translation: CGPoint(x: pose.translationX, y: pose.translationY),
+                        canvasAspect: canvasAspect
+                    ) { offset in
+                        var updated = current()
+                        updated.translationX = Double(offset.x)
+                        updated.translationY = Double(offset.y)
+                        set(updated)
+                    }
+                    .frame(width: 90)
+                }
             }
-            InspectorFieldPair {
-                slider("X", \.translationX, range: RecordingCardPose.translationRange, format: .percent(signed: true))
-                    .help("Horizontal offset, as a share of the canvas width")
-            } trailing: {
-                slider("Y", \.translationY, range: RecordingCardPose.translationRange, format: .percent(signed: true))
-                    .help("Vertical offset, as a share of the canvas height")
+
+            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
+                poseGroupLabel("Scale", resetHelp: "Reset scale", showsReset: pose.scale != 1) {
+                    var updated = current()
+                    updated.scale = 1
+                    set(updated)
+                }
+                HStack(spacing: 8) {
+                    Image(systemName: "rectangle")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                    slider("Scale", \.scale, range: RecordingCardPose.scaleRange, format: .percent())
+                        .help("Card size, separate from zooms")
+                    Image(systemName: "rectangle")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                }
             }
         }
+    }
+
+    private func poseGroupLabel(
+        _ title: LocalizedStringResource,
+        resetHelp: LocalizedStringResource,
+        showsReset: Bool,
+        reset: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: 6) {
+            InspectorGroupLabel(title)
+            Spacer(minLength: 0)
+            if showsReset {
+                InspectorResetButton(help: resetHelp, action: reset)
+            }
+        }
+        .frame(minHeight: 18)
+    }
+
+    /// Shape of the finished canvas, for the position pad.
+    private var canvasAspect: CGFloat {
+        if let ratio = model.exportAspect.ratio { return ratio }
+        let size = model.videoSize
+        return size.height > 0 ? size.width / size.height : 16.0 / 10.0
     }
 
     // MARK: Selected clip
