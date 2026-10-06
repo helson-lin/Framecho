@@ -18,8 +18,10 @@ nonisolated final class StudioMetalScreenRenderer {
     private let downsampler: MPSImageLanczosScale
     private var downsampledTexture: MTLTexture?
 
+    /// `clearsBackdrop` leaves everything outside the card transparent rather
+    /// than painting `backdrop` or black, for a layer composited later.
     init?(
-        canvasSize: CGSize, backdrop: CGImage?, cardPath: CGPath,
+        canvasSize: CGSize, backdrop: CGImage?, clearsBackdrop: Bool = false, cardPath: CGPath,
         colorSpace: CGColorSpace, library: MTLLibrary? = nil
     ) {
         guard let device = library?.device ?? MTLCreateSystemDefaultDevice(),
@@ -40,7 +42,9 @@ nonisolated final class StudioMetalScreenRenderer {
                 colorSpace: colorSpace,
                 draw: { context in
                     let bounds = CGRect(origin: .zero, size: canvasSize)
-                    if let backdrop {
+                    if clearsBackdrop {
+                        context.clear(bounds)
+                    } else if let backdrop {
                         context.draw(backdrop, in: bounds)
                     } else {
                         context.setFillColor(CGColor(gray: 0, alpha: 1))
