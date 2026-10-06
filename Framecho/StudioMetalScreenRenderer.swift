@@ -195,7 +195,11 @@ nonisolated final class StudioMetalScreenRenderer {
             pixelFormat: .bgra8Unorm,
             width: width, height: height, mipmapped: false)
         descriptor.usage = .shaderRead
-        descriptor.storageMode = .shared
+        // Intel Macs' GPUs have no unified memory and don't allow shared
+        // textures, so makeTexture would fail and every export would fall
+        // back to Core Graphics. Managed works there; replace(region:) below
+        // uploads to either.
+        descriptor.storageMode = device.hasUnifiedMemory ? .shared : .managed
         guard let texture = device.makeTexture(descriptor: descriptor) else { return nil }
         texture.replace(
             region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0,
