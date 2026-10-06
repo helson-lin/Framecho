@@ -27,6 +27,33 @@
     -->
 
     <item>
+      <title>Version 0.40.0</title>
+      <sparkle:version>43</sparkle:version>
+      <sparkle:shortVersionString>0.40.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.4</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 06 Oct 2026 04:02:09 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.40.0</h2>
+        <ul>
+          <li>资料库重新设计：标准侧栏和智能分组，截图按日期分组，网格缩略图大小可调，列表视图可按列排序</li>
+          <li>资料库检查器的操作按钮带文字说明，详细信息分组显示；资料库为空时会显示截图快捷键</li>
+          <li>设置界面重新整理：侧栏分组并配图标，快捷键移到单独的设置页，「通用」「截图」「关于」页重新排版</li>
+          <li>导出文件夹改用标准弹出菜单选择，预览浮层大小的滑块会显示当前数值</li>
+          <li>Cloud 连接状态直接显示在分区标题旁</li>
+          <li>录屏内存占用明显降低：只录屏幕时约 140 MB（原约 220 MB），开启摄像头时约 310 MB（原约 415 MB）</li>
+          <li>摄像头改为按 720p 录制，此前实际按 1080p 写入</li>
+          <li>录屏时 CPU 占用降低约 40%</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Screendrop/releases/download/v0.40.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="4/cwMzrnNSckwA7evUWaPlGEWgzBSj032QvC3wjh1cFCTcGK2SMhxfrCB5RMt9QqxFZ8vUf2Qz23iiSJ7o8NCQ=="
+        length="9630412"
+      />
+    </item>
+
+    <item>
       <title>Version 0.39.0</title>
       <sparkle:version>42</sparkle:version>
       <sparkle:shortVersionString>0.39.0</sparkle:shortVersionString>
