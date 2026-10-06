@@ -60,6 +60,11 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
     /// text. Sample near display cadence; artwork encoding still runs only when
     /// the cursor's fingerprint actually changes.
     private static let appearanceSampleInterval: TimeInterval = 1.0 / 30.0
+    /// With a live event tap, pointer input schedules appearance checks, so
+    /// the timer only catches changes made while the pointer rests (a busy
+    /// spinner, an I-beam after typing). Reading the system cursor costs a
+    /// few milliseconds of main thread, which 30 idle polls a second wasted.
+    private static let appearanceHeartbeatInterval: TimeInterval = 0.25
 
     private let lock = NSLock()
     private var mapping: RecordingInputMapping?
@@ -81,6 +86,8 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
     private var fallbackGlobalMonitor: Any?
     private var fallbackLocalMonitor: Any?
     private var cursorAppearanceTimer: Timer?
+    /// Main-thread only: a pointer-driven appearance check is already queued.
+    private var appearanceCheckPending = false
 
     @MainActor
     func start(
@@ -124,7 +131,7 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
         }
 
         let appearanceTimer = Timer(
-            timeInterval: Self.appearanceSampleInterval,
+            timeInterval: tapIsLive ? Self.appearanceHeartbeatInterval : Self.appearanceSampleInterval,
             target: self,
             selector: #selector(pointerAppearanceTimer(_:)),
             userInfo: nil,
@@ -347,6 +354,10 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
                 }
             } else {
                 recorder.record(type: type, event: event)
+                // The tap's run loop source lives on the main run loop.
+                MainActor.assumeIsolated {
+                    recorder.scheduleAppearanceCheck()
+                }
             }
             return Unmanaged.passUnretained(event)
         }
@@ -567,6 +578,24 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
     @objc @MainActor
     private func pointerAppearanceTimer(_ timer: Timer) {
         captureActiveArtwork()
+    }
+
+    /// Coalesces pointer input into at most one appearance check per
+    /// `appearanceSampleInterval`. The check runs after the delay rather than
+    /// immediately because the app under the pointer swaps its cursor in
+    /// response to the same move; reading it at once would see the old shape.
+    @MainActor
+    private func scheduleAppearanceCheck() {
+        guard !appearanceCheckPending, cursorAppearanceTimer != nil else { return }
+        appearanceCheckPending = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.appearanceSampleInterval) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.appearanceCheckPending = false
+                guard self.cursorAppearanceTimer != nil else { return }
+                self.captureActiveArtwork()
+            }
+        }
     }
 
     @MainActor
