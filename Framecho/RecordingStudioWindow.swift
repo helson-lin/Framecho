@@ -79,6 +79,28 @@ private struct RecordingStudioContent: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
+                if !model.isCroppingVideo {
+                    Button {
+                        model.undo()
+                    } label: {
+                        Label("Undo", systemImage: "arrow.uturn.backward")
+                    }
+                    .keyboardShortcut("z", modifiers: .command)
+                    .disabled(!model.canUndo)
+                    .help("Undo (⌘Z)")
+
+                    Button {
+                        model.redo()
+                    } label: {
+                        Label("Redo", systemImage: "arrow.uturn.forward")
+                    }
+                    .keyboardShortcut("z", modifiers: [.command, .shift])
+                    .disabled(!model.canRedo)
+                    .help("Redo (⇧⌘Z)")
+                }
+            }
+
+            ToolbarItemGroup(placement: .primaryAction) {
                 if model.isCroppingVideo {
                     videoCropActions
                 } else {
@@ -2188,6 +2210,7 @@ private struct StudioTimelineEditor: View {
     @State private var scrollX: CGFloat = 0
     @State private var scrollPosition = ScrollPosition(edge: .leading)
     @State private var isResetClipsConfirmationPresented = false
+    @State private var mutedAudioVolume: CGFloat?
 
     /// Step per zoom button press / keyboard shortcut.
     private static let zoomStep: Double = 1.6
@@ -2206,11 +2229,14 @@ private struct StudioTimelineEditor: View {
     var body: some View {
         VStack(spacing: StudioTimelineMetrics.rowSpacing) {
             transport
-            lanes
+            HStack(alignment: .top, spacing: StudioTimelineMetrics.headerSpacing) {
+                laneHeaders
+                lanes
+            }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 12)
-        .padding(.bottom, 14)
+        .padding(.horizontal, 12)
+        .padding(.top, 6)
+        .padding(.bottom, 8)
         .background(Color(nsColor: .windowBackgroundColor))
         .overlay(alignment: .top) {
             Rectangle()
@@ -2257,7 +2283,10 @@ private struct StudioTimelineEditor: View {
                 clampZoom()
             }
         }
-        .frame(height: StudioTimelineMetrics.lanesHeight(showsMotionLane: showsMotionLane))
+        .frame(height: StudioTimelineMetrics.lanesHeight(
+            showsAudioLane: showsAudioLane,
+            showsMotionLane: showsMotionLane
+        ))
         .onChange(of: model.duration) { _, _ in clampZoom() }
         .onChange(of: model.currentTime) { _, time in followPlayhead(to: time) }
     }
@@ -2272,6 +2301,17 @@ private struct StudioTimelineEditor: View {
             VStack(spacing: StudioTimelineMetrics.rowSpacing) {
                 Color.clear
                     .frame(height: StudioTimelineMetrics.clipLaneHeight)
+                if showsAudioLane {
+                    StudioAudioLane(
+                        waveform: model.audioWaveform,
+                        timeline: model.clipTimeline,
+                        replacementName: model.replacementAudio?.displayName,
+                        isMuted: model.audioVolume <= 0,
+                        scale: scale,
+                        scrollX: scrollX
+                    )
+                    .frame(height: StudioTimelineMetrics.audioLaneHeight)
+                }
                 StudioZoomLaneBackground(
                     showsHint: model.zoomEnabled && model.zoomTimelineBlocks.isEmpty
                 )
@@ -2293,6 +2333,14 @@ private struct StudioTimelineEditor: View {
                             width: scale.contentWidth,
                             height: StudioTimelineMetrics.clipLaneHeight
                         )
+
+                    if showsAudioLane {
+                        Color.clear
+                            .frame(
+                                width: scale.contentWidth,
+                                height: StudioTimelineMetrics.audioLaneHeight
+                            )
+                    }
 
                     StudioZoomLane(
                         model: model,
@@ -2331,11 +2379,85 @@ private struct StudioTimelineEditor: View {
                 }
             }
         }
-        .frame(height: StudioTimelineMetrics.scrollingLanesHeight(showsMotionLane: showsMotionLane))
+        .frame(height: StudioTimelineMetrics.scrollingLanesHeight(
+            showsAudioLane: showsAudioLane,
+            showsMotionLane: showsMotionLane
+        ))
     }
 
     private var showsMotionLane: Bool {
         model.motion.isEnabled || !model.motion.cues.isEmpty
+    }
+
+    private var showsAudioLane: Bool {
+        model.hasAudio
+    }
+
+    /// Mute keeps the level it replaced, so unmuting restores it rather
+    /// than jumping to full volume.
+    private var audioOnBinding: Binding<Bool> {
+        Binding(
+            get: { model.audioVolume > 0 },
+            set: { isOn in
+                if isOn {
+                    model.audioVolume = mutedAudioVolume ?? 1
+                    mutedAudioVolume = nil
+                } else {
+                    mutedAudioVolume = model.audioVolume
+                    model.audioVolume = 0
+                }
+            }
+        )
+    }
+
+    /// Names each lane so the tracks read without hovering, with the switch
+    /// that turns that lane's effect on or off beside it.
+    private var laneHeaders: some View {
+        VStack(alignment: .leading, spacing: StudioTimelineMetrics.rowSpacing) {
+            Color.clear
+                .frame(
+                    height: StudioTimelineMetrics.playheadLaneHeight
+                        + StudioTimelineMetrics.rulerHeight
+                        + StudioTimelineMetrics.rowSpacing
+                )
+
+            StudioLaneHeader(title: "Video", systemImage: "film")
+                .frame(height: StudioTimelineMetrics.clipLaneHeight)
+
+            if showsAudioLane {
+                StudioLaneHeader(
+                    title: "Audio",
+                    systemImage: "waveform",
+                    tint: StudioAudioLane.tint,
+                    isOn: audioOnBinding,
+                    toggleHelp: model.audioVolume > 0 ? "Mute" : "Unmute",
+                    onSymbol: "speaker.wave.2",
+                    offSymbol: "speaker.slash"
+                )
+                .frame(height: StudioTimelineMetrics.audioLaneHeight)
+            }
+
+            StudioLaneHeader(
+                title: "Zoom",
+                systemImage: "plus.magnifyingglass",
+                tint: .accentColor,
+                isOn: $model.zoomEnabled,
+                toggleHelp: model.zoomEnabled ? "Turn Zooms Off" : "Turn Zooms On"
+            )
+            .frame(height: StudioTimelineMetrics.zoomLaneHeight)
+
+            if showsMotionLane {
+                StudioLaneHeader(
+                    title: "3D Motion",
+                    systemImage: "rotate.3d",
+                    tint: StudioMotionCueBlock.tint,
+                    isOn: $model.motionEnabled,
+                    toggleHelp: model.motionEnabled ? "Turn 3D Motion Off" : "Turn 3D Motion On"
+                )
+                .frame(height: StudioTimelineMetrics.motionLaneHeight)
+            }
+        }
+        .frame(width: StudioTimelineMetrics.headerWidth, alignment: .leading)
     }
 
     private var clipLane: some View {
@@ -2434,130 +2556,203 @@ private struct StudioTimelineEditor: View {
     }
 
     private var zoomControls: some View {
-        HStack(spacing: 6) {
-            StudioTransportTray {
-                timelineButton("Zoom Out (⌘-)", systemImage: "minus.magnifyingglass") {
-                    applyZoom(factor: 1 / Self.zoomStep, anchorTime: buttonZoomAnchor)
-                }
-                .keyboardShortcut("-", modifiers: .command)
-                .disabled(zoom <= 1.0001)
-
-                timelineButton("Zoom In (⌘=)", systemImage: "plus.magnifyingglass") {
-                    applyZoom(factor: Self.zoomStep, anchorTime: buttonZoomAnchor)
-                }
-                .keyboardShortcut("=", modifiers: .command)
-                .disabled(zoom >= scale.maxZoom - 0.0001)
-
-                timelineButton("Fit Timeline (⌘0)", systemImage: "arrow.left.and.right") {
-                    fitTimeline()
-                }
-                .keyboardShortcut("0", modifiers: .command)
-                .disabled(zoom <= 1.0001)
+        HStack(spacing: 4) {
+            timelineButton("Zoom Out (⌘-)", systemImage: "minus.magnifyingglass") {
+                applyZoom(factor: 1 / Self.zoomStep, anchorTime: buttonZoomAnchor)
             }
+            .keyboardShortcut("-", modifiers: .command)
+            .disabled(zoom <= 1.0001)
 
-            if zoom > 1.0001 {
-                Text(String(format: "%.1f×", zoom))
-                    .font(.system(size: 10, weight: .medium).monospacedDigit())
-                    .foregroundStyle(.secondary)
+            // Logarithmic, so each stretch of the slider zooms by the same
+            // ratio however long the recording is.
+            Slider(value: zoomSliderBinding, in: 0...1)
+                .controlSize(.mini)
+                .frame(width: 84)
+                .disabled(scale.maxZoom <= 1.0001)
+                .help("Timeline Zoom")
+                .accessibilityLabel("Timeline Zoom")
+
+            timelineButton("Zoom In (⌘=)", systemImage: "plus.magnifyingglass") {
+                applyZoom(factor: Self.zoomStep, anchorTime: buttonZoomAnchor)
             }
+            .keyboardShortcut("=", modifiers: .command)
+            .disabled(zoom >= scale.maxZoom - 0.0001)
+
+            Button("Fit") {
+                fitTimeline()
+            }
+            .buttonStyle(TransportTextButtonStyle())
+            .keyboardShortcut("0", modifiers: .command)
+            .disabled(zoom <= 1.0001)
+            .help("Fit Timeline (⌘0)")
         }
+    }
+
+    private var zoomSliderBinding: Binding<Double> {
+        Binding(
+            get: {
+                let maxZoom = scale.maxZoom
+                guard maxZoom > 1.0001 else { return 0 }
+                return log(zoom) / log(maxZoom)
+            },
+            set: { fraction in
+                let target = pow(scale.maxZoom, min(max(fraction, 0), 1))
+                applyZoom(factor: target / zoom, anchorTime: buttonZoomAnchor)
+            }
+        )
     }
 
     private var editControls: some View {
-        HStack(spacing: 6) {
-            StudioTransportTray {
-                timelineButton("Split at Playhead (⌘B)", systemImage: "scissors") {
-                    model.splitClip(at: model.currentTime)
-                }
-                .keyboardShortcut("b", modifiers: .command)
-
-                timelineButton("Delete Selection", systemImage: "trash") {
-                    deleteSelection()
-                }
-                .disabled(!canDeleteSelection)
-
-                timelineButton("Reset All Clip Edits…", systemImage: "arrow.counterclockwise") {
-                    isResetClipsConfirmationPresented = true
-                }
-                .disabled(!model.hasClipEdits)
-                .confirmationDialog(
-                    "Reset all clip edits?",
-                    isPresented: $isResetClipsConfirmationPresented
-                ) {
-                    Button("Reset Clips", role: .destructive) {
-                        model.resetClips()
-                    }
-                } message: {
-                    Text("Every split, trim, deletion and speed change goes back to the original recording. You can undo this.")
-                }
+        HStack(spacing: 2) {
+            transportTextButton("Split", systemImage: "scissors", shortcut: "⌘B") {
+                model.splitClip(at: model.currentTime)
             }
+            .keyboardShortcut("b", modifiers: .command)
+            .help("Split at Playhead (⌘B)")
 
-            StudioTransportTray {
-                timelineButton("Undo (⌘Z)", systemImage: "arrow.uturn.backward") {
-                    model.undo()
-                }
-                .keyboardShortcut("z", modifiers: .command)
-                .disabled(!model.canUndo)
+            transportTextButton("Delete", systemImage: "trash") {
+                deleteSelection()
+            }
+            .disabled(!canDeleteSelection)
+            .help("Delete Selection (⌫)")
 
-                timelineButton("Redo (⇧⌘Z)", systemImage: "arrow.uturn.forward") {
-                    model.redo()
+            speedMenu
+
+            timelineButton("Reset All Clip Edits…", systemImage: "arrow.counterclockwise") {
+                isResetClipsConfirmationPresented = true
+            }
+            .disabled(!model.hasClipEdits)
+            .confirmationDialog(
+                "Reset all clip edits?",
+                isPresented: $isResetClipsConfirmationPresented
+            ) {
+                Button("Reset Clips", role: .destructive) {
+                    model.resetClips()
                 }
-                .keyboardShortcut("z", modifiers: [.command, .shift])
-                .disabled(!model.canRedo)
+            } message: {
+                Text("Every split, trim, deletion and speed change goes back to the original recording. You can undo this.")
             }
         }
     }
 
-    private var playbackControls: some View {
-        HStack(spacing: 12) {
-            (Text(studioPreciseTimecode(model.displayTime))
-                .foregroundStyle(.primary.opacity(0.9))
-             + Text(" / \(studioPreciseTimecode(model.duration))")
-                .foregroundStyle(.secondary))
-                .font(.system(size: 12, weight: .medium).monospacedDigit())
-                .fixedSize()
-
-            HStack(spacing: 4) {
-                timelineButton("Back to Start", systemImage: "backward.end.fill") {
-                    model.pause()
-                    model.seek(to: 0)
+    /// Playback rate of the selected clip, offered beside the cut tools so a
+    /// slow stretch can be sped up without leaving the timeline.
+    private var speedMenu: some View {
+        let clip = model.selectedClip
+        return Menu {
+            if let clip {
+                Picker("Speed", selection: Binding(
+                    get: { clip.speed },
+                    set: { model.setClipSpeed($0, forClipID: clip.id) }
+                )) {
+                    ForEach(Self.clipSpeedPresets, id: \.self) { speed in
+                        Text(Self.speedLabel(speed)).tag(speed)
+                    }
                 }
-
-                Button {
-                    model.togglePlayback()
-                } label: {
-                    Image(systemName: model.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.primary.opacity(0.9))
-                        .frame(width: 34, height: 34)
-                        .background(Circle().fill(Color.primary.opacity(0.08)))
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.space, modifiers: [])
-                .help(model.isPlaying ? "Pause (Space)" : "Play (Space)")
-                .accessibilityLabel(model.isPlaying ? "Pause" : "Play")
-                .disabled(!model.isLoaded)
-
-                timelineButton("Skip to End", systemImage: "forward.end.fill") {
-                    model.pause()
-                    model.seek(to: model.duration)
-                }
+                .pickerStyle(.inline)
+                .labelsHidden()
             }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "gauge.with.dots.needle.67percent")
+                    .font(.system(size: 11, weight: .medium))
+                Text("Speed")
+                Text(Self.speedLabel(clip?.speed ?? 1))
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+            }
+            .font(.system(size: 11.5, weight: .medium))
         }
+        .menuStyle(.button)
+        .buttonStyle(TransportTextButtonStyle())
+        .menuIndicator(.visible)
+        .fixedSize()
+        .disabled(clip == nil)
+        .help(clip == nil ? "Select a clip to change its speed" : "Clip Speed")
+    }
+
+    /// The inspector's whole-number rates, within `RecordingClipSegment`'s
+    /// 1...8 range.
+    private static let clipSpeedPresets: [Double] = [1, 2, 3, 4, 6, 8]
+
+    private static func speedLabel(_ speed: Double) -> String {
+        InspectorValueFormat.magnification(fractionDigits: 0).displayString(for: speed)
+    }
+
+    private var playbackControls: some View {
+        HStack(spacing: 4) {
+            Text(studioPreciseTimecode(model.displayTime))
+                .foregroundStyle(.primary.opacity(0.9))
+                .frame(minWidth: 52, alignment: .trailing)
+
+            timelineButton("Previous Edit Point", systemImage: "backward.end.fill") {
+                model.pause()
+                model.seek(to: previousEditPoint)
+            }
+
+            Button {
+                model.togglePlayback()
+            } label: {
+                Image(systemName: model.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Color(nsColor: .windowBackgroundColor))
+                    .frame(width: 30, height: 30)
+                    .background(Circle().fill(Color.primary.opacity(0.85)))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.space, modifiers: [])
+            .help(model.isPlaying ? "Pause (Space)" : "Play (Space)")
+            .accessibilityLabel(model.isPlaying ? "Pause" : "Play")
+            .disabled(!model.isLoaded)
+
+            timelineButton("Next Edit Point", systemImage: "forward.end.fill") {
+                model.pause()
+                model.seek(to: nextEditPoint)
+            }
+
+            Text(studioPreciseTimecode(model.duration))
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 52, alignment: .leading)
+        }
+        .font(.system(size: 12, weight: .medium).monospacedDigit())
+    }
+
+    /// Clip boundaries plus both ends of the cut, in editor time.
+    private var editPoints: [TimeInterval] {
+        var points: [TimeInterval] = [0]
+        var editorTime: TimeInterval = 0
+        for segment in model.clipTimeline.segments {
+            editorTime += segment.editorDuration
+            points.append(editorTime)
+        }
+        points.append(model.duration)
+        return points
+    }
+
+    /// A little slack so pressing again from a boundary moves on to the
+    /// next one rather than landing where it already is.
+    private static let editPointTolerance: TimeInterval = 0.05
+
+    private var previousEditPoint: TimeInterval {
+        editPoints.last { $0 < model.currentTime - Self.editPointTolerance } ?? 0
+    }
+
+    private var nextEditPoint: TimeInterval {
+        editPoints.first { $0 > model.currentTime + Self.editPointTolerance } ?? model.duration
     }
 
     private var transport: some View {
         ZStack {
             HStack(spacing: 0) {
-                zoomControls
-                Spacer(minLength: 0)
                 editControls
+                Spacer(minLength: 0)
+                zoomControls
             }
 
             playbackControls
         }
-        .frame(height: 36)
+        .frame(height: 32)
     }
 
     private var canDeleteSelection: Bool {
@@ -2589,32 +2784,34 @@ private struct StudioTimelineEditor: View {
         .help(Text(help))
         .accessibilityLabel(Text(help))
     }
+
+    /// Icon-and-title transport button for the cut tools, with its shortcut
+    /// shown inline so it is learnt by sight.
+    private func transportTextButton(
+        _ title: LocalizedStringKey,
+        systemImage: String,
+        shortcut: String? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 11, weight: .medium))
+                Text(title)
+                if let shortcut {
+                    Text(verbatim: shortcut)
+                        .font(.system(size: 10, weight: .medium).monospaced())
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .font(.system(size: 11.5, weight: .medium))
+        }
+        .buttonStyle(TransportTextButtonStyle())
+    }
 }
 
-/// A quiet filled tray grouping related transport buttons, the same
-/// treatment as the annotator's tool grid.
 private enum StudioTransportMetrics {
     static let buttonRadius: CGFloat = 6
-    static let trayInset: CGFloat = 2
-}
-
-private struct StudioTransportTray<Content: View>: View {
-    @ViewBuilder let content: () -> Content
-
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        // Nested radius: the tray wraps buttons inset by `inset`.
-        let shape = RoundedRectangle(
-            cornerRadius: StudioTransportMetrics.buttonRadius + StudioTransportMetrics.trayInset,
-            style: .continuous
-        )
-        HStack(spacing: 0) {
-            content()
-        }
-        .padding(StudioTransportMetrics.trayInset)
-        .background(shape.fill(InspectorControlPalette.trackFill(for: colorScheme)))
-    }
 }
 
 private struct TransportIconButtonStyle: ButtonStyle {
@@ -2638,27 +2835,173 @@ private struct TransportIconButtonStyle: ButtonStyle {
     }
 }
 
+/// Borderless transport button with a title, hover-filled like the icon
+/// buttons beside it.
+private struct TransportTextButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(.horizontal, 7)
+            .frame(height: 26)
+            .foregroundStyle(
+                .primary.opacity(
+                    isEnabled ? (configuration.isPressed || isHovering ? 0.95 : 0.8) : 0.3
+                )
+            )
+            .background {
+                RoundedRectangle(cornerRadius: StudioTransportMetrics.buttonRadius, style: .continuous)
+                    .fill(Color.primary.opacity(
+                        isEnabled ? (configuration.isPressed ? 0.1 : isHovering ? 0.06 : 0) : 0
+                    ))
+            }
+            .contentShape(RoundedRectangle(cornerRadius: StudioTransportMetrics.buttonRadius, style: .continuous))
+            .onHover { isHovering = $0 }
+    }
+}
+
 private enum StudioTimelineMetrics {
-    static let rowSpacing: CGFloat = 8
+    static let rowSpacing: CGFloat = 4
     static let playheadLaneHeight: CGFloat = 14
     static let rulerHeight: CGFloat = 16
-    static let clipLaneHeight: CGFloat = 52
-    static let zoomLaneHeight: CGFloat = 32
-    static let motionLaneHeight: CGFloat = 32
+    static let clipLaneHeight: CGFloat = 44
+    static let zoomLaneHeight: CGFloat = 24
+    static let motionLaneHeight: CGFloat = 24
+    /// Lane name column to the left of the tracks.
+    static let headerWidth: CGFloat = 84
+    static let headerSpacing: CGFloat = 8
     /// Room under the lanes for the horizontal scroller, so it never sits on
     /// top of a zoom block.
     static let scrollerGutter: CGFloat = 8
 
-    /// The motion lane appears once 3D motion is in use, so recordings that
-    /// never touch it keep the original timeline height.
-    static func scrollingLanesHeight(showsMotionLane: Bool) -> CGFloat {
+    static let audioLaneHeight: CGFloat = 22
+
+    /// The audio lane appears for recordings with sound and the motion lane
+    /// once 3D motion is in use, so the timeline only grows for what is there.
+    static func scrollingLanesHeight(showsAudioLane: Bool, showsMotionLane: Bool) -> CGFloat {
         clipLaneHeight + zoomLaneHeight + scrollerGutter + rowSpacing * 2
+            + (showsAudioLane ? audioLaneHeight + rowSpacing : 0)
             + (showsMotionLane ? motionLaneHeight + rowSpacing : 0)
     }
 
-    static func lanesHeight(showsMotionLane: Bool) -> CGFloat {
+    static func lanesHeight(showsAudioLane: Bool, showsMotionLane: Bool) -> CGFloat {
         playheadLaneHeight + rulerHeight
-            + scrollingLanesHeight(showsMotionLane: showsMotionLane) + rowSpacing * 2
+            + scrollingLanesHeight(showsAudioLane: showsAudioLane, showsMotionLane: showsMotionLane)
+            + rowSpacing * 2
+    }
+}
+
+/// Recorded sound under the clip lane, drawn through the clip edits so cuts
+/// and speed changes line up with the picture. Like the ruler it is
+/// viewport-sized and redraws against `scrollX`.
+private struct StudioAudioLane: View {
+    static let tint = Color.green
+
+    let waveform: RecordingAudioWaveform?
+    let timeline: RecordingClipTimeline
+    /// Name of a file that replaces the recorded sound, shown instead of the
+    /// recording's waveform since that is no longer what plays.
+    let replacementName: String?
+    let isMuted: Bool
+    let scale: StudioTimelineScale
+    let scrollX: CGFloat
+
+    private static let barPitch: CGFloat = 3
+    private static let barWidth: CGFloat = 2
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: StudioZoomLaneMetrics.laneCornerRadius, style: .continuous)
+            .fill(Self.tint.opacity(0.07))
+            .overlay {
+                if let replacementName {
+                    Label(replacementName, systemImage: "music.note")
+                        .font(.system(size: 10.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .padding(.horizontal, 8)
+                } else if let waveform {
+                    bars(for: waveform)
+                }
+            }
+            .opacity(isMuted ? 0.45 : 1)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
+    private func bars(for waveform: RecordingAudioWaveform) -> some View {
+        Canvas { context, size in
+            guard scale.pointsPerSecond > 0, size.width > 0 else { return }
+            let midY = size.height / 2
+            let maxHalfHeight = size.height / 2 - 2
+            let contentEnd = scale.x(for: scale.duration) - scrollX
+            var path = Path()
+            var x = -scrollX.truncatingRemainder(dividingBy: Self.barPitch)
+            while x < min(size.width, contentEnd) {
+                let startTime = scale.time(forX: x + scrollX)
+                let endTime = scale.time(forX: x + scrollX + Self.barPitch)
+                let sourceStart = timeline.sourceTime(at: startTime)
+                // A bar straddling a cut would otherwise read the deleted
+                // span between the two clips; cap it at the fastest speed.
+                let maxSpan = (endTime - startTime) * RecordingClipSegment.maximumSpeed
+                let sourceEnd = min(
+                    max(timeline.sourceTime(at: endTime), sourceStart),
+                    sourceStart + maxSpan
+                )
+                let peak = CGFloat(waveform.peak(from: sourceStart, to: sourceEnd))
+                let half = max(0.75, peak * maxHalfHeight)
+                path.addRoundedRect(
+                    in: CGRect(x: x, y: midY - half, width: Self.barWidth, height: half * 2),
+                    cornerSize: CGSize(width: 1, height: 1)
+                )
+                x += Self.barPitch
+            }
+            context.fill(path, with: .color(Self.tint.opacity(0.75)))
+        }
+    }
+}
+
+/// Name, icon and optional on/off switch for one timeline lane.
+private struct StudioLaneHeader: View {
+    let title: LocalizedStringKey
+    let systemImage: String
+    var tint: Color = .secondary
+    var isOn: Binding<Bool>?
+    var toggleHelp: LocalizedStringKey = ""
+    var onSymbol = "eye"
+    var offSymbol = "eye.slash"
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: systemImage)
+                .font(.system(size: 10.5, weight: .semibold))
+                .foregroundStyle(isActive ? tint : Color.secondary.opacity(0.6))
+                .frame(width: 14)
+            Text(title)
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(isActive ? .primary : .secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Spacer(minLength: 0)
+            if let isOn {
+                Button {
+                    isOn.wrappedValue.toggle()
+                } label: {
+                    Image(systemName: isOn.wrappedValue ? onSymbol : offSymbol)
+                        .font(.system(size: 10, weight: .medium))
+                        .frame(width: 20, height: 18)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(TransportIconButtonStyle())
+                .help(Text(toggleHelp))
+                .accessibilityLabel(Text(toggleHelp))
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private var isActive: Bool {
+        isOn?.wrappedValue ?? true
     }
 }
 
@@ -2846,22 +3189,23 @@ private struct StudioTimelineRuler: View {
                 CGFloat(time) * pointsPerSecond - scrollX
             }
 
-            /// `anchorX` is the tick position; `trailing` right-aligns the
-            /// label onto it instead of centering, which is how the endpoint
-            /// label stays inside the viewport.
+            /// `anchorX` is the tick position. Labels sit just right of
+            /// their tick so the first one is never clipped at the lane edge;
+            /// `trailing` right-aligns the endpoint label so it stays inside
+            /// the viewport.
             func drawLabel(_ text: String, at anchorX: CGFloat, trailing: Bool = false) {
                 let label = context.resolve(
                     Text(text)
-                        .font(.system(size: 9, weight: .medium).monospacedDigit())
+                        .font(.system(size: 9.5, weight: .medium).monospacedDigit())
                         .foregroundStyle(Color.secondary)
                 )
                 let labelSize = label.measure(in: size)
-                let labelX = trailing ? anchorX - labelSize.width : anchorX - labelSize.width / 2
+                let labelX = trailing ? anchorX - labelSize.width - 3 : anchorX + 3
                 let clampedX = min(max(labelX, 0), max(0, size.width - labelSize.width))
                 guard clampedX >= lastLabelMaxX + 8 else { return }
                 context.draw(label, in: CGRect(
                     x: clampedX,
-                    y: size.height - 5 - labelSize.height,
+                    y: size.height - 1 - labelSize.height,
                     width: labelSize.width,
                     height: labelSize.height
                 ))
@@ -3109,13 +3453,13 @@ private struct StudioZoomLane: View {
 }
 
 private enum StudioZoomLaneMetrics {
-    static let laneInset: CGFloat = 4
-    static let blockCornerRadius: CGFloat = 6
+    static let laneInset: CGFloat = 3
+    static let blockCornerRadius: CGFloat = 5
     static let laneCornerRadius = blockCornerRadius + laneInset
     static let selectionRingPadding: CGFloat = 1
     static let selectionRingCornerRadius = blockCornerRadius + selectionRingPadding
-    static let blockHeight: CGFloat = 24
-    static let blockInset: CGFloat = 4
+    static let blockHeight: CGFloat = 18
+    static let blockInset: CGFloat = 3
     static let minimumLabelledBlockWidth: CGFloat = 48
 }
 

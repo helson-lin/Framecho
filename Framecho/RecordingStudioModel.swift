@@ -185,6 +185,10 @@ final class RecordingStudioModel {
     /// Storyboard tiles for the clip lane, sampled on demand at whatever
     /// density the lane's current zoom needs.
     let timelineThumbnails = RecordingTimelineThumbnailStore()
+    /// Peaks of the recorded audio for the timeline's audio lane; nil until
+    /// decoded, and for recordings without sound.
+    private(set) var audioWaveform: RecordingAudioWaveform?
+    private var audioWaveformTask: Task<Void, Never>?
 
     private(set) var isPlaying = false
     var currentTime: TimeInterval = 0
@@ -494,6 +498,9 @@ final class RecordingStudioModel {
         exportTask?.cancel()
         audioExportTask?.cancel()
         replacementAudioTask?.cancel()
+        audioWaveformTask?.cancel()
+        audioWaveformTask = nil
+        audioWaveform = nil
         cancelShare()
         transcriptionTask?.cancel()
         projectSaveTask?.cancel()
@@ -892,6 +899,18 @@ final class RecordingStudioModel {
 
     private func loadTimelineThumbnails() {
         timelineThumbnails.prepare(url: screenURL, duration: sourceDuration)
+        loadAudioWaveform()
+    }
+
+    private func loadAudioWaveform() {
+        guard hasRecordedAudio, audioWaveform == nil, audioWaveformTask == nil else { return }
+        let url = screenURL
+        audioWaveformTask = Task { [weak self] in
+            let waveform = await RecordingAudioWaveform.load(url: url)
+            guard let self, !Task.isCancelled, !self.isTornDown else { return }
+            self.audioWaveform = waveform
+            self.audioWaveformTask = nil
+        }
     }
 
     /// Speed of whichever clip covers this editor time; 1 when nothing
