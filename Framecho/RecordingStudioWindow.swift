@@ -360,6 +360,11 @@ private struct RecordingStudioContent: View {
         }
     }
 
+    private var exportSummary: String {
+        let settings = model.exportSettings
+        return "\(settings.effectiveContainer.title) · \(settings.resolution.title)"
+    }
+
     @ViewBuilder
     private var exportStatus: some View {
         switch model.exportState {
@@ -368,8 +373,13 @@ private struct RecordingStudioContent: View {
                 currentSettings: model.exportSettings,
                 onExport: model.export(settings:)
             ) {
-                Label("Export", systemImage: "arrow.down.circle")
-                    .labelStyle(.titleAndIcon)
+                HStack(spacing: 6) {
+                    Label("Export", systemImage: "arrow.down.circle")
+                        .labelStyle(.titleAndIcon)
+                    // The format to expect, before the options open.
+                    Text(verbatim: exportSummary)
+                        .opacity(0.8)
+                }
             }
             .buttonStyle(.borderedProminent)
             .tint(.accentColor)
@@ -607,6 +617,37 @@ private struct StudioCanvas: View {
             .animation(.easeOut(duration: 0.15), value: skimTime == nil)
             .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
         }
+        .overlay(alignment: .top) {
+            if model.isLoaded, !model.isCroppingVideo {
+                outputSizeLabel
+                    .padding(.top, 5)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
+    /// What the export will measure, so a ratio or resolution change shows
+    /// its effect before exporting.
+    private var outputSizeLabel: some View {
+        let size = RecordingStudioExporter.deliveredCanvasSize(
+            source: model.basePreviewCanvasSize,
+            resolution: model.exportSettings.resolution
+        )
+        return HStack(spacing: 6) {
+            Text(model.exportAspect.title)
+                .fontWeight(.semibold)
+                .foregroundStyle(.primary)
+            Text(verbatim: "\(Int(size.width)) × \(Int(size.height))")
+                .monospacedDigit()
+        }
+        .font(.system(size: 11, weight: .medium))
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 9)
+        .frame(height: 20)
+        .background(Capsule().fill(.regularMaterial))
+        .overlay(Capsule().strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Export size")
     }
 
     /// The hovered timeline moment while the preview skims away from the

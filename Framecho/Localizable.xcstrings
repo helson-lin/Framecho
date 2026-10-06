@@ -11538,6 +11538,16 @@
           }
         }
       }
+    },
+    "Export size" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出尺寸"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
