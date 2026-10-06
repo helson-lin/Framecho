@@ -17,6 +17,10 @@ struct RecordingClipTimelineView: NSViewRepresentable {
     let timeline: RecordingClipTimeline
     let sourceDuration: TimeInterval
     let thumbnails: RecordingTimelineThumbnailStore
+    /// Recorded sound, drawn along the bottom of each clip so cuts and speed
+    /// changes visibly take the audio with them. Nil hides the strip.
+    var waveform: RecordingAudioWaveform?
+    var isAudioMuted = false
     let onSelect: (UUID) -> Void
     let onSeek: (TimeInterval) -> Void
     let onHover: (TimeInterval?) -> Void
@@ -66,6 +70,8 @@ struct RecordingClipTimelineView: NSViewRepresentable {
             timeline: timeline,
             sourceDuration: sourceDuration,
             thumbnails: thumbnails,
+            waveform: waveform,
+            isAudioMuted: isAudioMuted,
             selectedClipID: selectedClipID,
             playheadTime: playheadTime
         )
@@ -190,6 +196,11 @@ final class RecordingClipTimelineControl: NSView {
         static let selectionHandleGrooveWidth: CGFloat = 3
         static let selectionHandleGrooveHeight: CGFloat = 18
         static let thumbnailWidth: CGFloat = 58
+        static let waveformHeight: CGFloat = 14
+        static let waveformBarPitch: CGFloat = 3
+        static let waveformBarWidth: CGFloat = 2
+        static let badgeInset: CGFloat = 5
+        static let badgeHeight: CGFloat = 16
         /// Scroll distance that equals one doubling of the timeline scale
         /// under ⌘-scroll.
         static let zoomScrollPointsPerDoubling: CGFloat = 220
@@ -201,6 +212,8 @@ final class RecordingClipTimelineControl: NSView {
     private var timeline = RecordingClipTimeline(segments: [])
     private var sourceDuration: TimeInterval = 0
     private var thumbnails: RecordingTimelineThumbnailStore?
+    private var waveform: RecordingAudioWaveform?
+    private var isAudioMuted = false
     private var selectedClipID: UUID?
     private var playheadTime: TimeInterval = 0
 
@@ -227,9 +240,13 @@ final class RecordingClipTimelineControl: NSView {
         timeline: RecordingClipTimeline,
         sourceDuration: TimeInterval,
         thumbnails: RecordingTimelineThumbnailStore,
+        waveform: RecordingAudioWaveform?,
+        isAudioMuted: Bool,
         selectedClipID: UUID?,
         playheadTime: TimeInterval
     ) {
+        self.waveform = waveform
+        self.isAudioMuted = isAudioMuted
         if dragTarget == nil {
             self.timeline = timeline
         }
@@ -606,8 +623,97 @@ final class RecordingClipTimelineControl: NSView {
             drawThumbnails(in: rect, clip: clip, dirtyRect: dirtyRect)
             NSColor.black.withAlphaComponent(0.08).setFill()
             rect.intersection(dirtyRect).fill()
+            drawWaveform(in: rect, clip: clip, dirtyRect: dirtyRect)
+            drawBadge(in: rect, clip: clip)
             NSGraphicsContext.restoreGraphicsState()
         }
+    }
+
+    /// The clip's stretch of the recorded audio on a dark strip along its
+    /// bottom edge, read from source time so a trimmed or sped-up clip shows
+    /// exactly the sound it plays.
+    private func drawWaveform(in rect: CGRect, clip: RecordingClipSegment, dirtyRect: CGRect) {
+        guard let waveform, clip.duration > 0, rect.height > Metrics.waveformHeight * 2 else { return }
+        let strip = CGRect(
+            x: rect.minX,
+            y: rect.maxY - Metrics.waveformHeight,
+            width: rect.width,
+            height: Metrics.waveformHeight
+        )
+        let visible = strip.intersection(dirtyRect)
+        guard !visible.isEmpty else { return }
+        NSColor.black.withAlphaComponent(0.5).setFill()
+        visible.fill()
+
+        let pointsPerSourceSecond = rect.width / CGFloat(clip.duration)
+        let maxHalfHeight = strip.height / 2 - 2
+        let path = NSBezierPath()
+        let firstBar = floor((visible.minX - strip.minX) / Metrics.waveformBarPitch)
+        var x = strip.minX + firstBar * Metrics.waveformBarPitch
+        while x < min(visible.maxX, strip.maxX) {
+            let start = clip.sourceStart + Double((x - strip.minX) / pointsPerSourceSecond)
+            let end = start + Double(Metrics.waveformBarPitch / pointsPerSourceSecond)
+            let half = max(0.75, CGFloat(waveform.peak(from: start, to: min(end, clip.sourceEnd))) * maxHalfHeight)
+            path.appendRoundedRect(
+                CGRect(x: x, y: strip.midY - half, width: Metrics.waveformBarWidth, height: half * 2),
+                xRadius: 1,
+                yRadius: 1
+            )
+            x += Metrics.waveformBarPitch
+        }
+        NSColor.white.withAlphaComponent(isAudioMuted ? 0.3 : 0.78).setFill()
+        path.fill()
+    }
+
+    /// Length and speed in the clip's top-leading corner, so a sped-up
+    /// stretch reads without selecting it. Skipped when the clip is too
+    /// narrow to hold it.
+    private func drawBadge(in rect: CGRect, clip: RecordingClipSegment) {
+        let font = NSFont.systemFont(ofSize: 10, weight: .semibold)
+        let duration = NSAttributedString(
+            string: Self.durationLabel(clip.editorDuration),
+            attributes: [.font: font, .foregroundColor: NSColor.white]
+        )
+        let isSpedUp = abs(clip.speed - 1) > 0.001
+        let speed = isSpedUp
+            ? NSAttributedString(
+                string: InspectorValueFormat.magnification(fractionDigits: 0).displayString(for: clip.speed),
+                attributes: [.font: font, .foregroundColor: NSColor.white]
+            )
+            : nil
+        let padding: CGFloat = 6
+        let speedWidth = speed.map { $0.size().width + 8 + 4 } ?? 0
+        let badgeWidth = duration.size().width + padding * 2 + speedWidth
+        guard rect.width >= badgeWidth + Metrics.badgeInset * 2 else { return }
+
+        let badge = CGRect(
+            x: rect.minX + Metrics.badgeInset,
+            y: rect.minY + Metrics.badgeInset,
+            width: badgeWidth,
+            height: Metrics.badgeHeight
+        )
+        NSColor.black.withAlphaComponent(0.55).setFill()
+        NSBezierPath(roundedRect: badge, xRadius: 5, yRadius: 5).fill()
+        let textY = badge.midY - duration.size().height / 2
+        duration.draw(at: CGPoint(x: badge.minX + padding, y: textY))
+
+        if let speed {
+            let pill = CGRect(
+                x: badge.maxX - speedWidth + 2,
+                y: badge.minY + 2,
+                width: speed.size().width + 8,
+                height: badge.height - 4
+            )
+            NSColor.systemOrange.setFill()
+            NSBezierPath(roundedRect: pill, xRadius: 3.5, yRadius: 3.5).fill()
+            speed.draw(at: CGPoint(x: pill.minX + 4, y: badge.midY - speed.size().height / 2))
+        }
+    }
+
+    private static func durationLabel(_ seconds: TimeInterval) -> String {
+        seconds < 60
+            ? String(format: "%.1fs", seconds)
+            : String(format: "%d:%04.1f", Int(seconds) / 60, seconds.truncatingRemainder(dividingBy: 60))
     }
 
     private func drawThumbnails(in rect: CGRect, clip: RecordingClipSegment, dirtyRect: CGRect) {

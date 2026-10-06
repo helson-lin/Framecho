@@ -2324,10 +2324,7 @@ private struct StudioTimelineEditor: View {
                 clampZoom()
             }
         }
-        .frame(height: StudioTimelineMetrics.lanesHeight(
-            showsAudioLane: showsAudioLane,
-            showsMotionLane: showsMotionLane
-        ))
+        .frame(height: StudioTimelineMetrics.lanesHeight(lanes: visibleLanes))
         .onChange(of: model.duration) { _, _ in clampZoom() }
         .onChange(of: model.currentTime) { _, time in followPlayhead(to: time) }
     }
@@ -2357,12 +2354,14 @@ private struct StudioTimelineEditor: View {
                     showsHint: model.zoomEnabled && model.zoomTimelineBlocks.isEmpty
                 )
                     .frame(height: StudioTimelineMetrics.zoomLaneHeight)
-                if showsMotionLane {
-                    StudioMotionLaneBackground(
-                        showsHint: model.motionTimelineBlocks.isEmpty
-                    )
-                        .frame(height: StudioTimelineMetrics.motionLaneHeight)
+                if showsCaptionLane {
+                    StudioCaptionLaneBackground(isEmpty: !model.hasSubtitles)
+                        .frame(height: StudioTimelineMetrics.captionLaneHeight)
                 }
+                StudioMotionLaneBackground(
+                    showsHint: model.motionTimelineBlocks.isEmpty
+                )
+                    .frame(height: StudioTimelineMetrics.motionLaneHeight)
                 Color.clear
                     .frame(height: StudioTimelineMetrics.scrollerGutter)
             }
@@ -2393,17 +2392,27 @@ private struct StudioTimelineEditor: View {
                         height: StudioTimelineMetrics.zoomLaneHeight
                     )
 
-                    if showsMotionLane {
-                        StudioMotionLane(
+                    if showsCaptionLane {
+                        StudioCaptionLane(
                             model: model,
                             scale: scale,
                             visibleRange: scale.visibleRange(scrollX: scrollX)
                         )
                         .frame(
                             width: scale.contentWidth,
-                            height: StudioTimelineMetrics.motionLaneHeight
+                            height: StudioTimelineMetrics.captionLaneHeight
                         )
                     }
+
+                    StudioMotionLane(
+                        model: model,
+                        scale: scale,
+                        visibleRange: scale.visibleRange(scrollX: scrollX)
+                    )
+                    .frame(
+                        width: scale.contentWidth,
+                        height: StudioTimelineMetrics.motionLaneHeight
+                    )
 
                     Color.clear
                         .frame(height: StudioTimelineMetrics.scrollerGutter)
@@ -2419,19 +2428,51 @@ private struct StudioTimelineEditor: View {
                     scrollX = offset
                 }
             }
+
+            // An unused caption lane offers to fill itself. It sits over the
+            // scroll view, centered in the viewport rather than in a lane
+            // that may be many screens wide.
+            if showsCaptionLane, !model.hasSubtitles {
+                VStack(spacing: StudioTimelineMetrics.rowSpacing) {
+                    Color.clear
+                        .frame(height: captionLaneOffset)
+                        .allowsHitTesting(false)
+                    StudioCaptionLanePrompt(model: model)
+                        .frame(height: StudioTimelineMetrics.captionLaneHeight)
+                }
+                .frame(maxWidth: .infinity, alignment: .top)
+            }
         }
-        .frame(height: StudioTimelineMetrics.scrollingLanesHeight(
-            showsAudioLane: showsAudioLane,
-            showsMotionLane: showsMotionLane
-        ))
+        .frame(height: StudioTimelineMetrics.scrollingLanesHeight(lanes: visibleLanes))
     }
 
-    private var showsMotionLane: Bool {
-        model.motion.isEnabled || !model.motion.cues.isEmpty
-    }
-
+    /// Recorded sound is drawn inside the clips; a lane of its own only
+    /// appears for a replacement file, which no longer follows the picture.
     private var showsAudioLane: Bool {
-        model.hasAudio
+        model.replacementAudio != nil
+    }
+
+    private var showsCaptionLane: Bool {
+        model.canTranscribe || model.hasSubtitles
+    }
+
+    private var visibleLanes: StudioTimelineMetrics.Lanes {
+        StudioTimelineMetrics.Lanes(
+            audio: showsAudioLane,
+            captions: showsCaptionLane
+        )
+    }
+
+    /// Height above the caption lane inside the scrolling block.
+    private var captionLaneOffset: CGFloat {
+        StudioTimelineMetrics.clipLaneHeight
+            + (showsAudioLane ? StudioTimelineMetrics.audioLaneHeight + StudioTimelineMetrics.rowSpacing : 0)
+            + StudioTimelineMetrics.zoomLaneHeight
+            + StudioTimelineMetrics.rowSpacing
+    }
+
+    private var showsClipWaveform: Bool {
+        model.replacementAudio == nil && model.hasRecordedAudio
     }
 
     /// Mute keeps the level it replaced, so unmuting restores it rather
@@ -2452,18 +2493,34 @@ private struct StudioTimelineEditor: View {
     }
 
     /// Names each lane so the tracks read without hovering, with the switch
-    /// that turns that lane's effect on or off beside it.
+    /// that turns that lane's effect on or off beside it. The corner above
+    /// them adds the lanes a recording doesn't show yet.
     private var laneHeaders: some View {
         VStack(alignment: .leading, spacing: StudioTimelineMetrics.rowSpacing) {
-            Color.clear
+            addTrackMenu
                 .frame(
                     height: StudioTimelineMetrics.playheadLaneHeight
                         + StudioTimelineMetrics.rulerHeight
-                        + StudioTimelineMetrics.rowSpacing
+                        + StudioTimelineMetrics.rowSpacing,
+                    alignment: .bottomLeading
                 )
 
-            StudioLaneHeader(title: "Video", systemImage: "film")
+            if showsClipWaveform {
+                StudioLaneHeader(
+                    title: "Video",
+                    systemImage: "film",
+                    tint: .accentColor,
+                    isOn: audioOnBinding,
+                    toggleHelp: model.audioVolume > 0 ? "Mute" : "Unmute",
+                    onSymbol: "speaker.wave.2",
+                    offSymbol: "speaker.slash",
+                    dimsWhenOff: false
+                )
                 .frame(height: StudioTimelineMetrics.clipLaneHeight)
+            } else {
+                StudioLaneHeader(title: "Video", systemImage: "film", tint: .accentColor)
+                    .frame(height: StudioTimelineMetrics.clipLaneHeight)
+            }
 
             if showsAudioLane {
                 StudioLaneHeader(
@@ -2487,18 +2544,63 @@ private struct StudioTimelineEditor: View {
             )
             .frame(height: StudioTimelineMetrics.zoomLaneHeight)
 
-            if showsMotionLane {
-                StudioLaneHeader(
-                    title: "3D Motion",
-                    systemImage: "rotate.3d",
-                    tint: StudioMotionCueBlock.tint,
-                    isOn: $model.motionEnabled,
-                    toggleHelp: model.motionEnabled ? "Turn 3D Motion Off" : "Turn 3D Motion On"
-                )
-                .frame(height: StudioTimelineMetrics.motionLaneHeight)
+            if showsCaptionLane {
+                if model.hasSubtitles {
+                    StudioLaneHeader(
+                        title: "Captions",
+                        systemImage: "captions.bubble",
+                        tint: StudioCaptionLane.tint,
+                        isOn: $model.showsSubtitles,
+                        toggleHelp: model.showsSubtitles ? "Hide Subtitles" : "Show Subtitles"
+                    )
+                    .frame(height: StudioTimelineMetrics.captionLaneHeight)
+                } else {
+                    StudioLaneHeader(
+                        title: "Captions",
+                        systemImage: "captions.bubble",
+                        tint: StudioCaptionLane.tint
+                    )
+                    .frame(height: StudioTimelineMetrics.captionLaneHeight)
+                }
             }
+
+            StudioLaneHeader(
+                title: "3D Motion",
+                systemImage: "rotate.3d",
+                tint: StudioMotionCueBlock.tint
+            )
+            .frame(height: StudioTimelineMetrics.motionLaneHeight)
         }
         .frame(width: StudioTimelineMetrics.headerWidth, alignment: .leading)
+    }
+
+    /// Lanes that stay hidden until used. Each item starts the thing that
+    /// fills its lane, which is what makes the lane appear.
+    private var addTrackMenu: some View {
+        Menu {
+            Button {
+                model.transcribe()
+            } label: {
+                Label("Captions", systemImage: "captions.bubble")
+            }
+            .disabled(!model.canTranscribe || model.hasSubtitles || model.transcriptionState.isTranscribing)
+
+            Button {
+                model.chooseReplacementAudio()
+            } label: {
+                Label("Replacement Audio…", systemImage: "music.note")
+            }
+            .disabled(model.replacementAudio != nil)
+        } label: {
+            Label("Add Track", systemImage: "plus")
+                .font(.system(size: 11.5, weight: .medium))
+        }
+        .menuStyle(.button)
+        .buttonStyle(TransportTextButtonStyle())
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .disabled(!model.isLoaded)
+        .help("Add a caption or audio track")
     }
 
     private var clipLane: some View {
@@ -2508,6 +2610,8 @@ private struct StudioTimelineEditor: View {
             timeline: model.clipTimeline,
             sourceDuration: model.sourceDuration,
             thumbnails: model.timelineThumbnails,
+            waveform: showsClipWaveform ? model.audioWaveform : nil,
+            isAudioMuted: model.audioVolume <= 0,
             onSelect: { model.selectClip(id: $0) },
             onSeek: { time in
                 model.pause()
@@ -2645,17 +2749,15 @@ private struct StudioTimelineEditor: View {
 
     private var editControls: some View {
         HStack(spacing: 2) {
-            transportTextButton("Split", systemImage: "scissors", shortcut: "⌘B") {
+            timelineButton("Split at Playhead (⌘B)", systemImage: "scissors") {
                 model.splitClip(at: model.currentTime)
             }
             .keyboardShortcut("b", modifiers: .command)
-            .help("Split at Playhead (⌘B)")
 
-            transportTextButton("Delete", systemImage: "trash") {
+            timelineButton("Delete Selection (⌫)", systemImage: "trash") {
                 deleteSelection()
             }
             .disabled(!canDeleteSelection)
-            .help("Delete Selection (⌫)")
 
             speedMenu
 
@@ -2697,7 +2799,6 @@ private struct StudioTimelineEditor: View {
             HStack(spacing: 4) {
                 Image(systemName: "gauge.with.dots.needle.67percent")
                     .font(.system(size: 11, weight: .medium))
-                Text("Speed")
                 Text(Self.speedLabel(clip?.speed ?? 1))
                     .fontWeight(.semibold)
                     .monospacedDigit()
@@ -2710,6 +2811,7 @@ private struct StudioTimelineEditor: View {
         .fixedSize()
         .disabled(clip == nil)
         .help(clip == nil ? "Select a clip to change its speed" : "Clip Speed")
+        .accessibilityLabel("Clip Speed")
     }
 
     /// The inspector's whole-number rates, within `RecordingClipSegment`'s
@@ -2720,12 +2822,23 @@ private struct StudioTimelineEditor: View {
         InspectorValueFormat.magnification(fractionDigits: 0).displayString(for: speed)
     }
 
-    private var playbackControls: some View {
+    /// Where the playhead is against the length of the cut, on the leading
+    /// edge where the eye starts reading the transport.
+    private var timecode: some View {
         HStack(spacing: 4) {
             Text(studioPreciseTimecode(model.displayTime))
                 .foregroundStyle(.primary.opacity(0.9))
-                .frame(minWidth: 52, alignment: .trailing)
+            Text(verbatim: "/")
+                .foregroundStyle(.tertiary)
+            Text(studioPreciseTimecode(model.duration))
+                .foregroundStyle(.secondary)
+        }
+        .font(.system(size: 12, weight: .medium).monospacedDigit())
+        .accessibilityElement(children: .combine)
+    }
 
+    private var playbackControls: some View {
+        HStack(spacing: 6) {
             timelineButton("Previous Edit Point", systemImage: "backward.end.fill") {
                 model.pause()
                 model.seek(to: previousEditPoint)
@@ -2735,9 +2848,9 @@ private struct StudioTimelineEditor: View {
                 model.togglePlayback()
             } label: {
                 Image(systemName: model.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(Color(nsColor: .windowBackgroundColor))
-                    .frame(width: 30, height: 30)
+                    .frame(width: 34, height: 34)
                     .background(Circle().fill(Color.primary.opacity(0.85)))
                     .contentShape(Circle())
             }
@@ -2751,12 +2864,7 @@ private struct StudioTimelineEditor: View {
                 model.pause()
                 model.seek(to: nextEditPoint)
             }
-
-            Text(studioPreciseTimecode(model.duration))
-                .foregroundStyle(.secondary)
-                .frame(minWidth: 52, alignment: .leading)
         }
-        .font(.system(size: 12, weight: .medium).monospacedDigit())
     }
 
     /// Clip boundaries plus both ends of the cut, in editor time.
@@ -2783,9 +2891,17 @@ private struct StudioTimelineEditor: View {
         editPoints.first { $0 > model.currentTime + Self.editPointTolerance } ?? model.duration
     }
 
+    /// Time and the cut tools on the leading edge, playback in the middle,
+    /// and the timeline scale on the trailing edge. The cut tools are
+    /// icon-only so the row still clears the centered playback buttons at
+    /// the window's minimum width.
     private var transport: some View {
         ZStack {
             HStack(spacing: 0) {
+                timecode
+                Divider()
+                    .frame(height: 16)
+                    .padding(.horizontal, 8)
                 editControls
                 Spacer(minLength: 0)
                 zoomControls
@@ -2793,7 +2909,7 @@ private struct StudioTimelineEditor: View {
 
             playbackControls
         }
-        .frame(height: 32)
+        .frame(height: 36)
     }
 
     private var canDeleteSelection: Bool {
@@ -2824,30 +2940,6 @@ private struct StudioTimelineEditor: View {
         .buttonStyle(TransportIconButtonStyle())
         .help(Text(help))
         .accessibilityLabel(Text(help))
-    }
-
-    /// Icon-and-title transport button for the cut tools, with its shortcut
-    /// shown inline so it is learnt by sight.
-    private func transportTextButton(
-        _ title: LocalizedStringKey,
-        systemImage: String,
-        shortcut: String? = nil,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 11, weight: .medium))
-                Text(title)
-                if let shortcut {
-                    Text(verbatim: shortcut)
-                        .font(.system(size: 10, weight: .medium).monospaced())
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .font(.system(size: 11.5, weight: .medium))
-        }
-        .buttonStyle(TransportTextButtonStyle())
     }
 }
 
@@ -2906,11 +2998,12 @@ private enum StudioTimelineMetrics {
     static let rowSpacing: CGFloat = 4
     static let playheadLaneHeight: CGFloat = 14
     static let rulerHeight: CGFloat = 16
-    static let clipLaneHeight: CGFloat = 44
+    static let clipLaneHeight: CGFloat = 54
     static let zoomLaneHeight: CGFloat = 24
+    static let captionLaneHeight: CGFloat = 24
     static let motionLaneHeight: CGFloat = 24
     /// Lane name column to the left of the tracks.
-    static let headerWidth: CGFloat = 84
+    static let headerWidth: CGFloat = 104
     static let headerSpacing: CGFloat = 8
     /// Room under the lanes for the horizontal scroller, so it never sits on
     /// top of a zoom block.
@@ -2918,17 +3011,23 @@ private enum StudioTimelineMetrics {
 
     static let audioLaneHeight: CGFloat = 22
 
-    /// The audio lane appears for recordings with sound and the motion lane
-    /// once 3D motion is in use, so the timeline only grows for what is there.
-    static func scrollingLanesHeight(showsAudioLane: Bool, showsMotionLane: Bool) -> CGFloat {
-        clipLaneHeight + zoomLaneHeight + scrollerGutter + rowSpacing * 2
-            + (showsAudioLane ? audioLaneHeight + rowSpacing : 0)
-            + (showsMotionLane ? motionLaneHeight + rowSpacing : 0)
+    /// The optional lanes on show. The audio lane appears for replacement
+    /// audio and captions for narrated recordings; the video, zoom and 3D
+    /// motion lanes are always there.
+    struct Lanes: Equatable {
+        var audio: Bool
+        var captions: Bool
     }
 
-    static func lanesHeight(showsAudioLane: Bool, showsMotionLane: Bool) -> CGFloat {
+    static func scrollingLanesHeight(lanes: Lanes) -> CGFloat {
+        clipLaneHeight + zoomLaneHeight + motionLaneHeight + scrollerGutter + rowSpacing * 3
+            + (lanes.audio ? audioLaneHeight + rowSpacing : 0)
+            + (lanes.captions ? captionLaneHeight + rowSpacing : 0)
+    }
+
+    static func lanesHeight(lanes: Lanes) -> CGFloat {
         playheadLaneHeight + rulerHeight
-            + scrollingLanesHeight(showsAudioLane: showsAudioLane, showsMotionLane: showsMotionLane)
+            + scrollingLanesHeight(lanes: lanes)
             + rowSpacing * 2
     }
 }
@@ -3002,7 +3101,9 @@ private struct StudioAudioLane: View {
     }
 }
 
-/// Name, icon and optional on/off switch for one timeline lane.
+/// Name, icon chip and optional on/off switch for one timeline lane. The
+/// chip carries the lane's colour, so a lane reads as the same thing as its
+/// blocks and the canvas marks they produce.
 private struct StudioLaneHeader: View {
     let title: LocalizedStringKey
     let systemImage: String
@@ -3011,13 +3112,20 @@ private struct StudioLaneHeader: View {
     var toggleHelp: LocalizedStringKey = ""
     var onSymbol = "eye"
     var offSymbol = "eye.slash"
+    /// Whether switching off greys the lane out. The video lane's switch
+    /// mutes its sound, which leaves the picture as it was.
+    var dimsWhenOff = true
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 6) {
             Image(systemName: systemImage)
                 .font(.system(size: 10.5, weight: .semibold))
                 .foregroundStyle(isActive ? tint : Color.secondary.opacity(0.6))
-                .frame(width: 14)
+                .frame(width: 20, height: 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill((isActive ? tint : Color.secondary).opacity(0.15))
+                )
             Text(title)
                 .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(isActive ? .primary : .secondary)
@@ -3042,7 +3150,8 @@ private struct StudioLaneHeader: View {
     }
 
     private var isActive: Bool {
-        isOn?.wrappedValue ?? true
+        guard dimsWhenOff else { return true }
+        return isOn?.wrappedValue ?? true
     }
 }
 
@@ -3676,6 +3785,149 @@ private struct StudioZoomCueBlock: View {
 }
 
 // MARK: - Motion lane
+
+/// Frame of the caption lane, drawn behind the scroll view like the other
+/// lanes. An empty lane is dashed so it reads as a slot waiting to be used.
+private struct StudioCaptionLaneBackground: View {
+    var isEmpty = false
+
+    var body: some View {
+        let shape = RoundedRectangle(
+            cornerRadius: StudioZoomLaneMetrics.laneCornerRadius,
+            style: .continuous
+        )
+        Group {
+            if isEmpty {
+                shape.strokeBorder(
+                    Color.primary.opacity(0.12),
+                    style: StrokeStyle(lineWidth: 1, dash: [4, 3])
+                )
+            } else {
+                shape.fill(Color.primary.opacity(0.055))
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+/// Says what the empty caption lane is for and starts the transcription
+/// from where the captions will appear.
+private struct StudioCaptionLanePrompt: View {
+    @Bindable var model: RecordingStudioModel
+
+    var body: some View {
+        HStack(spacing: 6) {
+            switch model.transcriptionState {
+            case .transcribing:
+                ProgressView()
+                    .controlSize(.mini)
+                Text("Transcribing narration…")
+                    .foregroundStyle(.secondary)
+            case .failed(let message):
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .help(message)
+                Text("Couldn't transcribe the narration")
+                    .foregroundStyle(.secondary)
+                promptButton("Try Again")
+            case .idle:
+                Text("Turn the narration into captions")
+                    .foregroundStyle(.tertiary)
+                promptButton("Transcribe")
+            }
+        }
+        .font(.system(size: 10.5, weight: .medium))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func promptButton(_ title: LocalizedStringKey) -> some View {
+        Button(title) {
+            model.transcribe()
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Color.accentColor)
+        .disabled(!model.isLoaded)
+    }
+}
+
+/// Transcribed captions on the edited timeline. A cue cut in two by an edit
+/// still reads as one block, the same way zoom blocks merge across cuts.
+/// Clicking a block jumps to it; blank space seeks like the other lanes.
+private struct StudioCaptionLane: View {
+    static let tint = Color.teal
+
+    @Bindable var model: RecordingStudioModel
+    let scale: StudioTimelineScale
+    let visibleRange: ClosedRange<TimeInterval>
+
+    private struct Block: Identifiable {
+        let id: UUID
+        let text: String
+        let editorStart: TimeInterval
+        let editorEnd: TimeInterval
+    }
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Color.clear
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            guard scale.pointsPerSecond > 0 else { return }
+                            model.pause()
+                            model.seek(to: scale.time(forX: value.location.x))
+                        }
+                )
+
+            ForEach(visibleBlocks) { block in
+                blockView(block)
+            }
+        }
+    }
+
+    private func blockView(_ block: Block) -> some View {
+        let minX = scale.x(for: block.editorStart)
+        let width = max(2, scale.x(for: block.editorEnd) - minX - 2)
+        let isCurrent = (block.editorStart..<block.editorEnd).contains(model.currentTime)
+        return Text(block.text)
+            .font(.system(size: 10.5, weight: .medium))
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 6)
+            .frame(width: width, height: StudioZoomLaneMetrics.blockHeight, alignment: .leading)
+            .foregroundStyle(isCurrent ? Color.white : Color.primary.opacity(0.8))
+            .background(
+                RoundedRectangle(cornerRadius: StudioZoomLaneMetrics.blockCornerRadius, style: .continuous)
+                    .fill(Self.tint.opacity(isCurrent ? 0.85 : 0.2))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioZoomLaneMetrics.blockCornerRadius, style: .continuous)
+                    .strokeBorder(Self.tint.opacity(isCurrent ? 0 : 0.4), lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                model.pause()
+                model.seek(to: block.editorStart)
+            }
+            .offset(x: minX + 1, y: StudioZoomLaneMetrics.blockInset)
+            .help(block.text)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(block.text))
+            .accessibilityAddTraits(.isButton)
+    }
+
+    private var visibleBlocks: [Block] {
+        let timeline = model.clipTimeline
+        return model.subtitleCues.compactMap { cue in
+            let slices = timeline.slices(overlapping: cue.start, sourceEnd: cue.end)
+            guard let first = slices.first, let last = slices.last,
+                  last.editorEnd >= visibleRange.lowerBound,
+                  first.editorStart <= visibleRange.upperBound else { return nil }
+            return Block(id: cue.id, text: cue.text, editorStart: first.editorStart, editorEnd: last.editorEnd)
+        }
+    }
+}
 
 private struct StudioMotionLaneBackground: View {
     var showsHint = false
@@ -5378,16 +5630,7 @@ private struct StudioInspector: View {
     }
 
     private func pickReplacementAudio() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = RecordingAudioFormat.importContentTypes
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        panel.title = String(localized: "Choose Replacement Audio")
-        panel.begin { response in
-            guard response == .OK, let url = panel.url else { return }
-            model.replaceAudio(with: url)
-        }
+        model.chooseReplacementAudio()
     }
 
     private static func clockText(_ seconds: TimeInterval) -> String {
@@ -5476,3 +5719,21 @@ private struct StudioAudioExportOptions: View {
         .presentationBackground(InspectorControlPalette.panelBackground(for: colorScheme))
     }
 }
+
+private extension RecordingStudioModel {
+    /// Asks for a sound file to play instead of the recorded audio; shared by
+    /// the Audio inspector and the timeline's Add Track menu.
+    func chooseReplacementAudio() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = RecordingAudioFormat.importContentTypes
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.title = String(localized: "Choose Replacement Audio")
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            self?.replaceAudio(with: url)
+        }
+    }
+}
+
