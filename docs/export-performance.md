@@ -15,9 +15,9 @@ Both choices are stored in the project's export settings, inherited by Share and
 
 ## Rendering policy
 
-- Magnified motion-blur frames use Metal with the original shutter rectangles.
-- Reduced frames use Metal when the shutter has at least 8 samples. Lighter blur during reduction stays on Core Graphics: numerical comparisons exposed larger spatial-filter differences in that case.
-- Settled frames retain their single Core Graphics draw. When the decoded source buffer and viewport rectangle repeat, subsequent frames reuse those exact screen/backdrop pixels.
+- Every frame - magnified or reduced, settled or blurred, with any number of shutter samples - renders on Metal, so an export never alternates between two reconstruction filters.
+- The one per-frame exception is an extreme discontinuity inside a shutter, where one rectangle is far smaller than the texture the others share; Core Graphics draws that frame (`StudioMetalScreenRenderer.shouldAccelerate`).
+- When the decoded source buffer and viewport rectangle repeat, subsequent frames reuse those exact screen/backdrop pixels.
 - If Metal initialization, buffer mapping, geometry validation, or rendering fails, the export continues through Core Graphics. A GPU failure disables further GPU attempts for that export.
 
 `StudioMotionBlur.metal` combines the shutter samples in one compute pass, using cubic reconstruction for magnification and scale-aware Lanczos reconstruction for reduction. For large reductions, one Metal Performance Shaders Lanczos prepass bounds the filter footprint while retaining up to twice the required resolution. The cached backdrop and rounded-card mask use the same Core Graphics drawing paths as the original compositor.
