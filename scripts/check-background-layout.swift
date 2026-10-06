@@ -2,10 +2,10 @@ import CoreGraphics
 import Foundation
 
 // Compile the screenshot background layout without launching the app:
-// xcrun swiftc -module-cache-path /tmp/screendrop-layout-module-cache \
-//   Screendrop/AnnotationBackgroundLayout.swift Screendrop/AnnotationBackground.swift \
-//   Screendrop/AnnotationShadowStyle.swift Screendrop/AnnotationSwatch.swift \
-//   scripts/check-background-layout.swift -o /tmp/screendrop-layout-check && /tmp/screendrop-layout-check
+// xcrun swiftc -module-cache-path /tmp/framecho-layout-module-cache \
+//   Framecho/AnnotationBackgroundLayout.swift Framecho/AnnotationBackground.swift \
+//   Framecho/AnnotationShadowStyle.swift Framecho/AnnotationSwatch.swift \
+//   scripts/check-background-layout.swift -o /tmp/framecho-layout-check && /tmp/framecho-layout-check
 @main
 struct BackgroundLayoutChecks {
     static var checks = 0

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Image</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.image</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Framecho records your camera alongside the screen so you can add a camera bubble to recordings.</string>
+	<key>NSInputMonitoringUsageDescription</key>
+	<string>Framecho needs input monitoring permission to show key press captions while recording.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Framecho captures your microphone so recordings can include narration.</string>
+	<key>NSQuitAlwaysKeepsWindows</key>
+	<false/>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>Framecho needs screen recording permission to capture screenshots.</string>
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/helson-lin/Screendrop/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>xME1rgjHkyv9KVfsKFtZ8JMF1+i7HMly4U+c37+a1Ds=</string>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.json</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Framecho Screenshot Preset</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.jarinhe.framecho.preset</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>framechopreset</string>
+				</array>
+				<key>public.mime-type</key>
+				<string>application/vnd.framecho.preset+json</string>
+			</dict>
+		</dict>
+	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.json</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Framecho Screenshot Preset (legacy)</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.fayazahmed.screendrop.preset</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>screendroppreset</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+</dict>
+</plist>

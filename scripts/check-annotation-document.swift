@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-// Reads edit documents (the `.screendrop` sidecars) the way the app does,
+// Reads edit documents (the `.framecho` sidecars) the way the app does,
 // including ones written by older builds; see run-checks.sh for the files.
 //
 // scripts/fixtures/annotation-document-v2.json was written by the current

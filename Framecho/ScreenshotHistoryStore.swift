@@ -1,0 +1,514 @@
+//
+//  ScreenshotHistoryStore.swift
+//  Framecho
+//
+//  Created by Codex on 01/05/26.
+//
+
+import AppKit
+import AVFoundation
+@preconcurrency import CoreMedia
+import Observation
+
+extension ScreenshotHistoryItem {
+    var recordingSession: RecordingSession? {
+        guard let recordingSessionPath else { return nil }
+        let session = RecordingSession(directoryURL: URL(fileURLWithPath: recordingSessionPath, isDirectory: true))
+        return RecordingSession.isSessionDirectory(session.directoryURL) ? session : nil
+    }
+
+    var url: URL {
+        if let recordingSession {
+            return recordingSession.deliverableURL
+        }
+        return ScreenshotHistoryStore.historyDirectory.appendingPathComponent(fileName)
+    }
+
+    var editorURL: URL {
+        recordingSession?.directoryURL ?? url
+    }
+}
+
+@MainActor
+@Observable
+final class ScreenshotHistoryStore {
+    static let shared = ScreenshotHistoryStore()
+
+    static var applicationSupportDirectory: URL {
+        let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support", isDirectory: true)
+        return baseURL.appendingPathComponent("Framecho", isDirectory: true)
+    }
+
+    static var historyDirectory: URL {
+        applicationSupportDirectory.appendingPathComponent("History", isDirectory: true)
+    }
+
+    private static var metadataURL: URL {
+        applicationSupportDirectory.appendingPathComponent("history.json")
+    }
+
+    /// Location of the editable annotation sidecar document for a display image,
+    /// e.g. `Framecho_2026.png` -> `Framecho_2026.png.framecho`.
+    nonisolated static func editDocumentURL(for displayURL: URL) -> URL {
+        displayURL.appendingPathExtension(CaptureStorageExtension.editDocument)
+    }
+
+    /// Location of the untouched base image for a display image,
+    /// e.g. `Framecho_2026.png` -> `Framecho_2026.base.png`.
+    nonisolated static func baseImageURL(for displayURL: URL) -> URL {
+        let ext = displayURL.pathExtension
+        let stem = displayURL.deletingPathExtension().lastPathComponent
+        let directory = displayURL.deletingLastPathComponent()
+        let fileName = ext.isEmpty ? "\(stem).base" : "\(stem).base.\(ext)"
+        return directory.appendingPathComponent(fileName)
+    }
+
+    /// Loads the editable annotation document for a screenshot, if one exists.
+    func loadEditDocument(for displayURL: URL) -> AnnotationDocument? {
+        let documentURL = Self.editDocumentURL(for: displayURL)
+        guard let data = try? Data(contentsOf: documentURL),
+              let document = try? JSONDecoder().decode(AnnotationDocument.self, from: data) else {
+            return nil
+        }
+        return document
+    }
+
+    func hasEditDocument(for displayURL: URL) -> Bool {
+        FileManager.default.fileExists(atPath: Self.editDocumentURL(for: displayURL).path)
+    }
+
+    private(set) var items: [ScreenshotHistoryItem] = []
+
+    var recentItems: [ScreenshotHistoryItem] {
+        Array(items.prefix(5))
+    }
+
+    private init() {
+        load()
+    }
+
+    /// - Parameter movingSource: Moves rather than copies the file. Fresh
+    ///   captures pass true: their temporary PNG has no other owner, and a
+    ///   copy left a full-size duplicate in the temporary directory.
+    @discardableResult
+    func importScreenshot(from sourceURL: URL, movingSource: Bool = false) -> URL {
+        do {
+            try FileManager.default.createDirectory(at: Self.historyDirectory, withIntermediateDirectories: true)
+            let destinationURL = uniqueHistoryURL(for: sourceURL)
+
+            if sourceURL != destinationURL {
+                if FileManager.default.fileExists(atPath: destinationURL.path) {
+                    try FileManager.default.removeItem(at: destinationURL)
+                }
+                if movingSource {
+                    try FileManager.default.moveItem(at: sourceURL, to: destinationURL)
+                } else {
+                    try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+                }
+            }
+
+            let imageSize = ScreenshotImageLoader.imageSize(at: destinationURL) ?? .zero
+            let item = ScreenshotHistoryItem(
+                id: UUID(),
+                createdAt: Date(),
+                updatedAt: Date(),
+                fileName: destinationURL.lastPathComponent,
+                pixelWidth: Int(imageSize.width),
+                pixelHeight: Int(imageSize.height)
+            )
+            items.insert(item, at: 0)
+            saveMetadata()
+            return destinationURL
+        } catch {
+            print("Failed to import screenshot into history: \(error)")
+            return sourceURL
+        }
+    }
+
+    @discardableResult
+    func importVideo(from sourceURL: URL) async -> URL {
+        do {
+            try FileManager.default.createDirectory(at: Self.historyDirectory, withIntermediateDirectories: true)
+            let destinationURL = uniqueHistoryURL(for: sourceURL)
+
+            if sourceURL != destinationURL {
+                if FileManager.default.fileExists(atPath: destinationURL.path) {
+                    try FileManager.default.removeItem(at: destinationURL)
+                }
+                try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+            }
+
+            let metadata = await videoMetadata(at: destinationURL)
+
+            let item = ScreenshotHistoryItem(
+                id: UUID(),
+                createdAt: Date(),
+                updatedAt: Date(),
+                fileName: destinationURL.lastPathComponent,
+                pixelWidth: metadata.width,
+                pixelHeight: metadata.height,
+                kind: .video,
+                duration: metadata.duration
+            )
+            items.insert(item, at: 0)
+            saveMetadata()
+            return destinationURL
+        } catch {
+            print("Failed to import video into history: \(error)")
+            return sourceURL
+        }
+    }
+
+    /// Adds a Studio recording to history without copying its potentially huge
+    /// screen master. History owns the package and reopens the complete project
+    /// (camera, event sidecar, and project edits), not a detached movie.
+    @discardableResult
+    func importRecordingSession(_ session: RecordingSession) async -> URL {
+        let standardizedPath = session.directoryURL.standardizedFileURL.path
+        if let existing = items.first(where: { $0.recordingSessionPath == standardizedPath }) {
+            return existing.url
+        }
+        guard RecordingSession.isSessionDirectory(session.directoryURL) else {
+            return session.screenURL
+        }
+
+        // The recorder has already persisted this metadata before invoking
+        // the completion handler. Prefer it so the preview/editor can appear
+        // immediately instead of opening the movie with AVFoundation again.
+        let manifest = session.loadCaptureManifest()
+        let metadata: (width: Int, height: Int, duration: Double?)
+        if let manifest,
+           manifest.pixelWidth > 0,
+           manifest.pixelHeight > 0,
+           manifest.duration > 0 {
+            metadata = (
+                width: manifest.pixelWidth,
+                height: manifest.pixelHeight,
+                duration: manifest.duration
+            )
+        } else {
+            metadata = await videoMetadata(at: session.screenURL)
+        }
+        let displayName = session.directoryURL
+            .deletingPathExtension()
+            .lastPathComponent
+            .appending(".\(VideoExportContainer.default.fileExtension)")
+        let item = ScreenshotHistoryItem(
+            id: UUID(),
+            createdAt: manifest?.createdAt ?? Date(),
+            updatedAt: Date(),
+            fileName: displayName,
+            pixelWidth: metadata.width,
+            pixelHeight: metadata.height,
+            kind: .video,
+            duration: metadata.duration,
+            recordingSessionPath: standardizedPath
+        )
+        items.insert(item, at: 0)
+        saveMetadata()
+        return session.deliverableURL
+    }
+
+    /// Non-destructive annotation commit.
+    ///
+    /// - Preserves the untouched base image (lazily, on first edit) so future
+    ///   edits always re-render from the original pixels.
+    /// - Overwrites the display image with the freshly rendered composite.
+    /// - Writes the editable `.framecho` sidecar document so the annotations
+    ///   can be re-opened and edited later.
+    @discardableResult
+    func commitAnnotations(
+        displayURL: URL,
+        baseURL: URL,
+        renderedURL: URL,
+        document: AnnotationDocument
+    ) throws -> URL {
+        guard isHistoryURL(displayURL) else {
+            let imported = importScreenshot(from: baseURL)
+            guard isHistoryURL(imported) else { throw CocoaError(.fileWriteUnknown) }
+            return try commitAnnotations(displayURL: imported, baseURL: baseURL,
+                                         renderedURL: renderedURL, document: document)
+        }
+        let baseDestination = Self.baseImageURL(for: displayURL)
+        var replacements: [(source: URL, destination: URL)] = []
+        if baseURL.standardizedFileURL != baseDestination.standardizedFileURL {
+            if baseURL.standardizedFileURL != displayURL.standardizedFileURL
+                || !FileManager.default.fileExists(atPath: baseDestination.path) {
+                replacements.append((baseURL, baseDestination))
+            }
+        }
+        var document = document
+        document.baseImageFileName = baseDestination.lastPathComponent
+        let documentData = try JSONEncoder().encode(document)
+        let temporaryDocument = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try documentData.write(to: temporaryDocument, options: .atomic)
+        defer { try? FileManager.default.removeItem(at: temporaryDocument) }
+        replacements.append((renderedURL, displayURL))
+        replacements.append((temporaryDocument, Self.editDocumentURL(for: displayURL)))
+        try ScreenshotEditFileTransaction.apply(replacements: replacements)
+
+        if let index = items.firstIndex(where: { $0.fileName == displayURL.lastPathComponent }) {
+            let imageSize = ScreenshotImageLoader.imageSize(at: displayURL) ?? .zero
+            items[index].updatedAt = Date()
+            items[index].pixelWidth = Int(imageSize.width)
+            items[index].pixelHeight = Int(imageSize.height)
+            items[index].hasEdits = true
+            saveMetadata()
+        }
+        return displayURL
+    }
+
+    /// Restores the base and removes the editable files as one recoverable save.
+    @discardableResult
+    func removeAnnotations(displayURL: URL) throws -> URL {
+        guard isHistoryURL(displayURL) else { return displayURL }
+        let baseDestination = Self.baseImageURL(for: displayURL)
+        let documentURL = Self.editDocumentURL(for: displayURL)
+        // Missing base pixels are a failed restore, not a successful clear.
+        guard FileManager.default.fileExists(atPath: baseDestination.path) else {
+            throw CocoaError(.fileReadNoSuchFile)
+        }
+        try ScreenshotEditFileTransaction.apply(
+            replacements: [(baseDestination, displayURL)],
+            removing: [baseDestination, documentURL]
+        )
+        if let index = items.firstIndex(where: { $0.fileName == displayURL.lastPathComponent }) {
+            let imageSize = ScreenshotImageLoader.imageSize(at: displayURL) ?? .zero
+            items[index].updatedAt = Date()
+            items[index].pixelWidth = Int(imageSize.width)
+            items[index].pixelHeight = Int(imageSize.height)
+            items[index].hasEdits = false
+            saveMetadata()
+        }
+        return displayURL
+    }
+
+    func delete(_ item: ScreenshotHistoryItem) {
+        let auxiliaryURLs: [URL]
+        if let recordingSession = item.recordingSession {
+            auxiliaryURLs = [recordingSession.directoryURL]
+        } else {
+            auxiliaryURLs = [
+                item.url,
+                Self.baseImageURL(for: item.url),
+                Self.editDocumentURL(for: item.url)
+            ]
+        }
+
+        for url in auxiliaryURLs where FileManager.default.fileExists(atPath: url.path) {
+            do {
+                try FileManager.default.removeItem(at: url)
+            } catch {
+                print("Failed to delete history file: \(error)")
+            }
+        }
+
+        // Checked via the stored path, not `recordingSession`: the package
+        // has already been removed by this point, so the lookup would fail.
+        let wasRecordingProject = item.recordingSessionPath != nil
+        items.removeAll { $0.id == item.id }
+        saveMetadata()
+        if wasRecordingProject {
+            // The package is gone, so the Projects browser must stop listing it.
+            RecordingProjectStore.shared.reload()
+        }
+    }
+
+    /// Drops the History row for a recording project. The package itself is
+    /// owned by `RecordingProjectStore`, which calls this so a deleted
+    /// project can't linger in History as a dead entry.
+    func deleteRecordingSession(_ session: RecordingSession) {
+        let standardizedPath = session.directoryURL.standardizedFileURL.path
+        guard items.contains(where: { $0.recordingSessionPath == standardizedPath }) else {
+            return
+        }
+        items.removeAll { $0.recordingSessionPath == standardizedPath }
+        saveMetadata()
+    }
+
+    @discardableResult
+    func delete(url: URL) -> Bool {
+        guard let index = itemIndex(for: url) else { return false }
+        delete(items[index])
+        return true
+    }
+
+    /// Finds the row a media URL belongs to. A recording's `url` moves from
+    /// its screen master to the flattened deliverable once one is rendered,
+    /// so callers holding the URL from before the render (preview cards,
+    /// uploads) are matched by their package rather than by file.
+    private func itemIndex(for mediaURL: URL) -> Int? {
+        let standardized = mediaURL.standardizedFileURL
+        let packagePath = standardized.deletingLastPathComponent().path
+        if let index = items.firstIndex(where: {
+            $0.recordingSessionPath == packagePath || $0.recordingSessionPath == standardized.path
+        }) {
+            return index
+        }
+        return items.firstIndex { $0.url.standardizedFileURL == standardized }
+    }
+
+    func setCloudURL(for fileURL: URL, cloudURL: String) {
+        guard let index = itemIndex(for: fileURL) else { return }
+        items[index].cloudURL = cloudURL
+        items[index].updatedAt = Date()
+        saveMetadata()
+    }
+
+    /// Clears a previously-set cloud URL, e.g. after deleting the upload from the cloud.
+    func clearCloudURL(for fileURL: URL) {
+        guard let index = itemIndex(for: fileURL) else { return }
+        items[index].cloudURL = nil
+        items[index].updatedAt = Date()
+        saveMetadata()
+    }
+
+    func reveal(_ item: ScreenshotHistoryItem) {
+        NSWorkspace.shared.activateFileViewerSelecting([
+            item.recordingSession?.directoryURL ?? item.url
+        ])
+    }
+
+    /// Resolves a flattened recording URL back to its non-destructive project
+    /// package. Every editor entry point uses this so overlay cards, History,
+    /// and after-capture actions cannot accidentally open different editors.
+    func editorURL(for mediaURL: URL) -> URL {
+        itemIndex(for: mediaURL).map { items[$0].editorURL } ?? mediaURL
+    }
+
+    func reload() {
+        load()
+    }
+
+    func rename(id: UUID, to name: String) {
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        items[index].displayName = trimmed.isEmpty ? nil : trimmed
+        items[index].updatedAt = Date()
+        saveMetadata()
+    }
+
+    /// Called only after Library has successfully moved the owned files to Trash.
+    func removeTrashedItems(ids: Set<UUID>) {
+        guard !ids.isEmpty else { return }
+        items.removeAll { ids.contains($0.id) }
+        saveMetadata()
+    }
+
+    func setLibraryCloudURL(id: UUID, cloudURL: String?) {
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        items[index].cloudURL = cloudURL
+        items[index].updatedAt = Date()
+        saveMetadata()
+    }
+
+    private func load() {
+        guard let data = try? Data(contentsOf: Self.metadataURL) else {
+            items = []
+            return
+        }
+
+        // Rows decode one at a time so a single unreadable entry (say, a
+        // media kind written by a newer build) can't drop the whole list.
+        // Whenever anything fails to decode, the original file is set aside
+        // first: the next save rewrites history.json from `items`, and would
+        // otherwise erase what this build couldn't read.
+        let metadata: ScreenshotHistoryMetadata
+        do {
+            metadata = try ScreenshotHistoryMetadata.decode(data)
+        } catch {
+            print("Failed to read screenshot history: \(error)")
+            preserveUnreadableMetadata()
+            items = []
+            return
+        }
+        if metadata.hasUnreadableRows {
+            preserveUnreadableMetadata()
+        }
+
+        items = metadata.items
+            .filter { FileManager.default.fileExists(atPath: $0.url.path) }
+            .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    private func preserveUnreadableMetadata() {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        let backupURL = Self.applicationSupportDirectory
+            .appendingPathComponent("history.unreadable-\(formatter.string(from: Date())).json")
+        do {
+            try FileManager.default.copyItem(at: Self.metadataURL, to: backupURL)
+        } catch {
+            print("Failed to back up unreadable screenshot history: \(error)")
+        }
+    }
+
+    private func saveMetadata() {
+        do {
+            try FileManager.default.createDirectory(at: Self.applicationSupportDirectory, withIntermediateDirectories: true)
+            let data = try JSONEncoder().encode(items)
+            try data.write(to: Self.metadataURL, options: .atomic)
+        } catch {
+            print("Failed to save screenshot history: \(error)")
+        }
+    }
+
+    private func uniqueHistoryURL(for sourceURL: URL) -> URL {
+        let pathExtension = sourceURL.pathExtension.isEmpty ? "png" : sourceURL.pathExtension
+        let fileName = ScreenshotFileNaming.fileName(extension: pathExtension)
+        let initialURL = Self.historyDirectory.appendingPathComponent(fileName)
+
+        guard FileManager.default.fileExists(atPath: initialURL.path) else {
+            return initialURL
+        }
+
+        let baseName = initialURL.deletingPathExtension().lastPathComponent
+        for index in 1...10_000 {
+            let candidateURL = Self.historyDirectory
+                .appendingPathComponent("\(baseName)-\(index)")
+                .appendingPathExtension(pathExtension)
+            if !FileManager.default.fileExists(atPath: candidateURL.path) {
+                return candidateURL
+            }
+        }
+
+        return Self.historyDirectory
+            .appendingPathComponent("Framecho_\(UUID().uuidString)")
+            .appendingPathExtension(pathExtension)
+    }
+
+    private func videoMetadata(at url: URL) async -> (width: Int, height: Int, duration: Double?) {
+        let asset = AVURLAsset(url: url)
+        var width = 0
+        var height = 0
+        var duration: Double?
+
+        if let track = try? await asset.loadTracks(withMediaType: .video).first {
+            let size = try? await track.load(.naturalSize)
+            let transform = try? await track.load(.preferredTransform)
+            if let size, let transform {
+                let transformed = size.applying(transform)
+                width = Int(abs(transformed.width))
+                height = Int(abs(transformed.height))
+            } else if let size {
+                width = Int(size.width)
+                height = Int(size.height)
+            }
+        }
+
+        if let loadedDuration = try? await asset.load(.duration) {
+            let seconds = CMTimeGetSeconds(loadedDuration)
+            if seconds.isFinite, seconds > 0 {
+                duration = seconds
+            }
+        }
+        return (width, height, duration)
+    }
+
+    private func isHistoryURL(_ url: URL) -> Bool {
+        url.standardizedFileURL.path.hasPrefix(Self.historyDirectory.standardizedFileURL.path)
+    }
+
+}

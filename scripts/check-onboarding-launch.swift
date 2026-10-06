@@ -1,9 +1,9 @@
 import Foundation
 
 // Compile the setup guide's launch decision without launching the app:
-// xcrun swiftc -module-cache-path /tmp/screendrop-onboarding-module-cache \
-//   Screendrop/OnboardingLaunch.swift scripts/check-onboarding-launch.swift \
-//   -o /tmp/screendrop-onboarding-check && /tmp/screendrop-onboarding-check
+// xcrun swiftc -module-cache-path /tmp/framecho-onboarding-module-cache \
+//   Framecho/OnboardingLaunch.swift scripts/check-onboarding-launch.swift \
+//   -o /tmp/framecho-onboarding-check && /tmp/framecho-onboarding-check
 @main
 struct OnboardingLaunchChecks {
     static var checks = 0

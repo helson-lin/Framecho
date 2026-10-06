@@ -1,9 +1,9 @@
 import CoreGraphics
 
 // Compile the actual camera used by the editor, without launching the app:
-// xcrun swiftc -module-cache-path /tmp/screendrop-viewport-module-cache \
-//   Screendrop/AnnotationCanvasViewport.swift scripts/check-editor-viewport.swift \
-//   -o /tmp/screendrop-viewport-check && /tmp/screendrop-viewport-check
+// xcrun swiftc -module-cache-path /tmp/framecho-viewport-module-cache \
+//   Framecho/AnnotationCanvasViewport.swift scripts/check-editor-viewport.swift \
+//   -o /tmp/framecho-viewport-check && /tmp/framecho-viewport-check
 @main
 struct EditorViewportChecks {
     static var checks = 0

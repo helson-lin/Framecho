@@ -11,10 +11,10 @@
       HOW TO ADD A NEW RELEASE:
       1. Bump MARKETING_VERSION and CURRENT_PROJECT_VERSION in Xcode.
       2. Export Framecho.app to ~/Downloads (a Release build; see AGENTS.md).
-      3. Run: go run ./cmd/screendrop-release
+      3. Run: go run ./cmd/framecho-release
          - Enter release notes when prompted, or run non-interactively with
            flags, e.g.:
-             go run ./cmd/screendrop-release -yes \
+             go run ./cmd/framecho-release -yes \
                -notes "Fixed pixelate preview
              Improved upload flow"
            (-notes-file <path> reads bullets from a file instead.)

@@ -2,10 +2,11 @@
 
 ## Project overview
 
-Screendrop is a native macOS screenshot and screen recording tool. Its Library window opens on normal launch; login launches remain in the menu bar (`LSUIElement = YES`). `AppActivationPolicy` uses `.regular` while Library, Settings, or editor windows are open, and returns to `.accessory` when they close. Built with SwiftUI + AppKit and no Xcode test target.
+Framecho is a native macOS screenshot and screen recording tool. Its Library window opens on normal launch; login launches remain in the menu bar (`LSUIElement = YES`). `AppActivationPolicy` uses `.regular` while Library, Settings, or editor windows are open, and returns to `.accessory` when they close. Built with SwiftUI + AppKit and no Xcode test target.
 
 **Deployment target:** macOS 26.4, built with Xcode 27.1 (macOS 27 SDK).
-**Bundle ID:** `com.jarinhe.Framecho` (the app is named Framecho; the Xcode target and source folder keep the upstream name `Screendrop` to ease merging upstream)
+**Bundle ID:** `com.jarinhe.Framecho`
+**Origin:** started as a fork of [Screendrop](https://github.com/fayazara/screendrop) and is now maintained independently; upstream changes are no longer merged. The GitHub repository is still named `helson-lin/Screendrop`, and the Sparkle feed URL depends on that name.
 
 ## Build
 
@@ -13,14 +14,14 @@ Use `xcodebuild` from the command line. The project requires Xcode 27.1, the too
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
-  -project Screendrop.xcodeproj \
-  -scheme Screendrop \
+  -project Framecho.xcodeproj \
+  -scheme Framecho \
   -configuration Debug \
   -destination "platform=macOS" \
   2>&1 | grep -E "(BUILD SUCCEEDED|BUILD FAILED|error:)" | head -20
 ```
 
-There are two shared schemes (`Screendrop` and `Screendrop Dev`) - both build the same target with Debug config. Use `Screendrop` unless told otherwise.
+There are three shared schemes, all building the same target: `Framecho`, `Framecho Dev` (runs the `Debug Dev` configuration: a separate `Framecho Dev` app with bundle ID `com.jarinhe.Framecho.dev`) and `Framecho Demo` (launches with `--demo-mode`). Use `Framecho` unless told otherwise.
 
 No Xcode test target exists. Automated verification is:
 
@@ -42,15 +43,15 @@ When adding new types, assume `@MainActor` isolation by default. If a type must 
 
 ## Architecture
 
-All source is in `Screendrop/` (flat, no subdirectories). Key flow:
+App source is in `Framecho/`, flat except for `Engine/` (the annotation engine). Key flow:
 
-1. **App entry** - `ScreendropApp.swift`: `@main` App struct. Creates a `MenuBarExtra`, a Settings window, and an annotation editor `WindowGroup`.
+1. **App entry** - `FramechoApp.swift`: `@main` App struct. Creates a `MenuBarExtra`, a Settings window, and an annotation editor `WindowGroup`.
 2. **Hotkeys** - `HotkeyManager.swift`: Registers global Carbon hotkeys (Option+1/2/3) at launch via `AppDelegate`.
 3. **Capture** - `CaptureCoordinator.swift` → `ScreenshotManager.swift`: Fullscreen uses `ScreenCaptureKit`; window/area use `/usr/sbin/screencapture` CLI.
 4. **Preview** - `PreviewPanelPresenter.swift` + `PreviewWindowView.swift`: Borderless floating `NSPanel` showing a screenshot stack. Uses `ScreenshotPreviewStack` (an `@Observable` model).
 5. **Annotation** - `AnnotationEditorWindow.swift` + `AnnotationEditorModel.swift` + `AnnotationCanvas.swift`: Full annotation editor with tools (rectangle, ellipse, arrow, freehand, text, numbered circles, pixelate, blur). All coordinates are normalized (0..1) relative to the image.
 6. **Rendering** - `AnnotationRenderer.swift`: Composites annotations onto the source image at full pixel resolution using Core Graphics.
-7. **Preferences** - `ScreendropPreferences.swift` + `SettingsView.swift`: `UserDefaults`-backed settings (auto-save, auto-copy, auto-compress, export directory).
+7. **Preferences** - `FramechoPreferences.swift` + `SettingsView.swift`: `UserDefaults`-backed settings (auto-save, auto-copy, auto-compress, export directory).
 8. **Library** - `CaptureLibraryView.swift` + `CaptureLibraryModel.swift`: Single native sidebar/detail/inspector scene. `CaptureLibraryCollection.swift` reuses AppKit cells for grid/list layouts; `CaptureLibraryThumbnails.swift` bounds decoded image memory and concurrency. The model merges History metadata with recording packages by standardized package path. Existing capture storage and editable sidecars remain authoritative. `CaptureLibraryActions.swift` handles batch operations and prevents trashing captures while their editors are open.
 
 ### Singletons
@@ -63,10 +64,11 @@ All annotation positions/sizes are normalized to `[0, 1]` relative to the source
 
 ## Conventions
 
-- **No SPM packages or external dependencies.** The project uses only Apple frameworks (SwiftUI, AppKit, ScreenCaptureKit, CoreGraphics, CoreImage, ImageIO, Carbon).
+- **Minimal dependencies.** Apart from Apple frameworks, the only Swift packages are Sparkle (updates) and DockProgress. Don't add packages without a strong reason.
 - **`@Observable` macro** (Observation framework) is used for state - not `ObservableObject`/`@Published`.
 - **App sandbox is disabled** (`ENABLE_APP_SANDBOX = NO`) - the app needs screen capture permissions and direct filesystem access.
 - Screenshots are saved as lossless PNG to `NSTemporaryDirectory()` first, then optionally compressed to JPEG on export.
+- **Persisted formats** live in `~/Library/Application Support/Framecho`: `<image>.framecho` edit sidecars beside History images, `.framechorec` recording packages, and `history.json`. Exported presets are `.framechopreset` (`com.jarinhe.framecho.preset`). Files from before the rename (`.screendrop`, `.screendroprec`, `.screendroppreset`) are migrated at launch by `LegacyStorageMigration` or still read; keep that path working and never rename a persisted key or format without a migration.
 
 ## Commits
 
@@ -84,7 +86,7 @@ Updates are served by Sparkle from `appcast.xml` on `main` of `helson-lin/Screen
 
 Builds are signed for team `64S5F787T9`: Debug with the Apple Development certificate, Release with Developer ID Application (hardened runtime on). Because the signature is tied to the team rather than the binary, privacy permissions survive rebuilds and updates.
 
-To release, run `go run ./cmd/screendrop-release -build -set-version <x.y.z> -set-build <n>`. It first runs the same checks as CI (`scripts/run-checks.sh`, `go vet`, `go test`) and stops if any fail or if CI failed for the commit; `-skip-checks` bypasses that, for emergencies only. Then it archives, exports with Developer ID, notarizes, staples, builds and Sparkle-signs the DMG, prepends `appcast.xml`, pushes it, and creates the GitHub release. Notarization reads the `framecho-notary` keychain profile; create it once with:
+To release, run `go run ./cmd/framecho-release -build -set-version <x.y.z> -set-build <n>`. It first runs the same checks as CI (`scripts/run-checks.sh`, `go vet`, `go test`) and stops if any fail or if CI failed for the commit; `-skip-checks` bypasses that, for emergencies only. Then it archives, exports with Developer ID, notarizes, staples, builds and Sparkle-signs the DMG, prepends `appcast.xml`, pushes it, and creates the GitHub release. Notarization reads the `framecho-notary` keychain profile; create it once with:
 
 ```bash
 xcrun notarytool store-credentials framecho-notary --apple-id <apple-id> --team-id 64S5F787T9

@@ -58,7 +58,7 @@ struct MotionBlurBenchmark {
             .font: font, .foregroundColor: CGColor(gray: 0.12, alpha: 1),
         ]
         for (i, text) in [
-            "Screendrop • Screenshot and recording exports", "let shutter = 1.0 / 60.0",
+            "Framecho • Screenshot and recording exports", "let shutter = 1.0 / 60.0",
             "Motion blur keeps all 24 temporal samples.",
         ].enumerated() {
             c.textPosition = CGPoint(x: width / 5 + 14, y: height / 2 + height / 4 + 95 - i * 30)
@@ -122,8 +122,8 @@ struct MotionBlurBenchmark {
     static func main() async throws {
         guard let device = MTLCreateSystemDefaultDevice() else { fatalError("No Metal device") }
         let library = try await device.makeLibrary(
-            source: String(contentsOfFile: "Screendrop/StudioMotionBlur.metal", encoding: .utf8), options: nil)
-        let output = URL(fileURLWithPath: "/tmp/screendrop-motion-blur-benchmark", isDirectory: true)
+            source: String(contentsOfFile: "Framecho/StudioMotionBlur.metal", encoding: .utf8), options: nil)
+        let output = URL(fileURLWithPath: "/tmp/framecho-motion-blur-benchmark", isDirectory: true)
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         print("Device: \(device.name)")
         let cases =

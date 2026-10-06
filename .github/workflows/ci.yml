@@ -31,7 +31,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/SourcePackages
-          key: spm-${{ hashFiles('Screendrop.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          key: spm-${{ hashFiles('Framecho.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
 
       # The runner's Xcode ships without the Metal toolchain, which the
       # Studio motion-blur shader needs.
@@ -42,8 +42,8 @@ jobs:
         run: |
           status=0
           xcodebuild build \
-            -project Screendrop.xcodeproj \
-            -scheme Screendrop \
+            -project Framecho.xcodeproj \
+            -scheme Framecho \
             -configuration Debug \
             -destination "platform=macOS" \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
@@ -75,7 +75,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: check-logs
-          path: ${{ runner.temp }}/screendrop-checks/logs
+          path: ${{ runner.temp }}/framecho-checks/logs
 
   release-tool:
     name: Release tool
