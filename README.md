@@ -13,6 +13,8 @@
 
 **[下载 Framecho.dmg](https://github.com/helson-lin/Screendrop/releases/latest/download/Framecho.dmg)** · [发布记录](https://github.com/helson-lin/Screendrop/releases) · [反馈问题](https://github.com/helson-lin/Screendrop/issues)
 
+<img src="docs/images/editor.png" alt="Framecho 图片编辑器：在一张仪表盘截图上添加了矩形框、编号、箭头和文字标注，并套用了蓝色渐变背景" width="900">
+
 </div>
 
 ---
@@ -62,6 +64,8 @@
 - 统一管理截图、视频和可编辑录屏项目，支持搜索、排序、网格 / 列表视图与批量操作。
 - 从 Finder 打开图片时导入副本进行编辑，原文件保持不变。
 
+<img src="docs/images/library.png" alt="素材库窗口：侧边栏按截图、录制、已共享和草稿分组，右侧以网格显示今天的四项素材" width="800">
+
 ### 图片编辑器
 
 - **标注**：矩形、圆形、箭头、直线、自由绘制、文字、编号和高亮；工具在画布顶部的悬浮工具条中，每个工具都有单键快捷键。
@@ -73,6 +77,8 @@
 - **预设**：导入、导出 `.framechopreset` 背景预设（仍可导入旧版 `.screendroppreset`）；本地壁纸文件不随预设导出。
 
 侧边栏按作用范围分为两个标签。选择工具或选中标注时，会自动切回「标注」。
+
+<img src="docs/images/effects.png" alt="图片编辑器的「画面」标签：代码截图套用了 3D 透视、渐变背景、圆角和阴影" width="800">
 
 | 标签 | 内容 |
 | --- | --- |
@@ -95,6 +101,8 @@
 - **导出**：原始比例、横屏、竖屏和方形画幅，支持单独裁剪画面；可设置质量、编码、分辨率、30 / 60 fps、运动模糊和音频。导出与分享使用项目的编辑结果，支持进度显示和取消。
 
 侧边栏按设置类型分为四个标签。在时间线上选中缩放、运镜或片段时，会自动切到对应标签。
+
+<img src="docs/images/studio.png" alt="Studio 视频编辑器：预览区显示套用渐变背景的录屏画面，下方是带缩略图的时间线" width="800">
 
 | 标签 | 内容 |
 | --- | --- |
