@@ -284,7 +284,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 0.40.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jarinhe.Framecho;
 				PRODUCT_NAME = Framecho;
@@ -323,7 +323,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 0.40.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jarinhe.Framecho;
 				PRODUCT_NAME = Framecho;
@@ -426,7 +426,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 0.40.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jarinhe.Framecho.dev;
 				PRODUCT_NAME = "Framecho Dev";
