@@ -4610,15 +4610,8 @@ private struct StudioInspector: View {
 
         InspectorSectionDivider()
 
-        InspectorSection(
-            title: "3D Motion",
-            accessory: {
-                InspectorToggle("Enable 3D motion", isOn: $model.motionEnabled)
-            }
-        ) {
-            if model.motionEnabled {
-                cardMotionControls
-            }
+        InspectorSection("3D Motion") {
+            cardMotionControls
         }
     }
 
@@ -5174,8 +5167,7 @@ private struct StudioInspector: View {
                 .help("Remove the selected motion")
             }
         }
-        .disabled(!model.motionEnabled)
-        .opacity(model.motionEnabled ? 1 : 0.48)
+
     }
 
     /// Toggles direct manipulation of a pose on the canvas.
