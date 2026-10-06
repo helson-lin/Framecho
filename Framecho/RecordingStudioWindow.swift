@@ -4362,18 +4362,39 @@ private extension ZoomAnchorMode {
 /// and its sound.
 /// Cutting lives on the timeline itself, so the inspector's tabs cover only
 /// what the timeline can't show: the look, motion, overlays and sound.
+/// One inspector page per thing the recording can show, so every switch has
+/// a fixed place to find it. The tab bar shows icons, named by tooltip and
+/// VoiceOver label.
 private enum StudioInspectorTab: Hashable, CaseIterable {
     case canvas
-    case animation
-    case overlays
+    case motion
+    case cursor
+    case camera
+    case keystrokes
+    case captions
     case audio
 
     var title: String {
         switch self {
         case .canvas: String(localized: "Canvas")
-        case .animation: String(localized: "Animation")
-        case .overlays: String(localized: "Overlays")
+        case .motion: String(localized: "Zoom & 3D Motion")
+        case .cursor: String(localized: "Cursor")
+        case .camera: String(localized: "Camera")
+        case .keystrokes: String(localized: "Keystrokes")
+        case .captions: String(localized: "Captions")
         case .audio: String(localized: "Audio")
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .canvas: "photo"
+        case .motion: "plus.magnifyingglass"
+        case .cursor: "cursorarrow"
+        case .camera: "video"
+        case .keystrokes: "keyboard"
+        case .captions: "captions.bubble"
+        case .audio: "speaker.wave.2"
         }
     }
 }
@@ -4405,10 +4426,16 @@ private struct StudioInspector: View {
                 switch selectedTab {
                 case .canvas:
                     canvasTab
-                case .animation:
-                    animationTab
-                case .overlays:
-                    overlaysTab
+                case .motion:
+                    motionTab
+                case .cursor:
+                    cursorTab
+                case .camera:
+                    cameraTab
+                case .keystrokes:
+                    keystrokesTab
+                case .captions:
+                    captionsTab
                 case .audio:
                     audioTab
                 }
@@ -4425,7 +4452,7 @@ private struct StudioInspector: View {
         }
         .onChange(of: model.activePoseAdjustment) { _, target in
             if target != nil {
-                selectedTab = .animation
+                selectedTab = .motion
             }
         }
         .onChange(of: selectedTab) { _, _ in
@@ -4461,21 +4488,60 @@ private struct StudioInspector: View {
     }
 
     private var tabPicker: some View {
-        InspectorSegmented(
-            options: StudioInspectorTab.allCases,
-            isSelected: { $0 == selectedTab },
-            onTap: { selectedTab = $0 },
-            label: { tab in
-                Text(tab.title)
-                    .font(.inspectorSegment)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-            }
-        )
+        VStack(alignment: .leading, spacing: 8) {
+            InspectorSegmented(
+                options: StudioInspectorTab.allCases,
+                isSelected: { $0 == selectedTab },
+                onTap: { selectedTab = $0 },
+                label: { tab in
+                    Image(systemName: tab.systemImage)
+                        .font(.system(size: 13, weight: .medium))
+                        .overlay(alignment: .topTrailing) {
+                            if isInUse(tab) {
+                                Circle()
+                                    .fill(Color.accentColor)
+                                    .frame(width: 5, height: 5)
+                                    .offset(x: 5, y: -3)
+                                    .accessibilityHidden(true)
+                            }
+                        }
+                        .help(tab.title)
+                        .accessibilityLabel(Text(tab.title))
+                        .accessibilityValue(isInUse(tab) ? Text("On") : Text(verbatim: ""))
+                },
+                height: 32
+            )
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Inspector")
+
+            Text(selectedTab.title)
+                .font(.system(size: 13, weight: .semibold))
+                .accessibilityAddTraits(.isHeader)
+        }
         .padding(.horizontal, InspectorMetrics.horizontalPadding)
+        .padding(.top, 10)
         .padding(.bottom, 10)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Inspector")
+    }
+
+    /// Marks the tabs whose effect is showing in the video, so what is
+    /// switched on can be seen without opening every page.
+    private func isInUse(_ tab: StudioInspectorTab) -> Bool {
+        switch tab {
+        case .canvas:
+            false
+        case .motion:
+            (model.zoomEnabled && !model.zoomCues.isEmpty) || !model.motion.isInert
+        case .cursor:
+            model.pointerIsSynthesized && !model.style.hidesCursor
+        case .camera:
+            model.hasCameraVideo && model.style.camera.isVisible
+        case .keystrokes:
+            model.hasKeystrokes && model.showsKeystrokes
+        case .captions:
+            model.hasSubtitles && model.showsSubtitles
+        case .audio:
+            model.replacementAudio != nil
+        }
     }
 
     private func scrollToTop(animated: Bool) {
@@ -4530,7 +4596,7 @@ private struct StudioInspector: View {
     }
 
     @ViewBuilder
-    private var animationTab: some View {
+    private var motionTab: some View {
         InspectorSection(
             title: "Zoom",
             accessory: {
@@ -4632,13 +4698,7 @@ private struct StudioInspector: View {
     }
 
     @ViewBuilder
-    private var overlaysTab: some View {
-        if !hasOverlays {
-            InspectorSection("Overlays") {
-                InspectorHint("This recording has no pointer, keystrokes, narration or camera to show.")
-            }
-        }
-
+    private var cursorTab: some View {
         if model.pointerIsSynthesized {
             InspectorSection(
                 title: "Cursor",
@@ -4663,9 +4723,35 @@ private struct StudioInspector: View {
                     cursorControls
                 }
             }
-            InspectorSectionDivider()
+        } else {
+            InspectorSection("Cursor") {
+                InspectorHint("The pointer is part of this recording's picture, so it can't be restyled.")
+            }
         }
+    }
 
+    @ViewBuilder
+    private var cameraTab: some View {
+        if model.hasCameraVideo {
+            InspectorSection(
+                title: "Camera",
+                accessory: {
+                    InspectorToggle("Show camera", isOn: $model.style.camera.isVisible)
+                }
+            ) {
+                if model.style.camera.isVisible {
+                    cameraControls
+                }
+            }
+        } else {
+            InspectorSection("Camera") {
+                InspectorHint("This recording has no camera video. Turn on the camera before recording to add one.")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var keystrokesTab: some View {
         if model.hasKeystrokes {
             InspectorSection(
                 title: "Keystrokes",
@@ -4677,9 +4763,15 @@ private struct StudioInspector: View {
                     keystrokeControls
                 }
             }
-            InspectorSectionDivider()
+        } else {
+            InspectorSection("Keystrokes") {
+                InspectorHint("No shortcuts were pressed while recording.")
+            }
         }
+    }
 
+    @ViewBuilder
+    private var captionsTab: some View {
         if model.canTranscribe || model.hasSubtitles {
             InspectorSection(
                 title: "Captions",
@@ -4695,32 +4787,21 @@ private struct StudioInspector: View {
             ) {
                 captionSectionControls
             }
-            InspectorSectionDivider()
-        }
 
-        if model.hasCameraVideo {
-            InspectorSection(
-                title: "Camera",
-                accessory: {
-                    InspectorToggle("Show camera", isOn: $model.style.camera.isVisible)
-                }
-            ) {
-                if model.style.camera.isVisible {
-                    cameraControls
-                }
+            InspectorSectionDivider()
+
+            InspectorSection("Edit by Text") {
+                editByTextControls
+            }
+        } else {
+            InspectorSection("Captions") {
+                InspectorHint("Captions come from narration. Record with the microphone on to transcribe it.")
             }
         }
     }
 
     @ViewBuilder
     private var audioTab: some View {
-        if model.canTranscribe || model.hasSubtitles {
-            InspectorSection("Edit by Text") {
-                editByTextControls
-            }
-            InspectorSectionDivider()
-        }
-
         InspectorSection(
             title: "Audio",
             accessory: {
@@ -4739,14 +4820,6 @@ private struct StudioInspector: View {
         ) {
             audioControls
         }
-    }
-
-    private var hasOverlays: Bool {
-        model.pointerIsSynthesized
-            || model.hasKeystrokes
-            || model.canTranscribe
-            || model.hasSubtitles
-            || model.hasCameraVideo
     }
 
     // MARK: Background

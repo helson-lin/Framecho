@@ -223,6 +223,16 @@
         }
       }
     },
+    "Captions come from narration. Record with the microphone on to transcribe it." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕来自旁白。录制时打开麦克风，之后即可转写。"
+          }
+        }
+      }
+    },
     "Capture anything" : {
       "localizations" : {
         "zh-Hans" : {
@@ -719,6 +729,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "没有已共享的内容"
+          }
+        }
+      }
+    },
+    "No shortcuts were pressed while recording." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录制时没有按下快捷键。"
           }
         }
       }
@@ -1319,6 +1339,26 @@
         }
       }
     },
+    "The pointer is part of this recording's picture, so it can't be restyled." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这段录制的指针已录进画面，无法调整样式。"
+          }
+        }
+      }
+    },
+    "This recording has no camera video. Turn on the camera before recording to add one." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这段录制没有摄像头画面。录制前打开摄像头即可加入。"
+          }
+        }
+      }
+    },
     "Thumbnail size" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1505,6 +1545,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "缩放 %lld%%"
+          }
+        }
+      }
+    },
+    "Zoom & 3D Motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缩放与 3D 运动"
           }
         }
       }
