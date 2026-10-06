@@ -15,9 +15,9 @@ Both choices are stored in the project's export settings, inherited by Share and
 
 ## Rendering policy
 
-- Magnified motion-blur frames use Metal with the original shutter rectangles.
-- Reduced frames use Metal when the shutter has at least 8 samples. Lighter blur during reduction stays on Core Graphics: numerical comparisons exposed larger spatial-filter differences in that case.
-- Settled frames retain their single Core Graphics draw. When the decoded source buffer and viewport rectangle repeat, subsequent frames reuse those exact screen/backdrop pixels.
+- Every frame - magnified or reduced, settled or blurred, with any number of shutter samples - renders on Metal, so an export never alternates between two reconstruction filters.
+- The one per-frame exception is an extreme discontinuity inside a shutter, where one rectangle is far smaller than the texture the others share; Core Graphics draws that frame (`StudioMetalScreenRenderer.shouldAccelerate`).
+- When the decoded source buffer and viewport rectangle repeat, subsequent frames reuse those exact screen/backdrop pixels.
 - If Metal initialization, buffer mapping, geometry validation, or rendering fails, the export continues through Core Graphics. A GPU failure disables further GPU attempts for that export.
 
 `StudioMotionBlur.metal` combines the shutter samples in one compute pass, using cubic reconstruction for magnification and scale-aware Lanczos reconstruction for reduction. For large reductions, one Metal Performance Shaders Lanczos prepass bounds the filter footprint while retaining up to twice the required resolution. The cached backdrop and rounded-card mask use the same Core Graphics drawing paths as the original compositor.
@@ -61,7 +61,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc \
 /tmp/framecho-motion-blur-benchmark-bin
 ```
 
-The harness compiles the actual shader source, exercises 2/8/24-sample cases at 1080p and 4K with 1×/2×/4× input sizes, and reports Core Graphics fallback cases separately. For accelerated fixtures it asserts RGB mean absolute error below 4/255 and PSNR above 31 dB against the original compositor's screen pass. These are regression checks, not a perceptual-quality guarantee. PNG pairs are saved under `/tmp/framecho-motion-blur-benchmark` for inspection.
+The harness compiles the actual shader source, exercises 2/8/24-sample cases at 1080p and 4K with 1×/2×/4× input sizes, and reports Core Graphics fallback cases separately. For accelerated fixtures it asserts RGB mean absolute error below 4/255 and PSNR above 31 dB against the original compositor's screen pass. Reduced input with fewer than 8 samples only has to stay within 10/255 and 22 dB: the reference reduces with Core Graphics and Metal with Lanczos, and with so few samples the two filters' difference doesn't average out (2×/2 samples measures about 4.7/255 and 27.6 dB, 4×/2 samples about 7.5/255 and 25.1 dB). These are regression checks, not a perceptual-quality guarantee. PNG pairs are saved under `/tmp/framecho-motion-blur-benchmark` for inspection.
 
 It also writes and decodes six frames each through H.264 and HEVC, exercising the writer's pixel-buffer pool, GPU rendering, a settled Core Graphics frame, screen-layer reuse, a moving CPU-drawn overlay, and a Metal-compatible reader. It checks that the overlay survives in the correct position, does not remain at its old position, and that invalid rectangles are rejected. Use `--encode-only` to rerun just these integration checks. The harness does not launch Framecho or access user recordings. The [editor resource checks](editor-performance.md#standalone-checks) additionally verify byte-identical screen reuse, overlay isolation, and the snapshot budget.
 
