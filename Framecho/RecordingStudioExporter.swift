@@ -197,13 +197,12 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             duration: CMTime(seconds: clipTimeline.duration, preferredTimescale: 600)
         )
 
-        let outputSize = Self.outputSize(
+        let canvasSize = Self.deliveredCanvasSize(
             source: configuration.canvasSize,
             resolution: configuration.exportSettings.resolution
         )
-        let canvasWidth = max(2, Int(outputSize.width.rounded()) & ~1)
-        let canvasHeight = max(2, Int(outputSize.height.rounded()) & ~1)
-        let canvasSize = CGSize(width: canvasWidth, height: canvasHeight)
+        let canvasWidth = Int(canvasSize.width)
+        let canvasHeight = Int(canvasSize.height)
 
         // Readers
         let screenReader = try AVAssetReader(asset: screenAsset)
@@ -552,6 +551,19 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             .appendingPathComponent("StudioExports", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory.appendingPathComponent("\(UUID().uuidString).\(container.fileExtension)")
+    }
+
+    /// Pixel size of the exported video for a Studio canvas: scaled down to
+    /// the chosen resolution, then rounded to even dimensions for the encoder.
+    static func deliveredCanvasSize(
+        source: CGSize,
+        resolution: VideoCompressionResolution
+    ) -> CGSize {
+        let size = outputSize(source: source, resolution: resolution)
+        return CGSize(
+            width: max(2, Int(size.width.rounded()) & ~1),
+            height: max(2, Int(size.height.rounded()) & ~1)
+        )
     }
 
     private static func outputSize(

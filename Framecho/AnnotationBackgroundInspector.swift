@@ -158,6 +158,9 @@ struct InspectorBackgroundFillPicker: View {
     let onEditorAction: () -> Void
     let onPickWallpaper: () -> Void
     var onSelectWallpaper: (AnnotationCustomWallpaper) -> Void = { _ in }
+    /// Leads the color and gradient grids with a "None" tile, for editors
+    /// where no background is a choice rather than a separate clear button.
+    var showsNoneTile = false
 
     private let swatchColumns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 8)
     private static let maxVisibleRecentWallpapers = 4
@@ -205,6 +208,7 @@ struct InspectorBackgroundFillPicker: View {
         switch selectedFillLibrary {
         case .color:
             LazyVGrid(columns: swatchColumns, spacing: 6) {
+                noneTile
                 ForEach(AnnotationBackgroundColor.plainPresets) { color in
                     InspectorTile(title: color.title, isSelected: style == .solid(color)) {
                         onEditorAction()
@@ -218,6 +222,7 @@ struct InspectorBackgroundFillPicker: View {
 
         case .gradient:
             LazyVGrid(columns: swatchColumns, spacing: 6) {
+                noneTile
                 ForEach(AnnotationBackgroundGradient.presets) { gradient in
                     InspectorTile(title: gradient.title, isSelected: style == .gradient(gradient)) {
                         onEditorAction()
@@ -234,6 +239,28 @@ struct InspectorBackgroundFillPicker: View {
 
         case .wallpaper:
             wallpaperGroup
+        }
+    }
+
+    @ViewBuilder
+    private var noneTile: some View {
+        if showsNoneTile {
+            InspectorTile(title: "None", isSelected: style == .none) {
+                onEditorAction()
+                style = .none
+            } content: {
+                Rectangle()
+                    .fill(Color(nsColor: .textBackgroundColor))
+                    .overlay {
+                        GeometryReader { proxy in
+                            Path { path in
+                                path.move(to: CGPoint(x: proxy.size.width, y: 0))
+                                path.addLine(to: CGPoint(x: 0, y: proxy.size.height))
+                            }
+                            .stroke(Color.red.opacity(0.8), lineWidth: 1.5)
+                        }
+                    }
+            }
         }
     }
 
