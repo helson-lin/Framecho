@@ -8381,12 +8381,12 @@
         }
       }
     },
-    "Setup steps & demo" : {
+    "Setup steps" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "设置步骤和演示"
+            "value" : "设置步骤"
           }
         }
       }

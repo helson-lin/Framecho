@@ -8,7 +8,6 @@
 //
 
 import AppKit
-import AVKit
 import Security
 import SwiftUI
 
@@ -245,7 +244,7 @@ struct CloudSettingsPane: View {
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
                             .rotationEffect(.degrees(setupGuideExpanded ? 90 : 0))
-                        Text("Setup steps & demo")
+                        Text("Setup steps")
                         Spacer()
                     }
                     .contentShape(Rectangle())
@@ -266,10 +265,6 @@ struct CloudSettingsPane: View {
                             number: 3,
                             text: "Paste your worker URL above, then click \"Verify Connection\" to finish setup and confirm."
                         )
-
-                        SetupVideoPlayer()
-                            .frame(height: 200)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                     .padding(.top, 4)
                 }
@@ -562,19 +557,4 @@ private struct SetupStepView: View {
                 .lineSpacing(2)
         }
     }
-}
-
-private struct SetupVideoPlayer: NSViewRepresentable {
-    private static let videoURL = URL(string: "https://static.fayazahmed.com/8130A265-enable-cloud-screendrop.mp4")!
-
-    func makeNSView(context: Context) -> AVPlayerView {
-        let player = AVPlayer(url: Self.videoURL)
-        let playerView = AVPlayerView()
-        playerView.player = player
-        playerView.controlsStyle = .inline
-        playerView.showsFullScreenToggleButton = true
-        return playerView
-    }
-
-    func updateNSView(_ nsView: AVPlayerView, context: Context) {}
 }
