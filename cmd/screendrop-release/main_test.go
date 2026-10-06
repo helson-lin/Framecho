@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/xml"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -117,5 +119,61 @@ func TestRunSigningCmdRetriesOnlyTimestampFailures(t *testing.T) {
 	_, err = runSigningCmd(func() { attempts++ }, "sh", "-c", "echo 'No signing certificate'; exit 1")
 	if err == nil || attempts != 1 {
 		t.Fatalf("attempts = %d, err = %v; want 1 attempt and an error", attempts, err)
+	}
+}
+
+func TestCommitVersionBump(t *testing.T) {
+	repo := t.TempDir()
+	git := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@example.com",
+			"GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@example.com")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	write := func(name, content string) {
+		t.Helper()
+		path := filepath.Join(repo, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	project := filepath.Join("App.xcodeproj", "project.pbxproj")
+	git("init", "-q")
+	write(project, "MARKETING_VERSION = 1.0.0;\n")
+	write("notes.txt", "a\n")
+	git("add", ".")
+	git("commit", "-q", "-m", "initial")
+
+	write(project, "MARKETING_VERSION = 1.1.0;\n")
+	write("notes.txt", "b\n")
+	git("add", "notes.txt")
+	committed, err := commitVersionBump(repo, project, "Bump version to 1.1.0")
+	if err != nil || !committed {
+		t.Fatalf("first bump: committed = %v, err = %v; want a commit", committed, err)
+	}
+	if files := git("show", "--name-only", "--format=", "HEAD"); files != project {
+		t.Fatalf("bump commit touched %q; want only %q", files, project)
+	}
+
+	// A re-run after a later release step failed: the bump is already
+	// committed and untracked files change git's "nothing to commit" text.
+	write("output/untracked.txt", "x\n")
+	head := git("rev-parse", "HEAD")
+	committed, err = commitVersionBump(repo, project, "Bump version to 1.1.0")
+	if err != nil || committed {
+		t.Fatalf("re-run: committed = %v, err = %v; want no commit and no error", committed, err)
+	}
+	if git("rev-parse", "HEAD") != head {
+		t.Fatal("re-run created a commit")
 	}
 }
