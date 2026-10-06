@@ -23,7 +23,7 @@
 > [!NOTE]
 > 项目仍在持续开发中。反馈问题时，请附上 macOS 版本、Framecho 版本和复现步骤。
 
-**目录**：[安装与更新](#安装与更新) · [功能](#功能) · [快捷键](#默认快捷键) · [隐私与权限](#隐私与权限) · [壁纸资源包](#壁纸资源包) · [云端分享](#云端分享) · [开发](#开发) · [致谢与许可](#致谢与许可)
+**目录**：[安装与更新](#安装与更新) · [功能](#功能) · [快捷键](#默认快捷键) · [隐私与权限](#隐私与权限) · [壁纸资源包](#壁纸资源包) · [云端分享](#云端分享) · [开发](#开发) · [发布](#发布) · [致谢与许可](#致谢与许可)
 
 ## 安装与更新
 
@@ -37,7 +37,15 @@
 
 **从旧版本升级**：早期版本保存的 `.screendrop` 编辑记录、`.screendroprec` 录屏项目会在启动时自动改名为 `.framecho`、`.framechorec`，素材库和编辑记录不受影响。
 
-**Homebrew**：本项目暂未提供 cask，请使用上面的 Framecho 下载链接。
+### 数据位置与卸载
+
+| 位置 | 内容 |
+| --- | --- |
+| `~/Library/Application Support/Framecho/` | 素材库：截图（`History/`）、录屏项目（`Recordings/`）、壁纸（`Wallpapers/`）和 `history.json` |
+| `~/Pictures/Framecho/` | 默认导出目录，可在设置中修改 |
+| 钥匙串中的 `com.jarinhe.Framecho` | 云端分享的上传令牌 |
+
+备份时复制 `Application Support/Framecho` 整个文件夹即可。卸载时退出 Framecho、删除应用，再按需删除上面的文件夹和钥匙串项目；设置保存在 `~/Library/Preferences/com.jarinhe.Framecho.plist`。
 
 ## 功能
 
@@ -47,7 +55,7 @@
 - 定时截图、窗口阴影、PNG / JPEG 导出及自定义保存目录。
 - 本地 OCR：框选屏幕区域即可识别并复制文字，无需保存截图。
 - 浮动预览卡片可调整大小、位置和操作顺序，提供复制、保存、压缩、编辑、上传、置顶和删除。
-- 置顶截图可用滚轮调整透明度。
+- 截图可置顶在屏幕上：框选区域后直接置顶，或置顶最近一张截图；置顶窗口可用滚轮调整透明度。
 
 ### 素材库
 
@@ -114,9 +122,11 @@
 | <kbd>⌥</kbd> <kbd>4</kbd> | 打开录屏选择器 |
 | <kbd>⌥</kbd> <kbd>5</kbd> | 识别并复制屏幕文字 |
 | <kbd>⌥</kbd> <kbd>6</kbd> | 倒计时后截图 |
+| <kbd>⌥</kbd> <kbd>7</kbd> | 区域截图并置顶 |
+| <kbd>⌥</kbd> <kbd>8</kbd> | 置顶最近一张截图 |
 | <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>L</kbd> | 打开素材库 |
 
-前六个全局快捷键可在设置中修改。新快捷键无法注册时，应用会保留原先可用的设置并说明原因。
+以上八个全局快捷键都可在设置中修改，素材库快捷键固定。新快捷键无法注册时，应用会保留原先可用的设置并说明原因。
 
 图片编辑器中（编辑文字时除外）：
 
@@ -212,6 +222,14 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 scripts/run-checks.sh
 ```
 
+发布工具的测试：
+
+```bash
+go test ./cmd/...
+```
+
+新增的 `scripts/check-*.swift` 必须在 `run-checks.sh` 中运行，或列入其中的 `not_run`，否则脚本会报错。需要被检查的逻辑应放在不依赖应用即可编译的文件里。
+
 性能专项检查见 [视频导出性能](docs/export-performance.md) 和 [编辑器性能](docs/editor-performance.md)。
 
 每个 Pull Request 和推送到 `main` 的提交都会运行 [GitHub Actions](.github/workflows/ci.yml)；只改动 `appcast.xml`、文档或 Markdown 的推送会跳过。
@@ -224,21 +242,29 @@ scripts/run-checks.sh
 
 `xcode-27` 镜像目前仍是 beta，GitHub 调整其中的 Xcode 版本时，需要同步更新工作流。
 
-### 发布
+## 发布
 
 发布工具位于 `cmd/framecho-release`，发布目标为 `helson-lin/Screendrop`。完整流程需要 Go、`create-dmg`、已登录的 `gh`、Xcode、Developer ID Application 证书、Sparkle 签名密钥，以及名为 `framecho-notary` 的公证凭据配置。
 
 ```bash
 brew install create-dmg
-
-# 示例：在 0.35.3（build 38）之后发布下一版
-go run ./cmd/framecho-release -build -yes \
-  -set-version 0.35.4 -set-build 39 \
-  -notes-file /path/to/release-notes.txt
 ```
 
-工具依次完成：归档 → Developer ID 签名导出 → 公证并附加票据 → 生成 DMG 并做 Sparkle 签名 → 推送提交 → 创建 GitHub Release → 更新并推送 `appcast.xml`。
+首次发布前，将公证凭据保存到钥匙串：
 
+```bash
+xcrun notarytool store-credentials framecho-notary --apple-id <apple-id> --team-id 64S5F787T9
+```
+
+示例：在 0.41.0（build 44）之后发布下一版：
+
+```bash
+go run ./cmd/framecho-release -build -yes -set-version 0.41.1 -set-build 45 -notes-file /path/to/release-notes.txt
+```
+
+工具依次完成：运行与 CI 相同的检查并确认该提交的 CI 已通过 → 写入并提交版本号 → 归档 → Developer ID 签名导出 → 公证并附加票据 → 生成 DMG 并做 Sparkle 签名 → 推送提交 → 创建 GitHub Release → 更新并推送 `appcast.xml`。
+
+- 任一检查失败或该提交的 CI 失败时，工具会在构建前停止。`-skip-checks` 可跳过这一步，仅限紧急情况。
 - 更新说明文件每行一条；每次发布递增 build 号，并先提交待发布的代码。
 - 签名偶尔会因 Apple 时间戳服务暂时不可用而失败。归档和导出遇到这类错误会自动重试，最多 3 次，间隔 20 秒、40 秒；证书缺失等其他签名错误会立即停止，并在报错开头列出 codesign 的错误行。
 - 不加 `-build` 时，工具直接打包已导出到 `~/Downloads/Framecho.app` 的应用。
