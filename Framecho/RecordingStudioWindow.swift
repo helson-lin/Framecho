@@ -4017,6 +4017,37 @@ private enum StudioInspectorTab: Hashable, CaseIterable {
     }
 }
 
+/// Aspect choice drawn as its frame shape over the ratio, so the options
+/// read at a glance.
+private struct AspectPresetLabel: View {
+    let preset: ExportAspectPreset
+    let sourceSize: CGSize
+
+    private static let box: CGFloat = 16
+
+    var body: some View {
+        VStack(spacing: 3) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .strokeBorder(lineWidth: 1.2)
+                .frame(width: shapeSize.width, height: shapeSize.height)
+                .frame(width: Self.box + 4, height: Self.box)
+            Text(preset.title)
+                .font(.system(size: 10, weight: .medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+    }
+
+    private var shapeSize: CGSize {
+        let ratio = preset.ratio
+            ?? (sourceSize.height > 0 ? sourceSize.width / sourceSize.height : 16.0 / 10.0)
+        let box = Self.box
+        return ratio >= 1
+            ? CGSize(width: box + 4, height: (box + 4) / ratio)
+            : CGSize(width: box * ratio, height: box)
+    }
+}
+
 private struct StudioInspector: View {
     /// Whole-number playback rates offered for a clip, within
     /// `RecordingClipSegment`'s 1...8 range.
@@ -4152,16 +4183,7 @@ private struct StudioInspector: View {
 
         InspectorSectionDivider()
 
-        InspectorSection(
-            title: "Background",
-            accessory: {
-                if model.style.background != .none {
-                    InspectorClearButton(help: "Remove background") {
-                        model.style.background = .none
-                    }
-                }
-            }
-        ) {
+        InspectorSection("Background") {
             backgroundControls
         }
 
@@ -4408,20 +4430,17 @@ private struct StudioInspector: View {
     private var compositionControls: some View {
         VStack(alignment: .leading, spacing: InspectorMetrics.groupSpacing) {
             VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
-                InspectorGroupLabel("Aspect ratio")
-
                 InspectorSegmented(
                     options: ExportAspectPreset.allCases,
                     isSelected: { $0 == model.exportAspect },
                     onTap: { model.exportAspect = $0 },
                     label: { preset in
-                        Text(preset.title)
-                            .font(.inspectorSegment)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                        AspectPresetLabel(preset: preset, sourceSize: model.videoSize)
                             .help(preset.help)
-                    }
+                    },
+                    height: 42
                 )
+                .accessibilityLabel("Aspect ratio")
 
                 if model.exportAspect != .original {
                     InspectorSegmented(
@@ -4452,7 +4471,8 @@ private struct StudioInspector: View {
             rememberedWallpaper: nil,
             wallpaperStore: wallpaperStore,
             onEditorAction: {},
-            onPickWallpaper: pickWallpaper
+            onPickWallpaper: pickWallpaper,
+            showsNoneTile: true
         )
     }
 
