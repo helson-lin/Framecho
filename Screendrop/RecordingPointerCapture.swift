@@ -58,7 +58,7 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
     private static let duplicatePressWindow: TimeInterval = 0.05
     /// Cursor identities can change briefly over links, resize handles, and
     /// text. Sample near display cadence; artwork encoding still runs only when
-    /// the NSCursor identity actually changes.
+    /// the cursor's fingerprint actually changes.
     private static let appearanceSampleInterval: TimeInterval = 1.0 / 30.0
 
     private let lock = NSLock()
@@ -69,7 +69,7 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
     private var frameGeometries: [CapturedFrameGeometry] = []
     private var capturedArtwork: [PointerArtwork] = []
     private var activeArtworkID: String?
-    private var lastCursorIdentity: ObjectIdentifier?
+    private var lastCursorFingerprint: Int?
     private var hasFrameAlignedSample = false
     private var pressedButtons = Set<Int>()
     private var pauseStartedUptime: TimeInterval?
@@ -97,7 +97,7 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
             frameGeometries = []
             capturedArtwork = []
             activeArtworkID = nil
-            lastCursorIdentity = nil
+            lastCursorFingerprint = nil
             hasFrameAlignedSample = false
             pressedButtons = []
             pauseStartedUptime = nil
@@ -594,8 +594,10 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
 
     @MainActor
     private func captureArtwork(from cursor: NSCursor) -> Bool {
-        let identity = ObjectIdentifier(cursor)
-        let shouldCapture = lock.withLock { lastCursorIdentity != identity }
+        let fingerprint = PointerArtworkCapture.fingerprint(of: cursor)
+        let shouldCapture = lock.withLock {
+            fingerprint == nil || lastCursorFingerprint != fingerprint
+        }
         guard shouldCapture else { return true }
 
         guard let artwork = PointerArtworkCapture.capture(
@@ -611,7 +613,7 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
         let cursorPoint = CGEvent(source: nil)?.location
         let uptime = ProcessInfo.processInfo.systemUptime
         lock.withLock {
-            lastCursorIdentity = identity
+            lastCursorFingerprint = fingerprint
             let artworkID: String
             if let existing = capturedArtwork.first(where: {
                 $0.imageData == imageData
@@ -652,7 +654,7 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
         let cursorPoint = CGEvent(source: nil)?.location
         let uptime = ProcessInfo.processInfo.systemUptime
         lock.withLock {
-            lastCursorIdentity = nil
+            lastCursorFingerprint = nil
             guard activeArtworkID != nil else { return }
             activeArtworkID = nil
             guard pauseStartedUptime == nil, let cursorPoint else { return }
