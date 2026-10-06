@@ -90,6 +90,9 @@ final class AnnotationEditorModel {
     /// Longest-edge cap (in pixels) for the downscaled editing preview.
     private let previewImageMaxPixelSize: CGFloat = 2880
     @ObservationIgnored private var wallpaperCacheLease: BoundedCGImageCache.Lease?
+    /// Full-resolution pixels for color tags when the preview is downscaled,
+    /// decoded on the first tag rather than with every editor.
+    @ObservationIgnored private var colorSampleImage: (url: URL, image: CGImage)?
     @ObservationIgnored private var smartRedactionTask: Task<Void, Never>?
     private var smartRedactionGeneration = UUID()
 
@@ -97,6 +100,47 @@ final class AnnotationEditorModel {
         engine.onChange = { [weak self] in
             self?.revision &+= 1
         }
+        engine.sampleColor = { [weak self] point in
+            guard let self, let image = colorSampleSource() else { return nil }
+            return AnnotationColorSampler.color(in: image, pageSize: imageSize, at: point)
+        }
+    }
+
+    /// Whether a color tag's marker is being dragged to a new pixel.
+    var isDraggingColorTagAnchor: Bool {
+        if case .draggingColorTagAnchor = engine.interaction { return true }
+        return false
+    }
+
+    /// What the color loupe shows under the pointer: with the color tool over
+    /// the screenshot (but not over a tag, which the pointer grabs instead), and
+    /// while a tag's marker is dragged. Nil otherwise.
+    func colorLoupe(at location: CGPoint, imageFrame: CGRect) -> AnnotationColorSampler.Neighborhood? {
+        guard !isCropping, imageFrame.contains(location) else { return nil }
+        if !isDraggingColorTagAnchor {
+            guard selectedTool == .colorPicker, case .idle = engine.interaction,
+                  hoveredAnnotation(at: location, imageFrame: imageFrame, boundaryFrame: imageFrame)?.colorTagProps == nil
+            else { return nil }
+        }
+        guard let image = colorSampleSource() else { return nil }
+        updateViewport(imageFrame: imageFrame)
+        return AnnotationColorSampler.neighborhood(
+            in: image,
+            pageSize: imageSize,
+            around: engine.screenToPage(Vec(location)),
+            radius: AnnotationColorLoupe.pixelRadius
+        )
+    }
+
+    /// The pixels a color tag reads: the preview's own when it is full size,
+    /// otherwise the image decoded at full resolution.
+    private func colorSampleSource() -> CGImage? {
+        guard isPreviewDownscaled, let url = baseImageURL ?? sourceURL else { return previewCGImage }
+        if let cached = colorSampleImage, cached.url == url { return cached.image }
+        guard let image = ScreenshotImageLoader.fullResolutionImage(at: url)?
+            .cgImage(forProposedRect: nil, context: nil, hints: nil) else { return previewCGImage }
+        colorSampleImage = (url, image)
+        return image
     }
 
     // MARK: - Engine surface
@@ -109,7 +153,7 @@ final class AnnotationEditorModel {
 
     var isTransformingExistingAnnotation: Bool {
         switch engine.interaction {
-        case .translating, .resizing, .rotating, .draggingArrowHandle: true
+        case .translating, .resizing, .rotating, .draggingArrowHandle, .draggingColorTagAnchor: true
         default: false
         }
     }
@@ -184,6 +228,7 @@ final class AnnotationEditorModel {
         imageSize = ScreenshotImageLoader.imageSize(at: renderSourceURL) ?? .zero
         previewImage = makePreviewImage(from: renderSourceURL)
         previewCGImage = previewImage?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        colorSampleImage = nil
 
         engine.viewport = AnnoViewport(imageFrame: .zero, imageSize: imageSize)
         engine.replaceDocument(
@@ -228,6 +273,7 @@ final class AnnotationEditorModel {
         baseImageURL = nil
         previewImage = nil
         previewCGImage = nil
+        colorSampleImage = nil
         imageSize = .zero
         isPreviewDownscaled = false
         isCropping = false
@@ -429,7 +475,7 @@ final class AnnotationEditorModel {
             case var .arrow(p): p.swatch = swatch; shape.kind = .arrow(p)
             case var .text(p): p.swatch = swatch; shape.kind = .text(p)
             case var .numbered(p): p.swatch = swatch; shape.kind = .numbered(p)
-            case .redaction, .highlight: break
+            case .redaction, .highlight, .colorTag: break
             }
         }
     }
@@ -791,9 +837,15 @@ extension AnnotationEditorModel {
 
         let moved = engine.shapes.map { shape -> AnnoShape in
             var shape = shape
+            // Read before the move: an older tag's pixel is derived from its label's position.
+            let colorTagAnchor = shape.colorTagAnchor
             shape.x = (shape.x - offsetX) * scaleX
             shape.y = (shape.y - offsetY) * scaleY
             scaleShapeContents(&shape, sx: scaleX, sy: scaleY, uniform: uniform)
+            if let anchor = colorTagAnchor, case var .colorTag(props) = shape.kind {
+                props.anchor = Vec((anchor.x - offsetX) * scaleX, (anchor.y - offsetY) * scaleY)
+                shape.kind = .colorTag(props)
+            }
             return shape
         }
 
@@ -802,6 +854,7 @@ extension AnnotationEditorModel {
         imageSize = newImageSize
         previewImage = makePreviewImage(from: result.url)
         previewCGImage = previewImage?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        colorSampleImage = nil
         engine.viewport = AnnoViewport(imageFrame: engine.viewport.imageFrame, imageSize: imageSize)
         engine.replaceDocument(shapes: moved, bindings: engine.document.bindings)
 
@@ -830,6 +883,9 @@ extension AnnotationEditorModel {
         case var .numbered(p):
             p.diameter *= uniform
             shape.kind = .numbered(p)
+        case var .colorTag(p):
+            p.fontSize *= uniform
+            shape.kind = .colorTag(p)
         case var .draw(p):
             p.points = p.points.map { Vec($0.x * sx, $0.y * sy, $0.z) }
             p.strokeWidth *= uniform
@@ -911,6 +967,7 @@ extension AnnotationEditorModel {
         imageSize = snapshot.imageSize
         previewImage = snapshot.baseImageURL.flatMap(makePreviewImage(from:))
         previewCGImage = previewImage?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        colorSampleImage = nil
         engine.viewport = AnnoViewport(imageFrame: engine.viewport.imageFrame, imageSize: imageSize)
         engine.replaceDocument(shapes: snapshot.shapes, bindings: snapshot.bindings)
         resetZoom()

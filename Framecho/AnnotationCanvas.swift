@@ -11,6 +11,8 @@ private enum AnnotationCanvasCursor: Equatable {
     case placement
     case openHand
     case closedHand
+    /// The color loupe is the pointer.
+    case hidden
 
     var nsCursor: NSCursor {
         switch self {
@@ -22,6 +24,8 @@ private enum AnnotationCanvasCursor: Equatable {
             .openHand
         case .closedHand:
             .closedHand
+        case .hidden:
+            .annotationHidden
         }
     }
 }
@@ -36,6 +40,9 @@ struct AnnotationCanvas: View {
     @Environment(\.displayScale) private var displayScale
     @State private var hasActiveInteraction = false
     @State private var hoveredLocation: CGPoint?
+    /// Where the pointer is in the view, before the camera projection is undone.
+    @State private var hoveredViewLocation: CGPoint?
+    @State private var colorLoupe: AnnotationColorSampler.Neighborhood?
     @State private var currentCursor: AnnotationCanvasCursor = .arrow
     @State private var progressivelyBlurredImage: NSImage?
     @State private var progressivelyBlurredSourceID: ObjectIdentifier?
@@ -129,6 +136,11 @@ struct AnnotationCanvas: View {
                     .position(x: boundaryFrame.midX, y: boundaryFrame.midY)
                     .allowsHitTesting(false)
                 }
+
+                if let colorLoupe, let hoveredViewLocation {
+                    AnnotationColorLoupe(neighborhood: colorLoupe)
+                        .position(hoveredViewLocation)
+                }
             }
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
             // Image, background, AppKit annotations, crop and watermark share
@@ -161,19 +173,34 @@ struct AnnotationCanvas: View {
                 case .active(let location):
                     if effectiveCamera.hasEffect && !displayLayout.canvasFrame.contains(location) {
                         hoveredLocation = nil
+                        hoveredViewLocation = nil
+                        colorLoupe = nil
                         setCursor(.arrow)
                         return
                     }
                     let mappedLocation = projection.unproject(location)
                     hoveredLocation = mappedLocation
+                    hoveredViewLocation = location
+                    updateColorLoupe(imageFrame: imageFrame)
                     updateCursor(at: mappedLocation, imageFrame: imageFrame, boundaryFrame: boundaryFrame)
                 case .ended:
                     hoveredLocation = nil
+                    hoveredViewLocation = nil
+                    colorLoupe = nil
                     setCursor(.arrow)
                 }
             }
             .onChange(of: model.selectedTool) { _, _ in
+                updateColorLoupe(imageFrame: imageFrame)
                 refreshCursor(imageFrame: imageFrame, boundaryFrame: boundaryFrame)
+            }
+            .onChange(of: model.isCropping) { _, _ in
+                updateColorLoupe(imageFrame: imageFrame)
+                refreshCursor(imageFrame: imageFrame, boundaryFrame: boundaryFrame)
+            }
+            .onChange(of: imageFrame) { _, _ in
+                // Scrolling and zooming move the image under a still pointer.
+                updateColorLoupe(imageFrame: imageFrame)
             }
             .onChange(of: model.revision) { _, _ in
                 refreshCursor(imageFrame: imageFrame, boundaryFrame: boundaryFrame)
@@ -647,6 +674,11 @@ struct AnnotationCanvas: View {
                 }
 
                 model.updateInteraction(to: location, imageFrame: imageFrame, boundaryFrame: boundaryFrame)
+                // Hover stops while dragging. The loupe follows a dragged marker and
+                // otherwise steps aside, e.g. while a new tag's label is pulled out.
+                hoveredLocation = location
+                hoveredViewLocation = value.location
+                updateColorLoupe(imageFrame: imageFrame)
                 updateCursor(at: location, imageFrame: imageFrame, boundaryFrame: boundaryFrame)
             }
             .onEnded { value in
@@ -654,6 +686,9 @@ struct AnnotationCanvas: View {
                 let location = projection.unproject(value.location)
                 model.endInteraction(at: location, imageFrame: imageFrame, boundaryFrame: boundaryFrame)
                 hasActiveInteraction = false
+                hoveredLocation = location
+                hoveredViewLocation = value.location
+                updateColorLoupe(imageFrame: imageFrame)
                 updateCursor(at: location, imageFrame: imageFrame, boundaryFrame: boundaryFrame)
             }
     }
@@ -665,6 +700,10 @@ struct AnnotationCanvas: View {
             width: rect.width * imageFrame.width,
             height: rect.height * imageFrame.height
         )
+    }
+
+    private func updateColorLoupe(imageFrame: CGRect) {
+        colorLoupe = hoveredLocation.flatMap { model.colorLoupe(at: $0, imageFrame: imageFrame) }
     }
 
     private func refreshCursor(imageFrame: CGRect, boundaryFrame: CGRect) {
@@ -682,7 +721,14 @@ struct AnnotationCanvas: View {
             return
         }
 
-        if hasActiveInteraction {
+        if colorLoupe != nil {
+            setCursor(.hidden)
+        } else if model.selectedTool == .colorPicker, !hasActiveInteraction {
+            // Off the screenshot there's nothing to sample, but a tag can still be grabbed.
+            let isOverTag = model.hoveredAnnotation(at: location, imageFrame: imageFrame, boundaryFrame: boundaryFrame)?
+                .colorTagProps != nil
+            setCursor(isOverTag ? .openHand : .arrow)
+        } else if hasActiveInteraction {
             setCursor(model.isTransformingExistingAnnotation ? .closedHand : .placement)
         } else if model.hoveredAnnotation(at: location, imageFrame: imageFrame, boundaryFrame: boundaryFrame) != nil {
             setCursor(.openHand)

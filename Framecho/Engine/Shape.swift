@@ -3,7 +3,7 @@ import Foundation
 
 /// The shape model, ported from the drawing-app's `Model/Shape.swift` and widened to cover the
 /// tools Framecho has that a whiteboard doesn't (redactions, the spotlight highlight, numbered
-/// callouts).
+/// callouts, color tags).
 ///
 /// Page space is the screenshot's own pixel space: y-down, origin at the image's top-left, one
 /// unit per image pixel. That makes export a 1:1 draw and lets the canvas be a pure camera on top,
@@ -164,6 +164,7 @@ enum AnnoShapeKind: Codable, Equatable {
     case redaction(RedactionProps)
     case highlight(HighlightProps)
     case numbered(NumberedProps)
+    case colorTag(ColorTagProps)
 }
 
 struct AnnoShape: Codable, Equatable, Identifiable {
@@ -201,7 +202,7 @@ struct AnnoShape: Codable, Equatable, Identifiable {
         case let .geo(p): p.strokeWidth
         case let .draw(p): p.strokeWidth
         case let .arrow(p): p.strokeWidth
-        case .text, .redaction, .highlight, .numbered: 0
+        case .text, .redaction, .highlight, .numbered, .colorTag: 0
         }
     }
 
@@ -221,6 +222,7 @@ struct AnnoShape: Codable, Equatable, Identifiable {
         case let .redaction(p): p.kind == .blur ? .blur : .pixelate
         case .highlight: .highlight
         case .numbered: .numberedCircle
+        case .colorTag: .colorPicker
         }
     }
 
@@ -231,7 +233,7 @@ struct AnnoShape: Codable, Equatable, Identifiable {
         case let .arrow(p): p.swatch
         case let .text(p): p.swatch
         case let .numbered(p): p.swatch
-        case .redaction, .highlight: nil
+        case .redaction, .highlight, .colorTag: nil
         }
     }
 
@@ -242,7 +244,7 @@ struct AnnoShape: Codable, Equatable, Identifiable {
         case let .draw(p): p.isClosed
         case .arrow: false
         // Text, redactions, the highlight and numbered callouts are solid objects.
-        case .text, .redaction, .highlight, .numbered: true
+        case .text, .redaction, .highlight, .numbered, .colorTag: true
         }
     }
 
@@ -293,6 +295,11 @@ struct AnnoShape: Codable, Equatable, Identifiable {
 
     var numberedProps: NumberedProps? {
         if case let .numbered(p) = kind { return p }
+        return nil
+    }
+
+    var colorTagProps: ColorTagProps? {
+        if case let .colorTag(p) = kind { return p }
         return nil
     }
 }

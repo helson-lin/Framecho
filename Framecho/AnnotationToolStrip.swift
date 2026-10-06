@@ -17,11 +17,11 @@ struct AnnotationToolStrip: View {
     /// under the strip.
     static let reservedHeight: CGFloat = 36
 
-    /// Select · shapes and lines · numbers and text · redaction.
+    /// Select · shapes and lines · numbers, text and color values · redaction.
     private static let groups: [[AnnotationTool]] = [
         [.select],
         [.rectangle, .filledRectangle, .ellipse, .line, .arrow, .freehand],
-        [.numberedCircle, .text],
+        [.numberedCircle, .text, .colorPicker],
         [.highlight, .pixelate, .blur],
     ]
 

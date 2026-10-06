@@ -3369,6 +3369,16 @@
         }
       }
     },
+    "Click a pixel to label its color value" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按像素以标注其颜色值"
+          }
+        }
+      }
+    },
     "Click a timestamp to jump there. Edit any line to fix the transcription." : {
       "localizations" : {
         "zh-Hans" : {
@@ -3545,6 +3555,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "颜色"
+          }
+        }
+      }
+    },
+    "Color value" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "颜色值"
           }
         }
       }

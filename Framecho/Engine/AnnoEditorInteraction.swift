@@ -28,6 +28,11 @@ extension AnnoEditor {
             beginBoxShape(pointer)
         case .numberedCircle:
             createNumberedCircle(at: pointer.pagePoint)
+        case .colorPicker:
+            // A press on a tag moves it; anywhere else samples a new pixel.
+            if !beginColorTagGrab(pointer) {
+                createColorTag(at: pointer.pagePoint)
+            }
         case .line, .arrow:
             beginArrow(pointer)
         }
@@ -56,6 +61,8 @@ extension AnnoEditor {
             }
             return
         }
+
+        if !pointer.shift, beginColorTagGrab(pointer) { return }
 
         if let shape = hitShape(at: pointer.pagePoint) {
             if pointer.shift {
@@ -183,6 +190,73 @@ extension AnnoEditor {
         setInteraction(.idle)
     }
 
+    /// A color tag samples the pressed pixel. A click puts its label up and to the right; a drag
+    /// pulls the label out to wherever the pointer lets go.
+    func createColorTag(at pagePoint: Vec) {
+        guard let color = sampleColor?(pagePoint) else { return }
+        markUndo()
+        var props = color
+        props.fontSize = ColorTagProps.defaultFontSize(forImageSize: viewport.imageSize)
+        props.anchor = pagePoint
+        let origin = ColorTagLayout(props).labelOrigin(forAnchor: pagePoint, imageSize: viewport.imageSize)
+        let shape = AnnoShape(x: origin.x, y: origin.y, kind: .colorTag(props))
+        document.add(shape)
+        selectedIds = [shape.id]
+        setInteraction(.placingColorTag(id: shape.id, origin: pagePoint))
+    }
+
+    /// Start moving the color tag under the pointer: its marker re-targets the pixel, its label
+    /// moves on its own. False when there's no tag there.
+    func beginColorTagGrab(_ pointer: PointerInfo) -> Bool {
+        let margin = Swift.max(4, pageDistance(forScreen: 6))
+        for shape in document.shapes.reversed() {
+            guard let props = shape.colorTagProps, let anchor = shape.colorTagAnchor else { continue }
+            if Vec.dist(anchor, pointer.pagePoint) <= ColorTagLayout(props).markerExtent + margin {
+                markUndo()
+                selectedIds = [shape.id]
+                setInteraction(.draggingColorTagAnchor(id: shape.id))
+                return true
+            }
+        }
+        guard let shape = hitShape(at: pointer.pagePoint), shape.colorTagProps != nil else { return false }
+        if !selectedIds.contains(shape.id) { selectedIds = [shape.id] }
+        markUndo()
+        setInteraction(.translating(origin: pointer.pagePoint, initial: initialPositions()))
+        return true
+    }
+
+    /// While placing: the label's near edge follows the pointer, once it has left the pixel.
+    private func placeColorTagLabel(id: AnnoShapeID, origin: Vec, pointer: PointerInfo) {
+        guard let props = document.shape(id)?.colorTagProps else { return }
+        guard Vec.dist(origin, pointer.pagePoint) > pageDistance(forScreen: 6) else { return }
+        let size = ColorTagLayout(props).size
+        let point = pointer.pagePoint
+        document.update(id) { shape in
+            shape.x = point.x >= origin.x ? point.x : point.x - Double(size.width)
+            shape.y = point.y - Double(size.height) / 2
+        }
+    }
+
+    /// Re-target a tag at the pixel under the pointer, keeping its label where it is.
+    private func dragColorTagAnchor(id: AnnoShapeID, pointer: PointerInfo) {
+        let size = viewport.imageSize
+        let point = Vec(
+            Swift.min(Swift.max(0, pointer.pagePoint.x), Double(size.width) - 0.5),
+            Swift.min(Swift.max(0, pointer.pagePoint.y), Double(size.height) - 0.5)
+        )
+        let color = sampleColor?(point)
+        document.update(id) { shape in
+            guard case var .colorTag(props) = shape.kind else { return }
+            props.anchor = point
+            if let color {
+                props.red = color.red
+                props.green = color.green
+                props.blue = color.blue
+            }
+            shape.kind = .colorTag(props)
+        }
+    }
+
     var nextNumberedValue: Int {
         (document.shapes.compactMap { $0.numberedProps?.value }.max() ?? 0) + 1
     }
@@ -209,6 +283,10 @@ extension AnnoEditor {
             rotate(center: center, startAngle: startAngle, initial: initial, pointer: pointer)
         case let .draggingArrowHandle(id, handle):
             dragArrowHandle(id: id, handle: handle, pointer: pointer)
+        case let .placingColorTag(id, origin):
+            placeColorTagLabel(id: id, origin: origin, pointer: pointer)
+        case let .draggingColorTagAnchor(id):
+            dragColorTagAnchor(id: id, pointer: pointer)
         }
         notifyChanged()
     }
@@ -535,6 +613,10 @@ extension AnnoEditor {
                 // A callout stays a circle, so it takes the average of the two scales.
                 props.diameter = Swift.max(8, abs(props.diameter * (abs(sx) + abs(sy)) / 2))
                 shape.kind = .numbered(props)
+            case var .colorTag(props):
+                // A label can't stretch, so it scales uniformly like a callout.
+                props.fontSize = Swift.max(4, props.fontSize * (abs(sx) + abs(sy)) / 2)
+                shape.kind = .colorTag(props)
             case var .draw(props):
                 props.points = props.points.map { Vec($0.x * sx, $0.y * sy, $0.z) }
                 shape.kind = .draw(props)

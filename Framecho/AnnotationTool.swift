@@ -15,6 +15,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
     case freehand
     case numberedCircle
     case text
+    case colorPicker
     case highlight
     case pixelate
     case blur
@@ -47,6 +48,8 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
             String(localized: "Text")
         case .highlight:
             String(localized: "Highlight")
+        case .colorPicker:
+            String(localized: "Color value")
         }
     }
 
@@ -76,6 +79,8 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
             "textformat"
         case .highlight:
             "rectangle.center.inset.filled"
+        case .colorPicker:
+            "eyedropper"
         }
     }
 
@@ -92,6 +97,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
         case .freehand: AnnotationToolShortcut(key: "f")
         case .numberedCircle: AnnotationToolShortcut(key: "n", alternateKey: "1")
         case .text: AnnotationToolShortcut(key: "t")
+        case .colorPicker: AnnotationToolShortcut(key: "i")
         case .highlight: AnnotationToolShortcut(key: "s")
         case .pixelate: AnnotationToolShortcut(key: "p")
         case .blur: AnnotationToolShortcut(key: "b")
@@ -101,6 +107,9 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
     var helpText: String {
         if self == .highlight {
             return String(localized: "Draw an area to keep visible; everything outside is dimmed")
+        }
+        if self == .colorPicker {
+            return String(localized: "Click a pixel to label its color value")
         }
         return title
     }
@@ -137,7 +146,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .rectangle, .filledRectangle, .ellipse, .line, .arrow, .freehand, .numberedCircle, .text:
             true
-        case .select, .pixelate, .blur, .highlight:
+        case .select, .pixelate, .blur, .highlight, .colorPicker:
             false
         }
     }
@@ -146,7 +155,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .rectangle, .ellipse, .line, .arrow, .freehand:
             true
-        case .select, .filledRectangle, .numberedCircle, .pixelate, .blur, .text, .highlight:
+        case .select, .filledRectangle, .numberedCircle, .pixelate, .blur, .text, .highlight, .colorPicker:
             false
         }
     }
@@ -159,7 +168,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .rectangle, .filledRectangle, .ellipse, .highlight:
             true
-        case .select, .line, .arrow, .freehand, .numberedCircle, .pixelate, .blur, .text:
+        case .select, .line, .arrow, .freehand, .numberedCircle, .pixelate, .blur, .text, .colorPicker:
             false
         }
     }
