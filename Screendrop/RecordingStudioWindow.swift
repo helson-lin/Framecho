@@ -219,7 +219,7 @@ private struct RecordingStudioContent: View {
     /// the title shows when it was recorded instead of the raw file name.
     private static func friendlyTitle(for name: String) -> String {
         let parts = name.split(separator: "_")
-        guard parts.count >= 2, parts[0] == "Framecho" || parts[0] == "Framecho" else { return name }
+        guard parts.count >= 2, parts[0] == "Framecho" || parts[0] == "Screendrop" else { return name }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd-HH-mm-ss"
         formatter.locale = Locale(identifier: "en_US_POSIX")
