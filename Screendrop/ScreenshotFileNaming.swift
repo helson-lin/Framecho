@@ -1,6 +1,6 @@
 //
 //  ScreenshotFileNaming.swift
-//  Screendrop
+//  Framecho
 //
 
 import Foundation

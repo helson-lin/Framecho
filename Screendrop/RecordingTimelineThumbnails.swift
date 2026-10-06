@@ -1,6 +1,6 @@
 //
 //  RecordingTimelineThumbnails.swift
-//  Screendrop
+//  Framecho
 //
 //  Level-of-detail thumbnail source for the Studio clip lane. Instead of one
 //  fixed overview pass stretched to whatever width the lane happens to have,

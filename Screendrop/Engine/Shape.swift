@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 /// The shape model, ported from the drawing-app's `Model/Shape.swift` and widened to cover the
-/// tools Screendrop has that a whiteboard doesn't (redactions, the spotlight highlight, numbered
+/// tools Framecho has that a whiteboard doesn't (redactions, the spotlight highlight, numbered
 /// callouts).
 ///
 /// Page space is the screenshot's own pixel space: y-down, origin at the image's top-left, one
@@ -15,7 +15,7 @@ struct AnnoShapeID: Hashable, Codable {
 
 // MARK: - Styles
 
-/// Dash styles. Screendrop draws clean strokes, so `solid` is the default; the engine keeps the
+/// Dash styles. Framecho draws clean strokes, so `solid` is the default; the engine keeps the
 /// others because arrows and geo share one stroke path.
 enum DashStyle: String, CaseIterable, Codable {
     case draw

@@ -1,6 +1,6 @@
 //
 //  AnnotationBackgroundPresetStore.swift
-//  Screendrop
+//  Framecho
 //
 
 import Foundation

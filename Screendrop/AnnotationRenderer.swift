@@ -1,6 +1,6 @@
 //
 //  AnnotationRenderer.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit
@@ -55,7 +55,7 @@ enum AnnotationRenderer {
         backgroundSettings: AnnotationBackgroundSettings = AnnotationBackgroundSettings()
     ) throws -> URL {
         let destinationURL = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("Screendrop_Annotated_\(UUID().uuidString.prefix(6)).png")
+            .appendingPathComponent("Framecho_Annotated_\(UUID().uuidString.prefix(6)).png")
         try render(
             sourceURL: sourceURL,
             shapes: shapes,
@@ -129,7 +129,7 @@ enum AnnotationRenderer {
 
             var options = ImageDensityMetadata.properties(of: sourceURL)
             if contentType != .png {
-                options[kCGImageDestinationLossyCompressionQuality] = ScreendropPreferences.compressionQuality
+                options[kCGImageDestinationLossyCompressionQuality] = FramechoPreferences.compressionQuality
             }
 
             CGImageDestinationAddImage(destination, renderedImage, options as CFDictionary)

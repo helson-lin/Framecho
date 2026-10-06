@@ -1,6 +1,6 @@
 //
 //  TeleprompterOverlayPresenter.swift
-//  Screendrop
+//  Framecho
 //
 //  The teleprompter overlay. On a notched display it renders a Dynamic
 //  Island-style extension that grows out of the hardware notch; elsewhere
@@ -17,7 +17,7 @@
 //  same animatable clip shape, so it is swallowed by the collapse instead
 //  of overhanging it.
 //
-//  Like every Screendrop overlay, the panel is excluded from captures
+//  Like every Framecho overlay, the panel is excluded from captures
 //  unless the "include app windows in captures" preference is on.
 //
 
@@ -147,7 +147,7 @@ final class TeleprompterOverlayPresenter {
 
         hideGeneration += 1
         model.mode = Self.notchMode(for: screen) ?? .pill
-        model.visibleLineCount = ScreendropPreferences.recordingTeleprompterLineCount
+        model.visibleLineCount = FramechoPreferences.recordingTeleprompterLineCount
         model.expandedWidth = 320
         model.layout = TeleprompterScriptLayout(
             script: script,

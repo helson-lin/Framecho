@@ -1,14 +1,14 @@
 #!/bin/bash
 # Compiles each standalone check in scripts/ against the production sources it
 # exercises and runs it. Used by CI and before every release
-# (cmd/screendrop-release); runs locally the same way.
+# (cmd/framecho-release); runs locally the same way.
 #
 # Each check's output is kept in $out/logs. On GitHub Actions a table of
 # results is added to the job summary.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-out="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/screendrop-checks"
+out="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/framecho-checks"
 mkdir -p "$out/logs"
 
 # Checks that can't run here, with the reason. Anything else in scripts/

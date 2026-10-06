@@ -1,6 +1,6 @@
 //
 //  AnnotationCropOverlay.swift
-//  Screendrop
+//  Framecho
 //
 //  The modal crop UI rendered over the canvas: a dimmed exterior, rule-of-thirds
 //  grid, draggable interior, and corner/edge resize handles. All interaction is

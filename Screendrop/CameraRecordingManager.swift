@@ -1,6 +1,6 @@
 //
 //  CameraRecordingManager.swift
-//  Screendrop
+//  Framecho
 //
 //  Captures the webcam alongside a screen recording. The camera is written
 //  to its own camera.mov inside the recording session (never burned into
@@ -238,8 +238,8 @@ final class CameraRecordingManager {
 
 nonisolated private final class CameraCaptureEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
     private let session = AVCaptureSession()
-    private let sessionQueue = DispatchQueue(label: "com.screendrop.camera.session", qos: .userInitiated)
-    private let videoQueue = DispatchQueue(label: "com.screendrop.camera.video", qos: .userInitiated)
+    private let sessionQueue = DispatchQueue(label: "com.jarinhe.framecho.camera.session", qos: .userInitiated)
+    private let videoQueue = DispatchQueue(label: "com.jarinhe.framecho.camera.video", qos: .userInitiated)
     private let writer = CameraMovieWriter()
     private var input: AVCaptureDeviceInput?
     private var output: AVCaptureVideoDataOutput?
@@ -435,7 +435,7 @@ nonisolated private final class CameraCaptureEngine: NSObject, AVCaptureVideoDat
 // MARK: - Camera movie writer
 
 nonisolated private final class CameraMovieWriter: @unchecked Sendable {
-    private let writingQueue = DispatchQueue(label: "com.screendrop.camera.writer", qos: .userInitiated)
+    private let writingQueue = DispatchQueue(label: "com.jarinhe.framecho.camera.writer", qos: .userInitiated)
     private var assetWriter: AVAssetWriter?
     private var videoInput: AVAssetWriterInput?
     private var outputURL: URL?

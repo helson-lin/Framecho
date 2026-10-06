@@ -1,6 +1,6 @@
 //
 //  RecordingStudioWindow.swift
-//  Screendrop
+//  Framecho
 //
 //  The recording studio: a Screen Studio-style editor for screen recordings.
 //  Left/center is the composited live preview (background, padded rounded

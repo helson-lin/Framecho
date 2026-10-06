@@ -1,6 +1,6 @@
 //
 //  CaptureTextFeedbackPresenter.swift
-//  Screendrop
+//  Framecho
 //
 //  Capture Text is the one capture action that leaves nothing behind - no
 //  file, no history entry, no preview card - so the capture sound was its

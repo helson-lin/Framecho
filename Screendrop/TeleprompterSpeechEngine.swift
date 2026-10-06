@@ -1,6 +1,6 @@
 //
 //  TeleprompterSpeechEngine.swift
-//  Screendrop
+//  Framecho
 //
 //  Live narration tracking for the teleprompter: microphone sample buffers
 //  are teed off the recording's SCStream (no second capture session), fed

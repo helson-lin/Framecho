@@ -1,6 +1,6 @@
 //
 //  AfterCaptureActions.swift
-//  Screendrop
+//  Framecho
 //
 //  Configurable "what happens after a capture" pipeline, per capture type
 //  (screenshot vs recording), mirroring CleanShot's General > After capture
@@ -68,9 +68,9 @@ enum AfterCaptureAction: String, CaseIterable, Identifiable {
     func storageKey(for type: AfterCaptureType) -> String {
         switch (self, type) {
         case (.copy, .screenshot):
-            return ScreendropPreferences.autoCopyKey
+            return FramechoPreferences.autoCopyKey
         case (.save, .screenshot):
-            return ScreendropPreferences.autoSaveKey
+            return FramechoPreferences.autoSaveKey
         default:
             return "afterCapture.\(type.rawValue).\(rawValue)"
         }

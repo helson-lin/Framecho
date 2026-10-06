@@ -1,6 +1,6 @@
 //
 //  ScreenshotHistoryStore.swift
-//  Screendrop
+//  Framecho
 //
 //  Created by Codex on 01/05/26.
 //
@@ -475,7 +475,7 @@ final class ScreenshotHistoryStore {
         }
 
         return Self.historyDirectory
-            .appendingPathComponent("Screendrop_\(UUID().uuidString)")
+            .appendingPathComponent("Framecho_\(UUID().uuidString)")
             .appendingPathExtension(pathExtension)
     }
 

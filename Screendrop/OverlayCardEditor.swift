@@ -1,6 +1,6 @@
 //
 //  OverlayCardEditor.swift
-//  Screendrop
+//  Framecho
 //
 //  A live, drag-and-drop editor for the preview card layout. Users drag action
 //  chips between the four corner slots, the center column, and a "tray" of

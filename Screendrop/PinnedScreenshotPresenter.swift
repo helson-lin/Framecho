@@ -1,6 +1,6 @@
 //
 //  PinnedScreenshotPresenter.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

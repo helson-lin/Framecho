@@ -20,9 +20,9 @@ struct EditorCancellationChecks {
         for y in stride(from: 60, to: height - 30, by: 55) {
             context.textPosition = CGPoint(x: 40, y: y)
             CTLineDraw(CTLineCreateWithAttributedString(NSAttributedString(
-                string: "Contact: hello@example.com — Screendrop cancellation fixture", attributes: attributes)), context)
+                string: "Contact: hello@example.com — Framecho cancellation fixture", attributes: attributes)), context)
         }
-        let url = URL(fileURLWithPath: "/tmp/screendrop-editor-cancellation.png")
+        let url = URL(fileURLWithPath: "/tmp/framecho-editor-cancellation.png")
         let writer = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil)!
         CGImageDestinationAddImage(writer, context.makeImage()!, nil)
         precondition(CGImageDestinationFinalize(writer))
@@ -45,7 +45,7 @@ struct EditorCancellationChecks {
         precondition(late.isEmpty, "Cancelled recognition must not publish regions")
         print("PASS: uncancelled OCR, cancellation before dispatch, cancellation during asynchronous recognition")
 
-        let movie = URL(fileURLWithPath: "/tmp/screendrop-motion-blur-benchmark/metal-encoder-smoke-avc1.mov")
+        let movie = URL(fileURLWithPath: "/tmp/framecho-motion-blur-benchmark/metal-encoder-smoke-avc1.mov")
         precondition(FileManager.default.fileExists(atPath: movie.path), "Run the motion-blur harness with --encode-only first")
         let store = RecordingTimelineThumbnailStore()
         store.prepare(url: movie, duration: 0.1)

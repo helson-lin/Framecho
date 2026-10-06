@@ -1,6 +1,6 @@
 //
 //  RecordingBarChrome.swift
-//  Screendrop
+//  Framecho
 //
 //  Shared chrome for the floating recording bar - its geometry, its tooltip
 //  system and the control style both of its modes are built from. The
@@ -264,11 +264,11 @@ struct BarActionLabel: View {
             .animation(.easeOut(duration: 0.12), value: isHovering)
             .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             // One of two cursor paths, for the two states the bar lives in.
-            // While Screendrop is the active app the system's pointer-style
+            // While Framecho is the active app the system's pointer-style
             // engine owns the cursor and enforces the declared style against
             // any NSCursor.set - so the style has to be declared. It resolves
             // against the key window, which is why the presenter makes the
-            // panel key when showing it. While Screendrop is inactive the
+            // panel key when showing it. While Framecho is inactive the
             // engine doesn't consult it at all and BarControlHover's NSCursor
             // path takes over.
             .pointerStyle(isEnabled && isInteractive ? .link : nil)

@@ -1,6 +1,6 @@
 //
 //  AnnotationWallpaperStore.swift
-//  Screendrop
+//  Framecho
 //
 
 import Foundation
@@ -201,7 +201,7 @@ final class AnnotationWallpaperStore {
     ) throws {
         let fileManager = FileManager.default
         let tempRoot = fileManager.temporaryDirectory
-            .appendingPathComponent("Screendrop-Wallpapers-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("Framecho-Wallpapers-\(UUID().uuidString)", isDirectory: true)
         let archiveURL = tempRoot.appendingPathComponent("pack.zip")
         let extractedURL = tempRoot.appendingPathComponent("Extracted", isDirectory: true)
 

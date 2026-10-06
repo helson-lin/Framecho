@@ -1,6 +1,6 @@
 //
 //  AppPermission.swift
-//  Screendrop
+//  Framecho
 //
 //  The privacy permissions Framecho uses, what each is for, and the rules
 //  for reading their status. AppPermissionCenter asks macOS.

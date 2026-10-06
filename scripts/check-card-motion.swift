@@ -2,10 +2,10 @@ import CoreGraphics
 import Foundation
 
 // Compile the actual card-motion math and timeline, without launching the app:
-// xcrun swiftc -module-cache-path /tmp/screendrop-motion-module-cache \
+// xcrun swiftc -module-cache-path /tmp/framecho-motion-module-cache \
 //   Screendrop/ProjectiveHomography.swift Screendrop/RecordingClipTimeline.swift \
 //   Screendrop/RecordingCardMotion.swift scripts/check-card-motion.swift \
-//   -o /tmp/screendrop-motion-check && /tmp/screendrop-motion-check
+//   -o /tmp/framecho-motion-check && /tmp/framecho-motion-check
 @main
 struct CardMotionChecks {
     static var checks = 0

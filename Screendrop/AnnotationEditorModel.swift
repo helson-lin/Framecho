@@ -1,6 +1,6 @@
 //
 //  AnnotationEditorModel.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit
@@ -11,7 +11,7 @@ import SwiftUI
 ///
 /// Annotations themselves live in `engine` - the ported drawing-app editor - which owns the
 /// document, the selection and the pointer state machine. This type keeps the things that are
-/// Screendrop's rather than the engine's: the image being edited, the background recipe, crop, zoom
+/// Framecho's rather than the engine's: the image being edited, the background recipe, crop, zoom
 /// and the inspector's current style.
 @MainActor
 @Observable
@@ -209,7 +209,7 @@ final class AnnotationEditorModel {
     }
 
     private func makePreviewImage(from url: URL) -> NSImage? {
-        if ScreendropPreferences.lowResolutionEditorPreview {
+        if FramechoPreferences.lowResolutionEditorPreview {
             isPreviewDownscaled = max(imageSize.width, imageSize.height) > previewImageMaxPixelSize
             return ScreenshotImageLoader.downsampledImage(at: url, maxPixelSize: previewImageMaxPixelSize)
         } else {
@@ -893,7 +893,7 @@ extension AnnotationEditorModel {
 
         let fileExtension = url.pathExtension.isEmpty ? "png" : url.pathExtension
         let destinationURL = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("Screendrop_CropSnapshot_\(UUID().uuidString.prefix(8))")
+            .appendingPathComponent("Framecho_CropSnapshot_\(UUID().uuidString.prefix(8))")
             .appendingPathExtension(fileExtension)
 
         do {

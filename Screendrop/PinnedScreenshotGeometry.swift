@@ -1,6 +1,6 @@
 //
 //  PinnedScreenshotGeometry.swift
-//  Screendrop
+//  Framecho
 //
 //  The arithmetic behind a pin's size, placement and opacity, kept apart
 //  from AppKit so scripts/check-pinned-geometry.swift can exercise it.

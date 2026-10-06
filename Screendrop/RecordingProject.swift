@@ -1,6 +1,6 @@
 //
 //  RecordingProject.swift
-//  Screendrop
+//  Framecho
 //
 //  Per-project bookkeeping that lives beside the capture manifest: the name
 //  shown in the Projects browser, when the project was last committed with

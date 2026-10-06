@@ -1,6 +1,6 @@
 //
 //  AnnotationWallpaperPreviewCache.swift
-//  Screendrop
+//  Framecho
 //
 
 import CoreGraphics

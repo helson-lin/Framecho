@@ -1,6 +1,6 @@
 //
 //  HotkeyManager.swift
-//  Screendrop
+//  Framecho
 //
 //  Created by Fayaz Ahmed Aralikatti on 26/04/26.
 //
@@ -99,7 +99,7 @@ final class HotkeyManager {
 
     private func registerHotKey(action: CaptureHotkeyAction, shortcut: HotkeyShortcut) throws -> EventHotKeyRef {
         guard eventHandlerRef != nil else {
-            throw NSError(domain: "Screendrop.Hotkeys", code: 1, userInfo: [
+            throw NSError(domain: "Framecho.Hotkeys", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: String(localized: "Keyboard shortcuts could not be initialized. Try reopening Framecho.")
             ])
         }

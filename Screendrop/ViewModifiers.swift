@@ -1,6 +1,6 @@
 //
 //  ViewModifiers.swift
-//  Screendrop
+//  Framecho
 //
 //  Reusable SwiftUI view modifiers and extensions.
 //
@@ -176,7 +176,7 @@ extension View {
 
 extension View {
     /// Applies a consistent frosted-glass sheet presentation style.
-    func screendropSheetStyle() -> some View {
+    func framechoSheetStyle() -> some View {
         self
             .presentationCornerRadius(12)
             .presentationBackground(.thinMaterial)

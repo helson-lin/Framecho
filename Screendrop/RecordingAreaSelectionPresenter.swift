@@ -1,6 +1,6 @@
 //
 //  RecordingAreaSelectionPresenter.swift
-//  Screendrop
+//  Framecho
 //
 //  Created by Codex on 01/05/26.
 //

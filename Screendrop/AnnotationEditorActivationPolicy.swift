@@ -1,6 +1,6 @@
 //
 //  AnnotationEditorActivationPolicy.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

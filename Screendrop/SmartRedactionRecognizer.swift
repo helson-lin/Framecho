@@ -1,6 +1,6 @@
 //
 //  SmartRedactionRecognizer.swift
-//  Screendrop
+//  Framecho
 //
 
 import CoreGraphics

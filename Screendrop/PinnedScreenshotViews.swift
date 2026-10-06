@@ -1,6 +1,6 @@
 //
 //  PinnedScreenshotViews.swift
-//  Screendrop
+//  Framecho
 //
 //  A pin's image, and the toolbar that sits outside it while it's selected,
 //  so nothing covers the picture just because the pointer passed over it.

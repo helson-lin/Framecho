@@ -1,6 +1,6 @@
 //
 //  ScreenshotPreviewItem.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

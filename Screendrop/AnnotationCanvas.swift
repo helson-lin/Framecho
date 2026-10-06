@@ -1,6 +1,6 @@
 //
 //  AnnotationCanvas.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

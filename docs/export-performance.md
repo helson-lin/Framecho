@@ -73,11 +73,11 @@ In **Edit Scheme → Run → Arguments → Environment Variables**, set:
 
 | Variable | Value | Purpose |
 | --- | --- | --- |
-| `SCREENDROP_EXPORT_BYPASS_CACHE` | `1` | Render on every Export/Share instead of reusing the session's flattened deliverable. |
-| `SCREENDROP_EXPORT_RENDERER` | `cpu` | Force the original Core Graphics renderer for a baseline. Unset for automatic Metal selection. |
-| `SCREENDROP_EXPORT_BYPASS_SCREEN_CACHE` | `1` | Disable settled screen-layer reuse while retaining the selected renderer. |
+| `FRAMECHO_EXPORT_BYPASS_CACHE` | `1` | Render on every Export/Share instead of reusing the session's flattened deliverable. |
+| `FRAMECHO_EXPORT_RENDERER` | `cpu` | Force the original Core Graphics renderer for a baseline. Unset for automatic Metal selection. |
+| `FRAMECHO_EXPORT_BYPASS_SCREEN_CACHE` | `1` | Disable settled screen-layer reuse while retaining the selected renderer. |
 
-Run the same recording, edits, codec, resolution, and quality once with the CPU override and once without it, keeping deliverable cache bypass enabled for both. To isolate screen-layer reuse, keep the renderer setting unchanged and toggle only `SCREENDROP_EXPORT_BYPASS_SCREEN_CACHE`. To reproduce the original rendering path, set both the CPU override and screen-cache bypass. Keep baseline exports under separate filenames. Remove the overrides after measuring so normal render reuse resumes.
+Run the same recording, edits, codec, resolution, and quality once with the CPU override and once without it, keeping deliverable cache bypass enabled for both. To isolate screen-layer reuse, keep the renderer setting unchanged and toggle only `FRAMECHO_EXPORT_BYPASS_SCREEN_CACHE`. To reproduce the original rendering path, set both the CPU override and screen-cache bypass. Keep baseline exports under separate filenames. Remove the overrides after measuring so normal render reuse resumes.
 
 Filter the Xcode console or Console.app by `StudioExport`. The log reports:
 

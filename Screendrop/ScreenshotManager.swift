@@ -1,6 +1,6 @@
 //
 //  ScreenshotManager.swift
-//  Screendrop
+//  Framecho
 //
 //  Created by Fayaz Ahmed Aralikatti on 26/04/26.
 //
@@ -177,7 +177,7 @@ final class ScreenshotManager {
         }
 
         return directory
-            .appendingPathComponent("Screendrop_\(UUID().uuidString)")
+            .appendingPathComponent("Framecho_\(UUID().uuidString)")
             .appendingPathExtension(ext)
             .path
     }

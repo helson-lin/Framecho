@@ -2,9 +2,9 @@ import Foundation
 
 // Reads history.json rows the way the Library does, including rows written
 // by older builds and rows this build can't understand:
-// xcrun swiftc -module-cache-path /tmp/screendrop-history-module-cache \
+// xcrun swiftc -module-cache-path /tmp/framecho-history-module-cache \
 //   Screendrop/ScreenshotHistoryItem.swift scripts/check-history-metadata.swift \
-//   -o /tmp/screendrop-history-check && /tmp/screendrop-history-check
+//   -o /tmp/framecho-history-check && /tmp/framecho-history-check
 @main
 struct HistoryMetadataChecks {
     static var checks = 0

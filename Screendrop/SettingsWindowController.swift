@@ -1,6 +1,6 @@
 //
 //  SettingsWindowController.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

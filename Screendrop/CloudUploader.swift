@@ -1,8 +1,8 @@
 //
 //  CloudUploader.swift
-//  Screendrop
+//  Framecho
 //
-//  Uploads screenshots to R2 via the Screendrop Cloud worker.
+//  Uploads screenshots to R2 via the Framecho Cloud worker.
 //
 //  Flow:
 //  1. PUT /api/upload with the raw file body + metadata headers

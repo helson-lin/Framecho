@@ -1,6 +1,6 @@
 //
 //  CaptureCoordinator.swift
-//  Screendrop
+//  Framecho
 //
 //  Created by Fayaz Ahmed Aralikatti on 26/04/26.
 //
@@ -96,7 +96,7 @@ final class CaptureCoordinator {
         PreviewWindowPlacement.shared.setTargetDisplayID(displayID)
 
         guard await CaptureCountdownPresenter.shared.runIfNeeded(
-            seconds: ScreendropPreferences.captureDelaySeconds,
+            seconds: FramechoPreferences.captureDelaySeconds,
             displayID: displayID
         ) else { return nil }
         guard let url = await ScreenshotManager.shared.captureFullscreen(displayID: displayID) else { return nil }
@@ -109,8 +109,8 @@ final class CaptureCoordinator {
         // The self-timer is handled by screencapture's `-T` so the delay
         // happens *after* the window is picked, not before.
         guard let url = await ScreenshotManager.shared.captureWindow(
-            includeShadow: ScreendropPreferences.captureWindowShadow,
-            delaySeconds: ScreendropPreferences.captureDelaySeconds
+            includeShadow: FramechoPreferences.captureWindowShadow,
+            delaySeconds: FramechoPreferences.captureDelaySeconds
         ) else { return nil }
         let displayID = ActiveDisplayResolver.activeDisplayID(preferPointer: true)
         return finishCapture(url: url, displayID: displayID)
@@ -122,8 +122,8 @@ final class CaptureCoordinator {
         // The self-timer is handled by screencapture's `-T` so the delay
         // happens *after* the area is drawn, not before.
         guard let url = await ScreenshotManager.shared.captureArea(
-            includeShadow: ScreendropPreferences.captureWindowShadow,
-            delaySeconds: ScreendropPreferences.captureDelaySeconds
+            includeShadow: FramechoPreferences.captureWindowShadow,
+            delaySeconds: FramechoPreferences.captureDelaySeconds
         ) else { return nil }
         let displayID = ActiveDisplayResolver.activeDisplayID(preferPointer: true)
         return finishCapture(url: url, displayID: displayID)
@@ -136,9 +136,9 @@ final class CaptureCoordinator {
     private func performCaptureAreaAndPin() async {
         guard AppPermissionCenter.shared.ensureScreenRecording() else { return }
         guard let url = await ScreenshotManager.shared.captureArea(
-            includeShadow: ScreendropPreferences.captureWindowShadow
+            includeShadow: FramechoPreferences.captureWindowShadow
         ) else { return }
-        if ScreendropPreferences.playSounds {
+        if FramechoPreferences.playSounds {
             CaptureFeedbackSound.play()
         }
         let historyURL = ScreenshotHistoryStore.shared.importScreenshot(from: url, movingSource: true)
@@ -157,12 +157,12 @@ final class CaptureCoordinator {
     private func performCaptureText() async -> CaptureTextOutcome {
         guard AppPermissionCenter.shared.ensureScreenRecording() else { return .cancelled }
         guard let url = await ScreenshotManager.shared.captureArea(
-            delaySeconds: ScreendropPreferences.captureDelaySeconds
+            delaySeconds: FramechoPreferences.captureDelaySeconds
         ) else { return .cancelled }
         defer { try? FileManager.default.removeItem(at: url) }
 
         let outcome = await copyRecognizedText(at: url, from: .area)
-        if ScreendropPreferences.playSounds {
+        if FramechoPreferences.playSounds {
             switch outcome {
             case .copied: CaptureFeedbackSound.play()
             case .noTextFound: NSSound.beep()
@@ -210,7 +210,7 @@ final class CaptureCoordinator {
     private func performCaptureOnTimer() async -> URL? {
         guard AppPermissionCenter.shared.ensureScreenRecording() else { return nil }
         guard await CaptureCountdownPresenter.shared.runIfNeeded(
-            seconds: ScreendropPreferences.timedCaptureDelaySeconds,
+            seconds: FramechoPreferences.timedCaptureDelaySeconds,
             displayID: ActiveDisplayResolver.activeDisplayID(preferPointer: true)
         ) else { return nil }
 
@@ -225,7 +225,7 @@ final class CaptureCoordinator {
     func recordFullscreen(_ display: SCDisplay) {
         Task {
             guard await CaptureCountdownPresenter.shared.runIfNeeded(
-                seconds: ScreendropPreferences.recordingStartDelaySeconds,
+                seconds: FramechoPreferences.recordingStartDelaySeconds,
                 displayID: display.displayID
             ) else { return }
             ScreenRecordingManager.shared.startRecording(source: ScreenRecordingSource(kind: .fullscreen(display)))
@@ -236,7 +236,7 @@ final class CaptureCoordinator {
         Task {
             let displayID = ActiveDisplayResolver.activeDisplayID(preferPointer: true)
             guard await CaptureCountdownPresenter.shared.runIfNeeded(
-                seconds: ScreendropPreferences.recordingStartDelaySeconds,
+                seconds: FramechoPreferences.recordingStartDelaySeconds,
                 displayID: displayID
             ) else { return }
             ScreenRecordingManager.shared.startRecording(source: ScreenRecordingSource(kind: .window(window)))
@@ -248,7 +248,7 @@ final class CaptureCoordinator {
             guard let rect else { return }
             Task {
                 guard await CaptureCountdownPresenter.shared.runIfNeeded(
-                    seconds: ScreendropPreferences.recordingStartDelaySeconds,
+                    seconds: FramechoPreferences.recordingStartDelaySeconds,
                     displayID: display.displayID
                 ) else { return }
                 ScreenRecordingManager.shared.startRecording(
@@ -263,7 +263,7 @@ final class CaptureCoordinator {
     @discardableResult
     @MainActor
     private func finishCapture(url: URL, displayID: CGDirectDisplayID?) -> URL {
-        if ScreendropPreferences.playSounds {
+        if FramechoPreferences.playSounds {
             CaptureFeedbackSound.play()
         }
         return showPreview(url: url, displayID: displayID)

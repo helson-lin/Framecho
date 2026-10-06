@@ -1,6 +1,6 @@
 //
 //  RecordingStudioModel.swift
-//  Screendrop
+//  Framecho
 //
 //  View-model for the recording studio: loads a recording session (screen
 //  movie + optional camera movie + pointer-capture sidecar), owns the style
@@ -2365,7 +2365,7 @@ final class RecordingStudioModel {
     private var freshDeliverableURL: URL? {
         // Measure the actual renderer during development comparisons, even
         // when this exact document already has a flattened deliverable.
-        guard ProcessInfo.processInfo.environment["SCREENDROP_EXPORT_BYPASS_CACHE"] != "1" else { return nil }
+        guard ProcessInfo.processInfo.environment["FRAMECHO_EXPORT_BYPASS_CACHE"] != "1" else { return nil }
         guard let session else { return nil }
         return session.freshFinalURL(matching: currentDocument())
     }

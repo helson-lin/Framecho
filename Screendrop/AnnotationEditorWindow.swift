@@ -1,6 +1,6 @@
 //
 //  AnnotationEditorWindow.swift
-//  Screendrop
+//  Framecho
 //
 //  Created by Codex on 27/04/26.
 //

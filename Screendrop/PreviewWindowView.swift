@@ -1,6 +1,6 @@
 //
 //  PreviewWindowView.swift
-//  Screendrop
+//  Framecho
 //
 //  Created by Fayaz Ahmed Aralikatti on 26/04/26.
 //
@@ -28,8 +28,8 @@ struct PreviewWindowView: View {
     @State private var transitionResetTask: Task<Void, Never>?
     @State private var stackHeight: CGFloat = 500
     @State private var peekHeight: CGFloat = 64
-    @AppStorage(ScreendropPreferences.previewPositionKey) private var previewPositionRaw = PreviewOverlayPosition.right.rawValue
-    @AppStorage(ScreendropPreferences.previewSizeKey) private var previewSizeRaw = PreviewOverlaySize.defaultSize.rawValue
+    @AppStorage(FramechoPreferences.previewPositionKey) private var previewPositionRaw = PreviewOverlayPosition.right.rawValue
+    @AppStorage(FramechoPreferences.previewSizeKey) private var previewSizeRaw = PreviewOverlaySize.defaultSize.rawValue
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismiss) private var dismissWindow
 

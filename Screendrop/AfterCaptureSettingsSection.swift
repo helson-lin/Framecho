@@ -1,6 +1,6 @@
 //
 //  AfterCaptureSettingsSection.swift
-//  Screendrop
+//  Framecho
 //
 
 import SwiftUI

@@ -1,6 +1,6 @@
 //
 //  RecordingAreaHighlightPresenter.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

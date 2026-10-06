@@ -1,6 +1,6 @@
 //
 //  CloudUploadOptions.swift
-//  Screendrop
+//  Framecho
 //
 //  The title offered right before a manual cloud upload, plus the
 //  remembered image upload preferences. Auto-upload (after-capture, no

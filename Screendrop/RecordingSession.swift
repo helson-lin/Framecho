@@ -1,6 +1,6 @@
 //
 //  RecordingSession.swift
-//  Screendrop
+//  Framecho
 //
 //  A recording is a folder ("session") rather than a bare .mov so the studio
 //  editor can keep the screen video, the separately captured camera video,

@@ -1,6 +1,6 @@
 //
 //  RecordingDeliverable.swift
-//  Screendrop
+//  Framecho
 //
 //  Screen captures are recorded without the OS cursor (see
 //  ScreenRecordingManager.buildConfiguration) and keep the camera as a

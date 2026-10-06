@@ -1,6 +1,6 @@
 //
 //  SettingsGeneralPane.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit
@@ -8,11 +8,11 @@ import ServiceManagement
 import SwiftUI
 
 struct GeneralSettingsPane: View {
-    @AppStorage(ScreendropPreferences.exportDirectoryPathKey) private var exportDirectoryPath = ""
-    @AppStorage(ScreendropPreferences.saveButtonUsesFolderKey) private var saveButtonUsesFolder = false
-    @AppStorage(ScreendropPreferences.playSoundsKey) private var playSounds = true
-    @AppStorage(ScreendropPreferences.showMenuBarIconKey) private var showMenuBarIcon = true
-    @AppStorage(ScreendropPreferences.includeAppWindowsInCapturesKey)
+    @AppStorage(FramechoPreferences.exportDirectoryPathKey) private var exportDirectoryPath = ""
+    @AppStorage(FramechoPreferences.saveButtonUsesFolderKey) private var saveButtonUsesFolder = false
+    @AppStorage(FramechoPreferences.playSoundsKey) private var playSounds = true
+    @AppStorage(FramechoPreferences.showMenuBarIconKey) private var showMenuBarIcon = true
+    @AppStorage(FramechoPreferences.includeAppWindowsInCapturesKey)
     private var includeAppWindowsInCaptures = false
     @State private var launchAtLoginStatus = LaunchAtLoginController.status
     @State private var launchAtLoginError: String?
@@ -28,7 +28,7 @@ struct GeneralSettingsPane: View {
 
     private var saveButtonUsesFolderBinding: Binding<Bool> {
         Binding(
-            get: { _ = saveButtonUsesFolder; return ScreendropPreferences.saveButtonUsesConfiguredFolder },
+            get: { _ = saveButtonUsesFolder; return FramechoPreferences.saveButtonUsesConfiguredFolder },
             set: { saveButtonUsesFolder = $0 }
         )
     }
@@ -55,7 +55,7 @@ struct GeneralSettingsPane: View {
                 } label: {
                     SettingsControlLabel(
                         String(localized: "Export folder"),
-                        detail: ScreendropPreferences.exportDirectory.abbreviatedPath
+                        detail: FramechoPreferences.exportDirectory.abbreviatedPath
                     )
                 }
 
@@ -149,7 +149,7 @@ struct GeneralSettingsPane: View {
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = true
-        panel.directoryURL = ScreendropPreferences.exportDirectory
+        panel.directoryURL = FramechoPreferences.exportDirectory
 
         guard panel.runModal() == .OK,
               let url = panel.url else {
@@ -160,7 +160,7 @@ struct GeneralSettingsPane: View {
     }
 
     private func revealExportDirectory() {
-        let directory = ScreendropPreferences.exportDirectory
+        let directory = FramechoPreferences.exportDirectory
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             revealError = nil
@@ -198,11 +198,11 @@ private struct ExportFolderPicker: View {
         var id: String { url.standardizedFileURL.path }
     }
 
-    private var current: URL { ScreendropPreferences.exportDirectory }
+    private var current: URL { FramechoPreferences.exportDirectory }
 
     private var choices: [Choice] {
         let fileManager = FileManager.default
-        let defaultURL = ScreendropPreferences.defaultExportDirectory
+        let defaultURL = FramechoPreferences.defaultExportDirectory
         var choices = [Choice(
             url: defaultURL,
             title: String(localized: "\(fileManager.displayName(atPath: defaultURL.path)) (Default)")
@@ -244,7 +244,7 @@ private struct ExportFolderPicker: View {
     }
 
     private func select(_ choice: Choice) {
-        let isDefault = choice.id == ScreendropPreferences.defaultExportDirectory.standardizedFileURL.path
+        let isDefault = choice.id == FramechoPreferences.defaultExportDirectory.standardizedFileURL.path
         exportDirectoryPath = isDefault ? "" : choice.url.path
     }
 }

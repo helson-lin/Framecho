@@ -1,6 +1,6 @@
 //
 //  ImageTextRecognizer.swift
-//  Screendrop
+//  Framecho
 //
 
 import CoreGraphics

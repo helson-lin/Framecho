@@ -1,6 +1,6 @@
 //
 //  AnnotationBackgroundInspector.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

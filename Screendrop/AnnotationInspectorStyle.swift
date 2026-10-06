@@ -1,6 +1,6 @@
 //
 //  AnnotationInspectorStyle.swift
-//  Screendrop
+//  Framecho
 //
 //  Shared design system for the annotation editor inspector. Every section is
 //  built from these primitives so the panel reads as one consistent control:

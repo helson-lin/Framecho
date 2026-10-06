@@ -1,6 +1,6 @@
 //
 //  OnboardingStyle.swift
-//  Screendrop
+//  Framecho
 //
 //  The setup guide's look: a warm near-black card (near-white in Light
 //  mode) lit by the orange of the app icon, with every action labelled by

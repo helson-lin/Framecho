@@ -1,9 +1,9 @@
 //
 //  RecordingPointerArtworkCapture.swift
-//  Screendrop
+//  Framecho
 //
 //  Converts AppKit-provided cursor images into the recording sidecar format.
-//  Screendrop does not ship or substitute its own pointer artwork.
+//  Framecho does not ship or substitute its own pointer artwork.
 //
 
 import AppKit

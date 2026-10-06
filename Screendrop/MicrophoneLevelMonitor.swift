@@ -1,6 +1,6 @@
 //
 //  MicrophoneLevelMonitor.swift
-//  Screendrop
+//  Framecho
 //
 //  The microphone's live input level, for the recording bar. Without it the
 //  icon only says a microphone is *selected* - not that it's delivering
@@ -264,8 +264,8 @@ nonisolated enum MicrophoneLevelMeter {
 
 nonisolated private final class MicrophoneLevelEngine: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate, @unchecked Sendable {
     private let session = AVCaptureSession()
-    private let sessionQueue = DispatchQueue(label: "com.screendrop.microphone-level.session", qos: .userInitiated)
-    private let audioQueue = DispatchQueue(label: "com.screendrop.microphone-level.audio", qos: .userInitiated)
+    private let sessionQueue = DispatchQueue(label: "com.jarinhe.framecho.microphone-level.session", qos: .userInitiated)
+    private let audioQueue = DispatchQueue(label: "com.jarinhe.framecho.microphone-level.audio", qos: .userInitiated)
     private var input: AVCaptureDeviceInput?
     private var output: AVCaptureAudioDataOutput?
     /// Only touched on the audio queue.

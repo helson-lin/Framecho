@@ -1,6 +1,6 @@
 //
 //  TeleprompterScript.swift
-//  Screendrop
+//  Framecho
 //
 //  The teleprompter's text model: the script split into display words, a
 //  greedy fuzzy matcher that tracks how far into the script the speaker

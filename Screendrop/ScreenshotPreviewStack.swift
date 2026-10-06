@@ -1,6 +1,6 @@
 //
 //  ScreenshotPreviewStack.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit
@@ -277,8 +277,8 @@ final class ScreenshotPreviewStack {
     /// Dismisses a preview card after the configured delay, unless the user is
     /// interacting with it (hovering, dragging, or uploading).
     private func scheduleAutoClose(id: ScreenshotPreviewItem.ID) {
-        guard ScreendropPreferences.previewAutoCloseSeconds > 0 else { return }
-        let seconds = ScreendropPreferences.previewAutoCloseSeconds
+        guard FramechoPreferences.previewAutoCloseSeconds > 0 else { return }
+        let seconds = FramechoPreferences.previewAutoCloseSeconds
         Task {
             try? await Task.sleep(for: .seconds(Double(seconds)))
             autoCloseIfIdle(id: id)
@@ -330,7 +330,7 @@ final class ScreenshotPreviewStack {
     }
 
     func finishDrag(id: ScreenshotPreviewItem.ID) {
-        if ScreendropPreferences.previewCloseAfterDragging {
+        if FramechoPreferences.previewCloseAfterDragging {
             removeImmediately(id: id)
         } else {
             draggingItemID = nil
@@ -572,7 +572,7 @@ final class ScreenshotPreviewStack {
         // A save dialog, cancellation, or failure must not expire the preview.
         markEngaged(id: id)
 
-        if !choosingLocation && ScreendropPreferences.saveButtonUsesConfiguredFolder {
+        if !choosingLocation && FramechoPreferences.saveButtonUsesConfiguredFolder {
             guard items[index].autoSavedURL == nil else {
                 dismiss(id: id)
                 return
@@ -687,11 +687,11 @@ final class ScreenshotPreviewStack {
             } catch {
                 print("Failed to update saved screenshot: \(error)")
             }
-        } else if ScreendropPreferences.autoSave {
+        } else if FramechoPreferences.autoSave {
             items[index].autoSavedURL = saveToDefaultLocation(from: item.url)
         }
 
-        if ScreendropPreferences.autoCopy {
+        if FramechoPreferences.autoCopy {
             _ = copyURLToClipboard(item.url)
         }
     }

@@ -8,7 +8,7 @@ import SwiftUI
 /// gets clean page-space points without this view having to re-implement any of that.
 ///
 /// Ported in spirit from the drawing-app's `UI/CanvasView.swift`, minus the parts that belong to
-/// Screendrop's chrome (grid, background, its own camera).
+/// Framecho's chrome (grid, background, its own camera).
 struct AnnoCanvasLayer: NSViewRepresentable {
     let editor: AnnoEditor
     let sourceImage: CGImage?

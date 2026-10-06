@@ -1,6 +1,6 @@
 //
 //  AnnotationScreenshotBorderInspector.swift
-//  Screendrop
+//  Framecho
 //
 
 import SwiftUI

@@ -1,6 +1,6 @@
 //
 //  FailureAlert.swift
-//  Screendrop
+//  Framecho
 //
 //  One place for "the thing you asked for didn't happen." Background work
 //  that fails where no card, badge, or inline message can carry the news

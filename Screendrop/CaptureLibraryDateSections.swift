@@ -1,6 +1,6 @@
 //
 //  CaptureLibraryDateSections.swift
-//  Screendrop
+//  Framecho
 //
 //  Groups the Library's time-sorted captures under date headings. Kept free of
 //  app types so scripts/check-library-date-sections.swift can exercise it.

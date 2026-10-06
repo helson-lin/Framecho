@@ -1,6 +1,6 @@
 //
 //  AnnotationDocument.swift
-//  Screendrop
+//  Framecho
 //
 //  Codable sidecar document that stores the editable annotation state for a
 //  screenshot. Persisted next to the rendered image as `<image>.framecho`

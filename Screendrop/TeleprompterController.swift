@@ -1,6 +1,6 @@
 //
 //  TeleprompterController.swift
-//  Screendrop
+//  Framecho
 //
 //  Glue between the recording lifecycle and the teleprompter: decides
 //  whether a starting recording gets the overlay, owns the live speech
@@ -36,8 +36,8 @@ final class TeleprompterController {
     func beginRecordingSession(displayID: CGDirectDisplayID?, microphoneActive: Bool) {
         endRecordingSession()
 
-        guard ScreendropPreferences.recordingTeleprompterEnabled else { return }
-        let script = ScreendropPreferences.recordingTeleprompterScript
+        guard FramechoPreferences.recordingTeleprompterEnabled else { return }
+        let script = FramechoPreferences.recordingTeleprompterScript
         guard !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
         TeleprompterOverlayPresenter.shared.show(script: script, displayID: displayID)

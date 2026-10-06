@@ -1,6 +1,6 @@
 //
 //  RecordingProjectStore.swift
-//  Screendrop
+//  Framecho
 //
 //  The recent-recordings menu's model. Recording packages on disk are the source
 //  of truth - not history.json - so a project whose History row was deleted
@@ -173,7 +173,7 @@ final class RecordingProjectStore {
 
 /// Opening a project has to reach the `VIDEO_EDITOR` scene from AppKit-hosted
 /// surfaces such as the menu bar extra, which have no scene
-/// environment of their own. `ScreendropApp` installs the opener, mirroring
+/// environment of their own. `FramechoApp` installs the opener, mirroring
 /// what `PreviewPanelPresenter.onEditVideo` already does.
 @MainActor
 final class RecordingProjectOpener {

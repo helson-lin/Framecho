@@ -1,6 +1,6 @@
 //
-//  ScreendropPreferences.swift
-//  Screendrop
+//  FramechoPreferences.swift
+//  Framecho
 //
 //  Created by Codex on 26/04/26.
 //
@@ -9,7 +9,7 @@ import AppKit
 import ImageIO
 import UniformTypeIdentifiers
 
-enum ScreendropPreferences {
+enum FramechoPreferences {
     static let autoSaveKey = "autoSaveScreenshots"
     static let saveButtonUsesFolderKey = "saveButtonUsesConfiguredFolder"
     static let autoCopyKey = "autoCopyScreenshotsToClipboard"
@@ -152,7 +152,7 @@ enum ScreendropPreferences {
         return UserDefaults.standard.bool(forKey: showMenuBarIconKey)
     }
 
-    /// Whether Screendrop's own windows and floating controls are visible in
+    /// Whether Framecho's own windows and floating controls are visible in
     /// screenshots and screen recordings. Defaults to off for capture privacy.
     static var includeAppWindowsInCaptures: Bool {
         UserDefaults.standard.bool(forKey: includeAppWindowsInCapturesKey)
@@ -429,7 +429,7 @@ enum ScreenshotFileActions {
     
     @discardableResult
     static func saveToDefaultLocation(from url: URL) throws -> URL {
-        let destinationDirectory = ScreendropPreferences.exportDirectory
+        let destinationDirectory = FramechoPreferences.exportDirectory
         try FileManager.default.createDirectory(
             at: destinationDirectory,
             withIntermediateDirectories: true
@@ -447,17 +447,17 @@ enum ScreenshotFileActions {
     /// image, so that part runs off the main actor; the destination name is
     /// reserved first so concurrent saves never pick the same file.
     static func saveToDefaultLocationInBackground(from url: URL) async throws -> URL {
-        let format = ScreendropPreferences.exportFormat
+        let format = FramechoPreferences.exportFormat
         guard format.usesLossyQuality else { return try saveToDefaultLocation(from: url) }
 
-        let destinationDirectory = ScreendropPreferences.exportDirectory
+        let destinationDirectory = FramechoPreferences.exportDirectory
         try FileManager.default.createDirectory(at: destinationDirectory, withIntermediateDirectories: true)
         let destinationURL = uniqueDestinationURL(for: exportFileName(for: url), in: destinationDirectory)
         guard FileManager.default.createFile(atPath: destinationURL.path, contents: nil) else {
             throw CocoaError(.fileWriteUnknown)
         }
         let contentType = format.contentType
-        let quality = ScreendropPreferences.compressionQuality
+        let quality = FramechoPreferences.compressionQuality
         do {
             try await Task.detached(priority: .userInitiated) {
                 try encodeImage(from: url, to: destinationURL, contentType: contentType, quality: quality)
@@ -470,14 +470,14 @@ enum ScreenshotFileActions {
     }
 
     static func save(from sourceURL: URL, to destinationURL: URL) throws {
-        if ScreendropPreferences.exportFormat == .png {
+        if FramechoPreferences.exportFormat == .png {
             if FileManager.default.fileExists(atPath: destinationURL.path) {
                 try FileManager.default.removeItem(at: destinationURL)
             }
             
             try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
         } else {
-            try exportImage(from: sourceURL, to: destinationURL, contentType: ScreendropPreferences.exportFormat.contentType)
+            try exportImage(from: sourceURL, to: destinationURL, contentType: FramechoPreferences.exportFormat.contentType)
         }
     }
 
@@ -492,7 +492,7 @@ enum ScreenshotFileActions {
 
         let stagingURL = destinationURL
             .deletingLastPathComponent()
-            .appendingPathComponent(".Screendrop-\(UUID().uuidString)-\(destinationURL.lastPathComponent)")
+            .appendingPathComponent(".Framecho-\(UUID().uuidString)-\(destinationURL.lastPathComponent)")
         defer { try? FileManager.default.removeItem(at: stagingURL) }
 
         if destinationType == .png, actualImageContentType(at: sourceURL) == .png {
@@ -511,12 +511,12 @@ enum ScreenshotFileActions {
     static func exportFileName(for sourceURL: URL) -> String {
         return sourceURL
             .deletingPathExtension()
-            .appendingPathExtension(ScreendropPreferences.exportFormat.fileExtension)
+            .appendingPathExtension(FramechoPreferences.exportFormat.fileExtension)
             .lastPathComponent
     }
     
     static var exportContentType: UTType {
-        ScreendropPreferences.exportFormat.contentType
+        FramechoPreferences.exportFormat.contentType
     }
     
     private static func exportImage(from sourceURL: URL, to destinationURL: URL, contentType: UTType) throws {
@@ -524,7 +524,7 @@ enum ScreenshotFileActions {
             from: sourceURL,
             to: destinationURL,
             contentType: contentType,
-            quality: ScreendropPreferences.compressionQuality
+            quality: FramechoPreferences.compressionQuality
         )
     }
 

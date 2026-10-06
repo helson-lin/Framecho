@@ -1,6 +1,6 @@
 //
 //  RecordingSessionRenderer.swift
-//  Screendrop
+//  Framecho
 //
 //  On-demand utility for workflows that require a single flattened movie.
 //  The capture pipeline keeps screen and camera as separate safety masters;

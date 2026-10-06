@@ -1,6 +1,6 @@
 //
 //  AnnotationRedactionImageProcessor.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

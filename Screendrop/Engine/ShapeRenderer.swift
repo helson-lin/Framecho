@@ -8,7 +8,7 @@ import Foundation
 /// per shape. Rebuilding it per frame meant panning re-ran the whole freehand pipeline for strokes
 /// whose pixels hadn't moved.
 ///
-/// Screendrop's non-vector tools ride the same list: a redaction, a spotlight hole and a numbered
+/// Framecho's non-vector tools ride the same list: a redaction, a spotlight hole and a numbered
 /// callout are `Content` cases rather than paths, so one draw loop covers every tool and they all
 /// inherit the same transform, z-order and caching.
 struct RenderElement {

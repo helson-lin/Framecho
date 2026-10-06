@@ -1,6 +1,6 @@
 //
 //  RecordingExportReframe.swift
-//  Screendrop
+//  Framecho
 //
 //  Export-time reframing: renders the recording into a different aspect
 //  ratio (Shorts, square, portrait) by cropping into the source with a

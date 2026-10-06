@@ -1,6 +1,6 @@
 //
 //  RecordingViewportTimeline.swift
-//  Screendrop
+//  Framecho
 //
 //  Deterministic virtual-camera planning for screen recordings. Zoom cues
 //  are editable project data; this file resolves those cues against the

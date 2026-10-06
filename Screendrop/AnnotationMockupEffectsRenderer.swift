@@ -1,6 +1,6 @@
 //
 //  AnnotationMockupEffectsRenderer.swift
-//  Screendrop
+//  Framecho
 //
 
 import CoreGraphics

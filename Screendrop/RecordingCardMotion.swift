@@ -1,6 +1,6 @@
 //
 //  RecordingCardMotion.swift
-//  Screendrop
+//  Framecho
 //
 //  3D motion for the Studio's video card: a fixed base pose plus timed
 //  motion cues that move the card to a target pose and back. The card stays

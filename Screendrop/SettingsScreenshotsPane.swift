@@ -1,19 +1,19 @@
 //
 //  SettingsScreenshotsPane.swift
-//  Screendrop
+//  Framecho
 //
 
 import SwiftUI
 
 struct ScreenshotsSettingsPane: View {
-    @AppStorage(ScreendropPreferences.autoCompressKey) private var autoCompress = false
-    @AppStorage(ScreendropPreferences.exportFormatKey) private var exportFormatRawValue = ""
-    @AppStorage(ScreendropPreferences.compressionQualityKey) private var compressionQuality = 0.8
-    @AppStorage(ScreendropPreferences.captureWindowShadowKey) private var captureWindowShadow = false
-    @AppStorage(ScreendropPreferences.captureDelaySecondsKey) private var captureDelaySeconds = 0
-    @AppStorage(ScreendropPreferences.timedCaptureDelaySecondsKey) private var timedCaptureDelaySeconds = 5
-    @AppStorage(ScreendropPreferences.lowResolutionEditorPreviewKey) private var lowResolutionEditorPreview = true
-    @AppStorage(ScreendropPreferences.trimFullscreenMenuBarKey) private var trimFullscreenMenuBar = true
+    @AppStorage(FramechoPreferences.autoCompressKey) private var autoCompress = false
+    @AppStorage(FramechoPreferences.exportFormatKey) private var exportFormatRawValue = ""
+    @AppStorage(FramechoPreferences.compressionQualityKey) private var compressionQuality = 0.8
+    @AppStorage(FramechoPreferences.captureWindowShadowKey) private var captureWindowShadow = false
+    @AppStorage(FramechoPreferences.captureDelaySecondsKey) private var captureDelaySeconds = 0
+    @AppStorage(FramechoPreferences.timedCaptureDelaySecondsKey) private var timedCaptureDelaySeconds = 5
+    @AppStorage(FramechoPreferences.lowResolutionEditorPreviewKey) private var lowResolutionEditorPreview = true
+    @AppStorage(FramechoPreferences.trimFullscreenMenuBarKey) private var trimFullscreenMenuBar = true
 
     private let delayOptions: [Int] = [0, 3, 5, 10]
     private let timedCaptureDelayOptions: [Int] = [3, 5, 10]

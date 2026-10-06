@@ -1,6 +1,6 @@
 //
 //  RecordingOverlayEffects.swift
-//  Screendrop
+//  Framecho
 //
 //  Post-record input feedback drawn by Studio: the click pulse and the
 //  keystroke caption. Both are reconstructed from the input.json sidecar on

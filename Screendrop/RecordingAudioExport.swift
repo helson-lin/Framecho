@@ -1,12 +1,12 @@
 //
 //  RecordingAudioExport.swift
-//  Screendrop
+//  Framecho
 //
 //  Audio-only export and audio replacement for Studio projects. Together
 //  they close the loop around speech-cleanup tools that offer no API
 //  (Adobe Podcast Enhance and friends): export the edited soundtrack, run
 //  it through the tool, drop the cleaned file back in, and re-export the
-//  video - without leaving Screendrop for ffmpeg and a second app.
+//  video - without leaving Framecho for ffmpeg and a second app.
 //
 //  Both halves speak the same timeline. The exported audio is the finished
 //  cut's soundtrack, so whatever comes back lies flat on the edited
@@ -195,7 +195,7 @@ nonisolated final class RecordingAudioExporter: @unchecked Sendable {
 
     private static func temporaryOutputURL(pathExtension: String) -> URL {
         let directory = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("Screendrop", isDirectory: true)
+            .appendingPathComponent("Framecho", isDirectory: true)
             .appendingPathComponent("StudioExports", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory

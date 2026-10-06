@@ -1,6 +1,6 @@
 //
 //  RecordingRecoveryCoordinator.swift
-//  Screendrop
+//  Framecho
 //
 //  Discovers fragmented screen movies left by a crash or forced termination.
 //  A missing manifest is the interrupted-session marker: normally finalized

@@ -4,7 +4,7 @@ import Foundation
 /// The engine's chrome colours.
 ///
 /// Only the selection chrome and the hatch ground are used here: annotation colours come from
-/// Screendrop's own `AnnotationSwatch` palette.
+/// Framecho's own `AnnotationSwatch` palette.
 enum AnnoTheme {
     /// A colour that picks its value from the appearance it's resolved against.
     static func dynamic(light: String, dark: String) -> NSColor {

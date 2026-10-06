@@ -1,6 +1,6 @@
 //
 //  TeleprompterComposerPresenter.swift
-//  Screendrop
+//  Framecho
 //
 //  The small script window opened from the pre-record bar's teleprompter
 //  button: paste or type the script, switch the prompter on, and pick how
@@ -114,9 +114,9 @@ private final class TeleprompterComposerHostingView<Content: View>: NSHostingVie
 // MARK: - View
 
 private struct TeleprompterComposerView: View {
-    @AppStorage(ScreendropPreferences.recordingTeleprompterEnabledKey) private var isEnabled = false
-    @AppStorage(ScreendropPreferences.recordingTeleprompterScriptKey) private var script = ""
-    @AppStorage(ScreendropPreferences.recordingTeleprompterLineCountKey) private var lineCount = 3
+    @AppStorage(FramechoPreferences.recordingTeleprompterEnabledKey) private var isEnabled = false
+    @AppStorage(FramechoPreferences.recordingTeleprompterScriptKey) private var script = ""
+    @AppStorage(FramechoPreferences.recordingTeleprompterLineCountKey) private var lineCount = 3
 
     var body: some View {
         VStack(spacing: 10) {
@@ -189,7 +189,7 @@ private struct TeleprompterComposerView: View {
 
             Spacer()
 
-            ForEach(ScreendropPreferences.teleprompterLineCountRange, id: \.self) { count in
+            ForEach(FramechoPreferences.teleprompterLineCountRange, id: \.self) { count in
                 Button {
                     lineCount = count
                 } label: {

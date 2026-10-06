@@ -1,6 +1,6 @@
 //
 //  PreviewWindowCaptureExclusion.swift
-//  Screendrop
+//  Framecho
 //
 //  Created by Codex on 27/04/26.
 //
@@ -12,17 +12,17 @@ import SwiftUI
 final class PreviewWindowCaptureExclusion {
     static let shared = PreviewWindowCaptureExclusion()
 
-    /// Whether Screendrop's UI should be available to screenshot and screen
+    /// Whether Framecho's UI should be available to screenshot and screen
     /// recording APIs. Opt in via Settings; the pre-record reminder can turn it off.
     static var includesAppWindowsInCaptures: Bool {
-        ScreendropPreferences.includeAppWindowsInCaptures
+        FramechoPreferences.includeAppWindowsInCaptures
     }
 
     private let registeredWindows = NSHashTable<NSWindow>.weakObjects()
 
     private init() {}
 
-    /// Registers any Screendrop-owned window whose capture visibility should
+    /// Registers any Framecho-owned window whose capture visibility should
     /// follow the production preference.
     func register(window: NSWindow?) {
         guard let window else { return }

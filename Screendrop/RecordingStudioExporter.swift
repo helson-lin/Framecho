@@ -1,6 +1,6 @@
 //
 //  RecordingStudioExporter.swift
-//  Screendrop
+//  Framecho
 //
 //  Offline compositor for studio exports: decodes the screen (and camera)
 //  recordings frame by frame, draws each frame through the same
@@ -548,7 +548,7 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
 
     private static func temporaryOutputURL(container: VideoExportContainer) -> URL {
         let directory = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("Screendrop", isDirectory: true)
+            .appendingPathComponent("Framecho", isDirectory: true)
             .appendingPathComponent("StudioExports", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory.appendingPathComponent("\(UUID().uuidString).\(container.fileExtension)")
@@ -697,9 +697,9 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
     private var bubbleContentSource: CVPixelBuffer?
     private var bubbleContentImage: CGImage?
     private(set) var reusedScreenFrameCount = 0
-    private let bypassScreenCache = ProcessInfo.processInfo.environment["SCREENDROP_EXPORT_BYPASS_SCREEN_CACHE"] == "1"
+    private let bypassScreenCache = ProcessInfo.processInfo.environment["FRAMECHO_EXPORT_BYPASS_SCREEN_CACHE"] == "1"
     // Developer comparison switch; export settings and saved projects do not change.
-    private let forceCoreGraphics = ProcessInfo.processInfo.environment["SCREENDROP_EXPORT_RENDERER"] == "cpu"
+    private let forceCoreGraphics = ProcessInfo.processInfo.environment["FRAMECHO_EXPORT_RENDERER"] == "cpu"
 
     init(
         canvasSize: CGSize,

@@ -1,6 +1,6 @@
 //
 //  OnboardingLaunch.swift
-//  Screendrop
+//  Framecho
 //
 //  Whether a launch opens the setup guide, and on which page, decided from
 //  what's remembered and what macOS allows. Checked by

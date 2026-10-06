@@ -1,6 +1,6 @@
 //
 //  RecordingTranscriptEditing.swift
-//  Screendrop
+//  Framecho
 //
 //  Planning for transcript-driven video edits: turns word selections,
 //  filler words, and narration silences into source-time cut ranges for

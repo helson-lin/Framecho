@@ -1,6 +1,6 @@
 //
 //  CaptureBlockedView.swift
-//  Screendrop
+//  Framecho
 //
 //  What a capture without Screen Recording opens: a small window that says
 //  why nothing happened and gives the one next step, instead of the whole

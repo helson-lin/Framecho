@@ -1,6 +1,6 @@
 //
 //  RecordingStudioStylePresetBar.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

@@ -1,6 +1,6 @@
 //
 //  OverlayCardLayout.swift
-//  Screendrop
+//  Framecho
 //
 //  Describes which actions appear on the floating preview card and where.
 //  The card has four corner slots (each holding a single action rendered as a

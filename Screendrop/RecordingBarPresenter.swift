@@ -1,6 +1,6 @@
 //
 //  RecordingBarPresenter.swift
-//  Screendrop
+//  Framecho
 //
 //  One floating bar, two modes. Before recording it picks the source and the
 //  capture inputs; during recording it drives the session. They share a
@@ -41,7 +41,7 @@ final class RecordingBarPresenter {
     func containsPanelPoint(_ point: CGPoint) -> Bool {
         if barFrameInPanel.contains(point) { return true }
         return mode == .picker
-            && ScreendropPreferences.includeAppWindowsInCaptures
+            && FramechoPreferences.includeAppWindowsInCaptures
             && visibilityBannerFrameInPanel.contains(point)
     }
 
@@ -83,7 +83,7 @@ final class RecordingBarPresenter {
         panel.orderFrontRegardless()
         // Key without activating (the panel is nonactivating): pointer styles
         // and Esc both resolve against the key window. Key-ness is dormant
-        // while Screendrop isn't the active app, so this never pulls
+        // while Framecho isn't the active app, so this never pulls
         // keystrokes out of the app being recorded.
         panel.makeKey()
         warmCameraPreviewIfEnabled()
@@ -177,7 +177,7 @@ final class RecordingBarPresenter {
     /// `showPicker()` - is what makes a camera left on from a previous
     /// session warm up immediately instead of needing an off/on toggle.
     private func warmCameraPreviewIfEnabled() {
-        let cameraID = ScreendropPreferences.recordingCameraDeviceID
+        let cameraID = FramechoPreferences.recordingCameraDeviceID
         guard !cameraID.isEmpty else { return }
         let displayID = ActiveDisplayResolver.activeDisplayID(preferPointer: false)
         Task {
@@ -211,12 +211,12 @@ final class RecordingBarPresenter {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isMovableByWindowBackground = true
         // The controls track hover themselves so they still highlight while
-        // Screendrop is in the background, which is the whole time a recording
+        // Framecho is in the background, which is the whole time a recording
         // is running. Their tracking areas need the moved events.
         panel.acceptsMouseMovedEvents = true
         // Nothing in the bar wants a cursor other than the pointing hand its
         // controls push. Left on, AppKit's own cursor rectangles reset the
-        // pointer to an arrow on every mouse move the moment Screendrop is
+        // pointer to an arrow on every mouse move the moment Framecho is
         // the active app - which it is whenever the picker is opened from
         // inside the app.
         panel.disableCursorRects()
@@ -288,7 +288,7 @@ private final class RecordingBarHostingView<Content: View>: NSHostingView<Conten
 private struct RecordingBarView: View {
     @State private var presenter = RecordingBarPresenter.shared
     @State private var tooltip = BarTooltipModel()
-    @AppStorage(ScreendropPreferences.includeAppWindowsInCapturesKey)
+    @AppStorage(FramechoPreferences.includeAppWindowsInCapturesKey)
     private var includeAppWindowsInCaptures = false
 
     var body: some View {

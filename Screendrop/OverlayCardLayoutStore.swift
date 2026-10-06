@@ -1,6 +1,6 @@
 //
 //  OverlayCardLayoutStore.swift
-//  Screendrop
+//  Framecho
 //
 //  Observable, UserDefaults-backed store for the preview card layout. Both the
 //  live overlay (`PreviewCardView`) and the settings editor read/write the same
@@ -31,7 +31,7 @@ final class OverlayCardLayoutStore {
 
     private static func load() -> OverlayCardLayout {
         guard
-            let data = UserDefaults.standard.data(forKey: ScreendropPreferences.overlayCardLayoutKey),
+            let data = UserDefaults.standard.data(forKey: FramechoPreferences.overlayCardLayoutKey),
             let decoded = try? JSONDecoder().decode(OverlayCardLayout.self, from: data)
         else {
             return .default
@@ -41,6 +41,6 @@ final class OverlayCardLayoutStore {
 
     private func persist() {
         guard let data = try? JSONEncoder().encode(layout) else { return }
-        UserDefaults.standard.set(data, forKey: ScreendropPreferences.overlayCardLayoutKey)
+        UserDefaults.standard.set(data, forKey: FramechoPreferences.overlayCardLayoutKey)
     }
 }

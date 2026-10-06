@@ -1,6 +1,6 @@
 //
 //  AnnotationEditorTextStyle.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

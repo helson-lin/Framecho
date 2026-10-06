@@ -1,6 +1,6 @@
 //
 //  SettingsShortcutsPane.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

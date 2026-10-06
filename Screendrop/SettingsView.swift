@@ -1,6 +1,6 @@
 //
 //  SettingsView.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

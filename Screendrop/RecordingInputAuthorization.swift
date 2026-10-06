@@ -1,6 +1,6 @@
 //
 //  RecordingInputAuthorization.swift
-//  Screendrop
+//  Framecho
 //
 //  Resolves camera and microphone authorization before a recording input is
 //  persisted. Denied access is surfaced with a direct route to System Settings

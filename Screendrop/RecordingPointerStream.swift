@@ -1,6 +1,6 @@
 //
 //  RecordingPointerStream.swift
-//  Screendrop
+//  Framecho
 //
 //  Cleans the pointer capture sidecar once, then exposes one ordered stream
 //  shared by viewport planning and pointer reconstruction.

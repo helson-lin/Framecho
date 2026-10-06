@@ -1,6 +1,6 @@
 //
 //  PreviewCardView.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

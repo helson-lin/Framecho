@@ -1,6 +1,6 @@
 //
 //  AnnotationBackgroundPresetBar.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

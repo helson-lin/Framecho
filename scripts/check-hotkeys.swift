@@ -4,9 +4,9 @@ import SwiftUI
 
 // Compile the capture shortcuts and their stored preferences without
 // launching the app:
-// xcrun swiftc -module-cache-path /tmp/screendrop-hotkeys-module-cache \
+// xcrun swiftc -module-cache-path /tmp/framecho-hotkeys-module-cache \
 //   Screendrop/CaptureHotkeys.swift scripts/check-hotkeys.swift \
-//   -o /tmp/screendrop-hotkeys-check && /tmp/screendrop-hotkeys-check
+//   -o /tmp/framecho-hotkeys-check && /tmp/framecho-hotkeys-check
 @main
 struct HotkeyChecks {
     static var checks = 0

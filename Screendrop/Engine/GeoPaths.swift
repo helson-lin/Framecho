@@ -2,7 +2,7 @@ import Foundation
 
 /// The path for each geo shape, ported from the drawing-app's `Paths/GeoPaths.swift`.
 ///
-/// Screendrop only draws rectangles and ellipses, so the polygon/star/cloud family is left behind;
+/// Framecho only draws rectangles and ellipses, so the polygon/star/cloud family is left behind;
 /// what matters is that the path is built once here and used for stroking, filling and flattening
 /// to hit-test vertices, so those three can never disagree about where an edge is.
 enum GeoPaths {

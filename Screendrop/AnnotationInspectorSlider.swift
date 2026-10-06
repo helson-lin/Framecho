@@ -1,6 +1,6 @@
 //
 //  AnnotationInspectorSlider.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

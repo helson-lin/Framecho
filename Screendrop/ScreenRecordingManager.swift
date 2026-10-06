@@ -1,6 +1,6 @@
 //
 //  ScreenRecordingManager.swift
-//  Screendrop
+//  Framecho
 //
 //  Created by Codex on 01/05/26.
 //
@@ -95,10 +95,10 @@ nonisolated struct ScreenRecordingCaptureOptions: Sendable {
     @MainActor
     static func fromPreferences() -> ScreenRecordingCaptureOptions {
         var options = ScreenRecordingCaptureOptions()
-        options.capturesSystemAudio = ScreendropPreferences.recordingSystemAudio
-        let micID = ScreendropPreferences.recordingMicrophoneDeviceID
+        options.capturesSystemAudio = FramechoPreferences.recordingSystemAudio
+        let micID = FramechoPreferences.recordingMicrophoneDeviceID
         options.microphoneDeviceID = micID.isEmpty ? nil : micID
-        let cameraID = ScreendropPreferences.recordingCameraDeviceID
+        let cameraID = FramechoPreferences.recordingCameraDeviceID
         options.cameraDeviceID = cameraID.isEmpty ? nil : cameraID
         return options
     }
@@ -397,7 +397,7 @@ final class ScreenRecordingManager {
                 do {
                     try session.writePointerCapture(capture)
                 } catch {
-                    NSLog("[Screendrop] Failed to save recording input timeline: \(error)")
+                    NSLog("[Framecho] Failed to save recording input timeline: \(error)")
                     metadataWarnings.append(
                         String(localized: "The screen footage was saved, but its cursor and click data could not be saved.")
                     )
@@ -410,7 +410,7 @@ final class ScreenRecordingManager {
             do {
                 try session.writeCaptureManifest(manifest)
             } catch {
-                NSLog("[Screendrop] Failed to save recording manifest: \(error)")
+                NSLog("[Framecho] Failed to save recording manifest: \(error)")
                 metadataWarnings.append(
                     String(localized: "The screen footage was saved, but some Studio metadata could not be saved.")
                 )
@@ -534,11 +534,11 @@ final class ScreenRecordingManager {
         if let microphoneID = requested.microphoneDeviceID {
             if RecordingDeviceCatalog.microphone(withID: microphoneID) == nil {
                 resolved.microphoneDeviceID = nil
-                ScreendropPreferences.recordingMicrophoneDeviceID = ""
+                FramechoPreferences.recordingMicrophoneDeviceID = ""
                 warnings.append(String(localized: "The selected microphone is no longer available, so it was turned off."))
             } else if !(await RecordingInputAuthorization.requestAccess(for: .microphone)) {
                 resolved.microphoneDeviceID = nil
-                ScreendropPreferences.recordingMicrophoneDeviceID = ""
+                FramechoPreferences.recordingMicrophoneDeviceID = ""
                 warnings.append(String(localized: "Microphone access is not allowed, so this recording will not include narration."))
             }
         }
@@ -546,11 +546,11 @@ final class ScreenRecordingManager {
         if let cameraID = requested.cameraDeviceID {
             if RecordingDeviceCatalog.camera(withID: cameraID) == nil {
                 resolved.cameraDeviceID = nil
-                ScreendropPreferences.recordingCameraDeviceID = ""
+                FramechoPreferences.recordingCameraDeviceID = ""
                 warnings.append(String(localized: "The selected camera is no longer available, so it was turned off."))
             } else if !(await RecordingInputAuthorization.requestAccess(for: .camera)) {
                 resolved.cameraDeviceID = nil
-                ScreendropPreferences.recordingCameraDeviceID = ""
+                FramechoPreferences.recordingCameraDeviceID = ""
                 warnings.append(String(localized: "Camera access is not allowed, so this recording will not include a camera bubble."))
             }
         }
@@ -831,8 +831,8 @@ nonisolated final class ScreenRecordingCapture: NSObject, SCStreamOutput, SCStre
     private var stream: SCStream?
     private var streamHasAudio = false
     private var streamHasMicrophone = false
-    private let videoQueue = DispatchQueue(label: "com.screendrop.screen-recording.video", qos: .userInteractive)
-    private let audioQueue = DispatchQueue(label: "com.screendrop.screen-recording.audio", qos: .userInteractive)
+    private let videoQueue = DispatchQueue(label: "com.jarinhe.framecho.screen-recording.video", qos: .userInteractive)
+    private let audioQueue = DispatchQueue(label: "com.jarinhe.framecho.screen-recording.audio", qos: .userInteractive)
 
     var onVideoFrame: ((CMSampleBuffer) -> Void)?
     var onAudioSample: ((CMSampleBuffer, ScreenRecordingAudioKind) -> Void)?
@@ -991,7 +991,7 @@ nonisolated private final class ScreenRecordingWriter: @unchecked Sendable {
     private var systemAudioInput: AVAssetWriterInput?
     private var microphoneInput: AVAssetWriterInput?
     private var pixelBufferAdaptor: AVAssetWriterInputPixelBufferAdaptor?
-    private let writingQueue = DispatchQueue(label: "com.screendrop.screen-recording.writer", qos: .userInitiated)
+    private let writingQueue = DispatchQueue(label: "com.jarinhe.framecho.screen-recording.writer", qos: .userInitiated)
     private var outputURL: URL?
     private var isSessionStarted = false
     private var sessionStartTime: CMTime?

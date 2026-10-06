@@ -1,6 +1,6 @@
 //
 //  RecordingClipTimelineView.swift
-//  Screendrop
+//  Framecho
 //
 //  Compact, segment-aware Studio video lane. The AppKit control gives mouse
 //  tracking, contextual split locations, cursor control, and edge trimming

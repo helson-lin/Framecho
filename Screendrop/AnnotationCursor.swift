@@ -1,6 +1,6 @@
 //
 //  AnnotationCursor.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

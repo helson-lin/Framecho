@@ -4,7 +4,7 @@ import CoreVideo
 import Foundation
 
 // Compile with VideoCompressionModels.swift and RecordingExportTiming.swift.
-// Exercises production timing/settings without launching Screendrop.
+// Exercises production timing/settings without launching Framecho.
 @main
 struct RecordingExportOptionChecks {
     static func checkSettingsAndSampling() throws {
@@ -59,7 +59,7 @@ struct RecordingExportOptionChecks {
         settings.frameRate = fps
         settings.motionBlurEnabled = blur
         let timing = RecordingExportTiming(settings: settings)
-        let directory = URL(fileURLWithPath: "/tmp/screendrop-export-options", isDirectory: true)
+        let directory = URL(fileURLWithPath: "/tmp/framecho-export-options", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let url = directory.appendingPathComponent("\(Int(timing.framesPerSecond))-\(blur)-\(codec.rawValue).mov")
         try? FileManager.default.removeItem(at: url)

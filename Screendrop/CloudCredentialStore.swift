@@ -1,6 +1,6 @@
 //
 //  CloudCredentialStore.swift
-//  Screendrop
+//  Framecho
 //
 //  Keychain-backed storage for cloud upload configuration.
 //  Secrets (upload token) go in the Keychain.

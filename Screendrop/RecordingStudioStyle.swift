@@ -1,6 +1,6 @@
 //
 //  RecordingStudioStyle.swift
-//  Screendrop
+//  Framecho
 //
 //  Style settings and canvas layout for the recording studio. The layout
 //  math is deterministic and shared verbatim between the live SwiftUI
@@ -126,7 +126,7 @@ struct RecordingEditDocument: Codable, Equatable {
         self.zoomCues = zoomCues
         clips = clipTimeline?.segments
         if let clip = clipTimeline?.segments.only {
-            // Keep the legacy envelope populated for older Screendrop builds.
+            // Keep the legacy envelope populated for older Framecho builds.
             trimStart = clip.sourceStart
             trimEnd = clip.sourceEnd
         } else {

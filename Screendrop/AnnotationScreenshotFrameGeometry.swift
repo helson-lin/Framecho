@@ -1,6 +1,6 @@
 //
 //  AnnotationScreenshotFrameGeometry.swift
-//  Screendrop
+//  Framecho
 //
 
 import CoreGraphics

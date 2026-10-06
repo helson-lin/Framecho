@@ -1,6 +1,6 @@
 //
 //  AnnotationToolStrip.swift
-//  Screendrop
+//  Framecho
 //
 //  The annotation tools, floating in glass over the top of the canvas.
 //  They used to live in the inspector, a long way from where you draw and

@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 struct VideoSettingsPane: View {
-    @AppStorage(ScreendropPreferences.revealExportInFinderKey) private var revealExportInFinder = true
+    @AppStorage(FramechoPreferences.revealExportInFinderKey) private var revealExportInFinder = true
 
     var body: some View {
         Form {
@@ -35,10 +35,10 @@ struct VideoSettingsPane: View {
 }
 
 struct OverlaySettingsPane: View {
-    @AppStorage(ScreendropPreferences.previewPositionKey) private var previewPositionRaw = PreviewOverlayPosition.right.rawValue
-    @AppStorage(ScreendropPreferences.previewSizeKey) private var previewSizeRaw = PreviewOverlaySize.defaultSize.rawValue
-    @AppStorage(ScreendropPreferences.previewAutoCloseSecondsKey) private var autoCloseSeconds = 0
-    @AppStorage(ScreendropPreferences.previewCloseAfterDraggingKey) private var closeAfterDragging = true
+    @AppStorage(FramechoPreferences.previewPositionKey) private var previewPositionRaw = PreviewOverlayPosition.right.rawValue
+    @AppStorage(FramechoPreferences.previewSizeKey) private var previewSizeRaw = PreviewOverlaySize.defaultSize.rawValue
+    @AppStorage(FramechoPreferences.previewAutoCloseSecondsKey) private var autoCloseSeconds = 0
+    @AppStorage(FramechoPreferences.previewCloseAfterDraggingKey) private var closeAfterDragging = true
 
     private let autoCloseOptions: [Int] = [0, 5, 10, 30, 60]
 

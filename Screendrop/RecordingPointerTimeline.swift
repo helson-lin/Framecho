@@ -1,6 +1,6 @@
 //
 //  RecordingPointerTimeline.swift
-//  Screendrop
+//  Framecho
 //
 //  Deterministic reconstruction of the pointer that was deliberately omitted
 //  from the screen master. Raw pointer samples select an intentional target;

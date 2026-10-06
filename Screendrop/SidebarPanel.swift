@@ -1,6 +1,6 @@
 //
 //  SidebarPanel.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

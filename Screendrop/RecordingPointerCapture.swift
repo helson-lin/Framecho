@@ -1,6 +1,6 @@
 //
 //  RecordingPointerCapture.swift
-//  Screendrop
+//  Framecho
 //
 //  Captures pointer interaction independently from the cursor-free screen
 //  master. Absolute input, pointer artwork, and per-frame window geometry
@@ -370,7 +370,7 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
             callback: callback,
             userInfo: userInfo
         ) else {
-            NSLog("[Screendrop] Pointer event tap unavailable; using sampled cursor fallback.")
+            NSLog("[Framecho] Pointer event tap unavailable; using sampled cursor fallback.")
             return false
         }
 
@@ -385,7 +385,7 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
         guard CGEvent.tapIsEnabled(tap: tap) else {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
             CFMachPortInvalidate(tap)
-            NSLog("[Screendrop] Pointer event tap created but not enabled (Input Monitoring not granted); using sampled cursor fallback.")
+            NSLog("[Framecho] Pointer event tap created but not enabled (Input Monitoring not granted); using sampled cursor fallback.")
             return false
         }
 
@@ -471,7 +471,7 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
     @MainActor
     private func installSampledTravelFallback() {
         let timer = DispatchSource.makeTimerSource(queue: DispatchQueue(
-            label: "com.screendrop.recording.pointer-capture",
+            label: "com.jarinhe.framecho.recording.pointer-capture",
             qos: .utility
         ))
         timer.schedule(deadline: .now(), repeating: 1.0 / 60.0, leeway: .milliseconds(4))

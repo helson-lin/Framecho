@@ -1,6 +1,6 @@
 //
 //  OnboardingWindowController.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

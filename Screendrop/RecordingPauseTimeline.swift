@@ -1,6 +1,6 @@
 //
 //  RecordingPauseTimeline.swift
-//  Screendrop
+//  Framecho
 //
 //  Pause bookkeeping shared by the screen and camera movie writers. Pauses
 //  are stamped on the host clock when the user presses Pause/Resume - the

@@ -1,6 +1,6 @@
 //
 //  UpdaterManager.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

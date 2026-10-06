@@ -1,6 +1,6 @@
 //
 //  RecordingExportFeedback.swift
-//  Screendrop
+//  Framecho
 //
 //  Surfaces Studio export progress and completion outside the editor window:
 //  a Dock icon progress bar while exporting, and a system notification once
@@ -100,7 +100,7 @@ enum RecordingExportNotifier {
     /// alone leaves them hunting for the export folder.
     @MainActor
     static func revealIfPreferred(fileURL: URL) {
-        guard ScreendropPreferences.revealExportInFinder else { return }
+        guard FramechoPreferences.revealExportInFinder else { return }
         reveal(path: fileURL.path)
     }
 

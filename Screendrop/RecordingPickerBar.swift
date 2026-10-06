@@ -1,6 +1,6 @@
 //
 //  RecordingPickerBar.swift
-//  Screendrop
+//  Framecho
 //
 //  The pre-record mode of the floating bar. "Record" anywhere in the app
 //  brings the bar up at the bottom of the active screen; it picks the source
@@ -40,11 +40,11 @@ extension RecordingBarPresenter {
 struct RecordingPickerControls: View {
     @State private var sources = RecordingSourceCatalog.shared
     @State private var microphoneLevel = MicrophoneLevelMonitor.shared
-    @AppStorage(ScreendropPreferences.recordingCameraDeviceIDKey) private var cameraID = ""
-    @AppStorage(ScreendropPreferences.recordingMicrophoneDeviceIDKey) private var microphoneID = ""
-    @AppStorage(ScreendropPreferences.recordingSystemAudioKey) private var systemAudio = false
-    @AppStorage(ScreendropPreferences.recordingStartDelaySecondsKey) private var startDelaySeconds = 0
-    @AppStorage(ScreendropPreferences.recordingTeleprompterEnabledKey) private var teleprompterEnabled = false
+    @AppStorage(FramechoPreferences.recordingCameraDeviceIDKey) private var cameraID = ""
+    @AppStorage(FramechoPreferences.recordingMicrophoneDeviceIDKey) private var microphoneID = ""
+    @AppStorage(FramechoPreferences.recordingSystemAudioKey) private var systemAudio = false
+    @AppStorage(FramechoPreferences.recordingStartDelaySecondsKey) private var startDelaySeconds = 0
+    @AppStorage(FramechoPreferences.recordingTeleprompterEnabledKey) private var teleprompterEnabled = false
 
     private static let timerOptions = [0, 1, 3, 5]
 

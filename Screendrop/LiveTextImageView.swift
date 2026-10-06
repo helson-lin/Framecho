@@ -1,6 +1,6 @@
 //
 //  LiveTextImageView.swift
-//  Screendrop
+//  Framecho
 //
 //  An image view with Live Text: the text in the image can be selected,
 //  copied, looked up, and translated in place, the way Preview and Photos

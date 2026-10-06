@@ -1,6 +1,6 @@
 //
 //  AnnotationImageCropper.swift
-//  Screendrop
+//  Framecho
 //
 //  Crops a source image at its native pixel resolution and writes the result
 //  to a temporary PNG. Cropping happens on the full-resolution `CGImage`, so no
@@ -51,7 +51,7 @@ enum AnnotationImageCropper {
         }
 
         let destinationURL = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("Screendrop_Crop_\(UUID().uuidString.prefix(8)).png")
+            .appendingPathComponent("Framecho_Crop_\(UUID().uuidString.prefix(8)).png")
 
         guard let destination = CGImageDestinationCreateWithURL(
             destinationURL as CFURL,

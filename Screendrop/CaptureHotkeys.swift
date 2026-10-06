@@ -1,6 +1,6 @@
 //
 //  CaptureHotkeys.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit

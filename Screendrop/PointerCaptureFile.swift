@@ -1,6 +1,6 @@
 //
 //  PointerCaptureFile.swift
-//  Screendrop
+//  Framecho
 //
 //  What a recording captured of the pointer and keyboard, stored beside the
 //  movie. Kept apart from the session so the timelines built from it can be

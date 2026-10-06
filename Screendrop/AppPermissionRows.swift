@@ -1,6 +1,6 @@
 //
 //  AppPermissionRows.swift
-//  Screendrop
+//  Framecho
 //
 //  The permission list Settings shows: each permission with its live status
 //  and the one action that moves it forward.

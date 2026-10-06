@@ -1,6 +1,6 @@
 //
 //  OnboardingView.swift
-//  Screendrop
+//  Framecho
 //
 //  The setup guide: a card over a dimmed, blurred screen that walks through
 //  what Framecho does, the permissions it needs, and the shortcut to try.

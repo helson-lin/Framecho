@@ -1,6 +1,6 @@
 //
 //  AppPermissions.swift
-//  Screendrop
+//  Framecho
 //
 //  One place that knows every privacy permission Framecho asks for: what it
 //  is for, whether it's granted, how to ask, and where in System Settings to

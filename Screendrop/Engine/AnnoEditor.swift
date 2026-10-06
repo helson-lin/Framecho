@@ -7,7 +7,7 @@ import Foundation
 /// Page space is the screenshot's own pixel space. The canvas hands the editor a `viewport`
 /// describing where the image sits on screen and at what scale, and every screen/page conversion
 /// goes through that - so panning, zooming and the background layout stay owned by the existing
-/// Screendrop chrome while the engine stays a pure model.
+/// Framecho chrome while the engine stays a pure model.
 
 /// Which part of the selection the pointer grabbed.
 enum AnnoSelectionHandle: Equatable {

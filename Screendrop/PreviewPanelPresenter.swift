@@ -1,6 +1,6 @@
 //
 //  PreviewPanelPresenter.swift
-//  Screendrop
+//  Framecho
 //
 //  Created by Codex on 30/04/26.
 //

@@ -1,6 +1,6 @@
 //
 //  RecordingCompositionBuilder.swift
-//  Screendrop
+//  Framecho
 //
 //  Shared gap-closing composition used by Studio playback and export.
 //

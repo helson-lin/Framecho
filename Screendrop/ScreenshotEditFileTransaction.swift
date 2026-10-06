@@ -6,7 +6,7 @@ nonisolated enum ScreenshotEditFileTransaction {
     static func apply(replacements: [(source: URL, destination: URL)], removing: [URL] = []) throws {
         let manager = FileManager.default
         guard let directory = (replacements.first?.destination ?? removing.first)?.deletingLastPathComponent() else { return }
-        let staging = directory.appendingPathComponent(".screendrop-save-\(UUID().uuidString)", isDirectory: true)
+        let staging = directory.appendingPathComponent(".framecho-save-\(UUID().uuidString)", isDirectory: true)
         try manager.createDirectory(at: staging, withIntermediateDirectories: false)
         var keepBackup = false
         defer { if !keepBackup { try? manager.removeItem(at: staging) } }
@@ -49,7 +49,7 @@ nonisolated enum ScreenshotEditFileTransaction {
                 }
             }
             if keepBackup {
-                throw NSError(domain: "Screendrop.ScreenshotSave", code: 1, userInfo: [
+                throw NSError(domain: "Framecho.ScreenshotSave", code: 1, userInfo: [
                     NSLocalizedDescriptionKey: String(localized: "The screenshot could not be saved or fully restored. Recovery files are kept at \(staging.path)."),
                     NSUnderlyingErrorKey: saveError
                 ])

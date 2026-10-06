@@ -1,6 +1,6 @@
 //
 //  RecordingExportBenchmark.swift
-//  Screendrop
+//  Framecho
 //
 //  Debug-only headless export timing. Launch the binary with
 //  `-benchmarkExport <path to .framechorec>` and it renders that

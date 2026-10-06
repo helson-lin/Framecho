@@ -1,6 +1,6 @@
 //
 //  RecordingClipTimeline.swift
-//  Screendrop
+//  Framecho
 //
 //  Non-destructive edit map for the recording Studio. The source movie is
 //  never modified: each clip keeps a range on the original recording, while

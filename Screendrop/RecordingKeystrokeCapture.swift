@@ -1,6 +1,6 @@
 //
 //  RecordingKeystrokeCapture.swift
-//  Screendrop
+//  Framecho
 //
 //  Captures keyboard shortcuts during recording as timestamped events on the
 //  host clock, mirroring PointerActivityRecorder. Nothing is drawn while
@@ -181,7 +181,7 @@ final class RecordingKeystrokeRecorder {
             callback: callback,
             userInfo: userInfo
         ) else {
-            NSLog("[Screendrop] Keystroke event tap unavailable; using NSEvent monitors only.")
+            NSLog("[Framecho] Keystroke event tap unavailable; using NSEvent monitors only.")
             return
         }
 

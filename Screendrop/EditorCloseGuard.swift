@@ -1,6 +1,6 @@
 //
 //  EditorCloseGuard.swift
-//  Screendrop
+//  Framecho
 //
 //  Closing an editor window with uncommitted edits asks first - Studio and
 //  the annotation editor both use this. SwiftUI has no

@@ -1,6 +1,6 @@
 //
 //  AnnotationCropModels.swift
-//  Screendrop
+//  Framecho
 //
 //  Geometry and presets for the crop tool. All crop math operates in the
 //  image's normalized coordinate space (0...1, top-left origin, y-down), the

@@ -1,6 +1,6 @@
 //
 //  RecordingMotionSpring.swift
-//  Screendrop
+//  Framecho
 //
 //  One physically integrated spring, shared by the viewport and pointer
 //  timelines so both settle with the same semi-implicit Euler step instead of

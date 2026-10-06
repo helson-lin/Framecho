@@ -1,6 +1,6 @@
 //
 //  RecordingControlPresenter.swift
-//  Screendrop
+//  Framecho
 //
 //  Created by Codex on 01/05/26.
 //
@@ -34,7 +34,7 @@ struct RecordingSessionControls: View {
     /// Present from the morph onwards rather than from the first audio
     /// buffer, so the bar doesn't widen again a moment after it settles. A
     /// microphone that can't be used is cleared here before capture starts.
-    @AppStorage(ScreendropPreferences.recordingMicrophoneDeviceIDKey) private var microphoneID = ""
+    @AppStorage(FramechoPreferences.recordingMicrophoneDeviceIDKey) private var microphoneID = ""
     /// The destructive control waiting for its second click, if any.
     @State private var armed: BarTooltipID?
     @State private var disarmTask: Task<Void, Never>?

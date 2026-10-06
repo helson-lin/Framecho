@@ -1,9 +1,9 @@
 import CoreGraphics
 
 // Compile the pin's real geometry without launching the app:
-// xcrun swiftc -module-cache-path /tmp/screendrop-pin-module-cache \
+// xcrun swiftc -module-cache-path /tmp/framecho-pin-module-cache \
 //   Screendrop/PinnedScreenshotGeometry.swift scripts/check-pinned-geometry.swift \
-//   -o /tmp/screendrop-pin-check && /tmp/screendrop-pin-check
+//   -o /tmp/framecho-pin-check && /tmp/framecho-pin-check
 @main
 struct PinnedGeometryChecks {
     static var checks = 0

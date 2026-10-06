@@ -1,6 +1,6 @@
 //
 //  RecordingExportOptions.swift
-//  Screendrop
+//  Framecho
 //
 //  Export settings are asked for at the moment of export rather than parked
 //  in a collapsed inspector section nobody opens. Mirrors the share flow in

@@ -1,6 +1,6 @@
 //
 //  RecordingTranscription.swift
-//  Screendrop
+//  Framecho
 //
 //  Narration subtitles for the recording studio: SpeechAnalyzer (the
 //  macOS 26 on-device transcription engine) turns the recorded microphone
@@ -433,7 +433,7 @@ nonisolated enum RecordingTranscriptionService {
             throw TranscriptionError.narrationUnreadable
         }
         let outputURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("screendrop-narration-\(UUID().uuidString)")
+            .appendingPathComponent("framecho-narration-\(UUID().uuidString)")
             .appendingPathExtension("m4a")
         try await exportSession.export(to: outputURL, as: .m4a)
         return outputURL

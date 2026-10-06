@@ -1,6 +1,6 @@
 //
 //  CloudSidecarUploader.swift
-//  Screendrop
+//  Framecho
 //
 //  After a video reaches the cloud worker, this ships the assets that
 //  turn its share page into a Loom-style viewer: a poster frame, a human
@@ -354,7 +354,7 @@ nonisolated enum CloudSidecarUploader {
             throw CloudUploadError.invalidURL
         }
 
-        let boundary = "screendrop-\(UUID().uuidString)"
+        let boundary = "framecho-\(UUID().uuidString)"
         var body = Data()
         func appendLine(_ string: String) {
             body.append(Data(string.utf8))

@@ -1,6 +1,6 @@
 //
-//  ScreendropApp.swift
-//  Screendrop
+//  FramechoApp.swift
+//  Framecho
 //
 //  Created by Fayaz Ahmed Aralikatti on 26/04/26.
 //
@@ -11,10 +11,10 @@ import UserNotifications
 import Carbon
 
 @main
-struct ScreendropApp: App {
+struct FramechoApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Environment(\.openWindow) var openWindow
-    @AppStorage(ScreendropPreferences.showMenuBarIconKey) private var showMenuBarIcon = true
+    @AppStorage(FramechoPreferences.showMenuBarIconKey) private var showMenuBarIcon = true
 
     init() {
         // Before any store reads History or the recordings folder.
@@ -123,7 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let updaterManager = UpdaterManager.shared
     private var openedFilesAtLaunch = false
 
-    /// Files handed to us via Finder's "Open With" (or `open -a Screendrop`)
+    /// Files handed to us via Finder's "Open With" (or `open -a Framecho`)
     /// before `onOpenFiles` is wired up, e.g. a cold launch where SwiftUI's
     /// scene body - and therefore the `openWindow` closure - hasn't run yet.
     private var pendingOpenURLs: [URL] = []
@@ -168,7 +168,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Finder "Open With" / `open -a Screendrop file.png` entry point.
+    /// Finder "Open With" / `open -a Framecho file.png` entry point.
     func application(_ application: NSApplication, open urls: [URL]) {
         openedFilesAtLaunch = true
         guard let onOpenFiles else {

@@ -1,6 +1,6 @@
 //
 //  MenuBarView.swift
-//  Screendrop
+//  Framecho
 //
 //  Created by Fayaz Ahmed Aralikatti on 26/04/26.
 //
@@ -218,7 +218,7 @@ struct MenuBarView: View {
     }
 
     private func openScreenshotsFolder() {
-        let directory = ScreendropPreferences.exportDirectory
+        let directory = FramechoPreferences.exportDirectory
 
         do {
             try FileManager.default.createDirectory(

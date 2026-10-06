@@ -1,6 +1,6 @@
 //
 //  NotchBarTrimmer.swift
-//  Screendrop
+//  Framecho
 //
 //  On notched Macs, a fullscreen app with the menu bar hidden leaves a solid
 //  black strip across the top of a fullscreen display capture (the menu-bar /
@@ -28,7 +28,7 @@ nonisolated enum NotchBarTrimmer {
     /// main actor; the pixel work in `trimmingEmptyMenuBar` does not.
     @MainActor
     static func stripFraction(displayID: CGDirectDisplayID) -> CGFloat? {
-        guard ScreendropPreferences.trimFullscreenMenuBar,
+        guard FramechoPreferences.trimFullscreenMenuBar,
               let screen = NSScreen.matching(displayID: displayID) else { return nil }
         let topInset = screen.safeAreaInsets.top
         let screenHeight = screen.frame.height

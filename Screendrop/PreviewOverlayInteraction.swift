@@ -1,6 +1,6 @@
 //
 //  PreviewOverlayInteraction.swift
-//  Screendrop
+//  Framecho
 //
 //  Hit-test passthrough + peek tab for the always-on preview overlay.
 //

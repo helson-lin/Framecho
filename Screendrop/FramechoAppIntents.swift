@@ -1,6 +1,6 @@
 //
-//  ScreendropAppIntents.swift
-//  Screendrop
+//  FramechoAppIntents.swift
+//  Framecho
 //
 //  Exposes capture and recording actions to Shortcuts, Siri, and Spotlight
 //  via the App Intents framework. Every intent funnels through the same
@@ -20,7 +20,7 @@ import ScreenCaptureKit
 
 // MARK: - Errors
 
-nonisolated enum ScreendropIntentError: Error, CustomLocalizedStringResourceConvertible {
+nonisolated enum FramechoIntentError: Error, CustomLocalizedStringResourceConvertible {
     case captureCancelled
     case noTextRecognized
     case recordingAlreadyActive
@@ -54,7 +54,7 @@ nonisolated struct TakeFullScreenScreenshotIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<IntentFile> {
         guard let url = await CaptureCoordinator.shared.captureFullscreenAwaiting() else {
-            throw ScreendropIntentError.captureCancelled
+            throw FramechoIntentError.captureCancelled
         }
         return .result(value: IntentFile(fileURL: url))
     }
@@ -69,7 +69,7 @@ nonisolated struct TakeWindowScreenshotIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<IntentFile> {
         guard let url = await CaptureCoordinator.shared.captureWindowAwaiting() else {
-            throw ScreendropIntentError.captureCancelled
+            throw FramechoIntentError.captureCancelled
         }
         return .result(value: IntentFile(fileURL: url))
     }
@@ -84,7 +84,7 @@ nonisolated struct TakeAreaScreenshotIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<IntentFile> {
         guard let url = await CaptureCoordinator.shared.captureAreaAwaiting() else {
-            throw ScreendropIntentError.captureCancelled
+            throw FramechoIntentError.captureCancelled
         }
         return .result(value: IntentFile(fileURL: url))
     }
@@ -100,9 +100,9 @@ nonisolated struct CaptureTextIntent: AppIntent {
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
         switch await CaptureCoordinator.shared.captureTextAwaiting() {
         case .cancelled:
-            throw ScreendropIntentError.captureCancelled
+            throw FramechoIntentError.captureCancelled
         case .noTextFound:
-            throw ScreendropIntentError.noTextRecognized
+            throw FramechoIntentError.noTextRecognized
         case .copied(let text):
             return .result(value: text)
         }
@@ -117,13 +117,13 @@ nonisolated struct CaptureTextIntent: AppIntent {
 @MainActor
 private func startFullScreenRecording() async throws {
     guard !ScreenRecordingManager.shared.isActive else {
-        throw ScreendropIntentError.recordingAlreadyActive
+        throw FramechoIntentError.recordingAlreadyActive
     }
     let displayID = ActiveDisplayResolver.activeDisplayID(preferPointer: false)
     guard let content = try? await ScreenRecordingCapture.availableContent(),
           let display = content.displays.first(where: { $0.displayID == displayID })
             ?? content.displays.first else {
-        throw ScreendropIntentError.noDisplayAvailable
+        throw FramechoIntentError.noDisplayAvailable
     }
     CaptureCoordinator.shared.recordFullscreen(display)
 }
@@ -150,7 +150,7 @@ nonisolated struct StopScreenRecordingIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         guard ScreenRecordingManager.shared.isActive else {
-            throw ScreendropIntentError.noActiveRecording
+            throw FramechoIntentError.noActiveRecording
         }
         ScreenRecordingManager.shared.stopRecording()
         return .result()
@@ -176,7 +176,7 @@ nonisolated struct ToggleScreenRecordingIntent: AppIntent {
 
 // MARK: - Shortcuts
 
-nonisolated struct ScreendropShortcuts: AppShortcutsProvider {
+nonisolated struct FramechoShortcuts: AppShortcutsProvider {
     @AppShortcutsBuilder
     static var appShortcuts: [AppShortcut] {
         AppShortcut(

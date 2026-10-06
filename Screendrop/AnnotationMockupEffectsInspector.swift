@@ -1,6 +1,6 @@
 //
 //  AnnotationMockupEffectsInspector.swift
-//  Screendrop
+//  Framecho
 //
 
 import SwiftUI

@@ -1,6 +1,6 @@
 //
 //  CloudImageTranscoder.swift
-//  Screendrop
+//  Framecho
 //
 //  Screenshots live in History as lossless PNG, which is far heavier than a
 //  share page needs. Before a cloud upload the image is re-encoded as AVIF -

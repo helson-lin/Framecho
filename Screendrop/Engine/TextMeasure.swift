@@ -3,7 +3,7 @@ import CoreGraphics
 import CoreText
 import Foundation
 
-/// The three system faces annotations can be set in. Screendrop used to expose every installed
+/// The three system faces annotations can be set in. Framecho used to expose every installed
 /// family; the SF faces are the only ones that look right over a macOS screenshot and the only ones
 /// guaranteed to be present, so the picker is limited to them.
 enum AnnoFontFamily: String, CaseIterable, Codable, Identifiable {

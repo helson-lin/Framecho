@@ -1,6 +1,6 @@
 //
 //  ScreenshotHistoryItem.swift
-//  Screendrop
+//  Framecho
 //
 //  One row of History's history.json, and how the file is read back. Kept
 //  apart from the store so scripts/check-history-metadata.swift can decode

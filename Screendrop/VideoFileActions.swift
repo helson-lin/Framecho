@@ -1,6 +1,6 @@
 //
 //  VideoFileActions.swift
-//  Screendrop
+//  Framecho
 //
 //  Created by Codex on 01/05/26.
 //
@@ -95,7 +95,7 @@ enum VideoFileActions {
 
     @discardableResult
     static func saveToDefaultLocation(from url: URL, suggestedFileName: String? = nil) async throws -> URL {
-        let destinationDirectory = ScreendropPreferences.exportDirectory
+        let destinationDirectory = FramechoPreferences.exportDirectory
         try FileManager.default.createDirectory(
             at: destinationDirectory,
             withIntermediateDirectories: true

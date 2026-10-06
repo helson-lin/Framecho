@@ -1,6 +1,6 @@
 //
 //  AnnotationSwatch.swift
-//  Screendrop
+//  Framecho
 //
 
 import AppKit
