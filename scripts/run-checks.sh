@@ -54,84 +54,84 @@ check() {
 }
 
 check card-motion \
-  Screendrop/ProjectiveHomography.swift Screendrop/RecordingClipTimeline.swift \
-  Screendrop/RecordingCardMotion.swift scripts/check-card-motion.swift
+  Framecho/ProjectiveHomography.swift Framecho/RecordingClipTimeline.swift \
+  Framecho/RecordingCardMotion.swift scripts/check-card-motion.swift
 
 check editor-viewport \
-  Screendrop/AnnotationCanvasViewport.swift scripts/check-editor-viewport.swift
+  Framecho/AnnotationCanvasViewport.swift scripts/check-editor-viewport.swift
 
 check screenshot-save \
-  Screendrop/ScreenshotEditFileTransaction.swift scripts/check-screenshot-save.swift
+  Framecho/ScreenshotEditFileTransaction.swift scripts/check-screenshot-save.swift
 
 check recording-export-options -parse-as-library \
-  Screendrop/VideoCompressionModels.swift Screendrop/RecordingExportTiming.swift \
+  Framecho/VideoCompressionModels.swift Framecho/RecordingExportTiming.swift \
   scripts/check-recording-export-options.swift
 
 check editor-resources "${strict[@]}" \
-  Screendrop/BoundedCGImageCache.swift Screendrop/AnnoRedactionPreviewCache.swift \
-  Screendrop/StudioScreenLayerCache.swift scripts/check-editor-resources.swift
+  Framecho/BoundedCGImageCache.swift Framecho/AnnoRedactionPreviewCache.swift \
+  Framecho/StudioScreenLayerCache.swift scripts/check-editor-resources.swift
 
 check recording-pause "${strict[@]}" \
-  Screendrop/RecordingPauseTimeline.swift scripts/check-recording-pause.swift
+  Framecho/RecordingPauseTimeline.swift scripts/check-recording-pause.swift
 
 check library-date-sections "${strict[@]}" \
-  Screendrop/CaptureLibraryDateSections.swift scripts/check-library-date-sections.swift
+  Framecho/CaptureLibraryDateSections.swift scripts/check-library-date-sections.swift
 
 check cloud-image-transcode -default-isolation MainActor -parse-as-library \
-  Screendrop/CloudImageTranscoder.swift Screendrop/CloudUploadOptions.swift \
+  Framecho/CloudImageTranscoder.swift Framecho/CloudUploadOptions.swift \
   scripts/check-cloud-image-transcode.swift
 
 check text-recognition -default-isolation MainActor -parse-as-library \
-  Screendrop/ImageTextRecognizer.swift scripts/check-text-recognition.swift
+  Framecho/ImageTextRecognizer.swift scripts/check-text-recognition.swift
 
 check pinned-geometry "${strict[@]}" \
-  Screendrop/PinnedScreenshotGeometry.swift scripts/check-pinned-geometry.swift
+  Framecho/PinnedScreenshotGeometry.swift scripts/check-pinned-geometry.swift
 
 check app-permissions "${strict[@]}" \
-  Screendrop/AppPermission.swift scripts/check-app-permissions.swift
+  Framecho/AppPermission.swift scripts/check-app-permissions.swift
 
 check onboarding-launch "${strict[@]}" \
-  Screendrop/OnboardingLaunch.swift scripts/check-onboarding-launch.swift
+  Framecho/OnboardingLaunch.swift scripts/check-onboarding-launch.swift
 
 # The annotation engine without its AppKit drawing and text-editing views.
 engine=(
-  Screendrop/Engine/AnnoEditor.swift Screendrop/Engine/AnnoEditorInteraction.swift
-  Screendrop/Engine/ArrowShared.swift Screendrop/Engine/ArrowTypes.swift Screendrop/Engine/Arrowheads.swift
-  Screendrop/Engine/Box.swift Screendrop/Engine/CurvedArrow.swift Screendrop/Engine/Document.swift
-  Screendrop/Engine/GeoPaths.swift Screendrop/Engine/Geometry2d.swift Screendrop/Engine/InkPath.swift
-  Screendrop/Engine/Intersect.swift Screendrop/Engine/Mat.swift Screendrop/Engine/MathUtils.swift
-  Screendrop/Engine/PathBuilder.swift Screendrop/Engine/PerfectDash.swift Screendrop/Engine/Shape.swift
-  Screendrop/Engine/ShapeRenderer.swift Screendrop/Engine/Shapes2d.swift Screendrop/Engine/StraightArrow.swift
-  Screendrop/Engine/StrokeOptions.swift Screendrop/Engine/StrokeOutline.swift Screendrop/Engine/StrokePipeline.swift
-  Screendrop/Engine/TextMeasure.swift Screendrop/Engine/Theme.swift Screendrop/Engine/Vec.swift
-  Screendrop/AnnotationTool.swift Screendrop/AnnotationSwatch.swift
+  Framecho/Engine/AnnoEditor.swift Framecho/Engine/AnnoEditorInteraction.swift
+  Framecho/Engine/ArrowShared.swift Framecho/Engine/ArrowTypes.swift Framecho/Engine/Arrowheads.swift
+  Framecho/Engine/Box.swift Framecho/Engine/CurvedArrow.swift Framecho/Engine/Document.swift
+  Framecho/Engine/GeoPaths.swift Framecho/Engine/Geometry2d.swift Framecho/Engine/InkPath.swift
+  Framecho/Engine/Intersect.swift Framecho/Engine/Mat.swift Framecho/Engine/MathUtils.swift
+  Framecho/Engine/PathBuilder.swift Framecho/Engine/PerfectDash.swift Framecho/Engine/Shape.swift
+  Framecho/Engine/ShapeRenderer.swift Framecho/Engine/Shapes2d.swift Framecho/Engine/StraightArrow.swift
+  Framecho/Engine/StrokeOptions.swift Framecho/Engine/StrokeOutline.swift Framecho/Engine/StrokePipeline.swift
+  Framecho/Engine/TextMeasure.swift Framecho/Engine/Theme.swift Framecho/Engine/Vec.swift
+  Framecho/AnnotationTool.swift Framecho/AnnotationSwatch.swift
 )
 
 check annotation-engine -default-isolation MainActor -parse-as-library \
   "${engine[@]}" scripts/check-annotation-engine.swift
 
 check annotation-document -default-isolation MainActor -parse-as-library \
-  "${engine[@]}" Screendrop/AnnotationDocument.swift Screendrop/AnnotationBackground.swift \
-  Screendrop/AnnotationPresetStore.swift Screendrop/AnnotationShadowStyle.swift Screendrop/AnnotationMetrics.swift \
+  "${engine[@]}" Framecho/AnnotationDocument.swift Framecho/AnnotationBackground.swift \
+  Framecho/AnnotationPresetStore.swift Framecho/AnnotationShadowStyle.swift Framecho/AnnotationMetrics.swift \
   scripts/check-annotation-document.swift
 
 check history-metadata "${strict[@]}" \
-  Screendrop/ScreenshotHistoryItem.swift scripts/check-history-metadata.swift
+  Framecho/ScreenshotHistoryItem.swift scripts/check-history-metadata.swift
 
 check legacy-storage-migration "${strict[@]}" \
-  Screendrop/LegacyStorageMigration.swift scripts/check-legacy-storage-migration.swift
+  Framecho/LegacyStorageMigration.swift scripts/check-legacy-storage-migration.swift
 
 check hotkeys "${strict[@]}" \
-  Screendrop/CaptureHotkeys.swift scripts/check-hotkeys.swift
+  Framecho/CaptureHotkeys.swift scripts/check-hotkeys.swift
 
 check background-layout -default-isolation MainActor -parse-as-library \
-  Screendrop/AnnotationBackgroundLayout.swift Screendrop/AnnotationBackground.swift \
-  Screendrop/AnnotationShadowStyle.swift Screendrop/AnnotationSwatch.swift scripts/check-background-layout.swift
+  Framecho/AnnotationBackgroundLayout.swift Framecho/AnnotationBackground.swift \
+  Framecho/AnnotationShadowStyle.swift Framecho/AnnotationSwatch.swift scripts/check-background-layout.swift
 
 check recording-timelines "${strict[@]}" \
-  Screendrop/RecordingViewportTimeline.swift Screendrop/RecordingPointerTimeline.swift \
-  Screendrop/RecordingPointerStream.swift Screendrop/RecordingMotionSpring.swift \
-  Screendrop/RecordingClipTimeline.swift Screendrop/PointerCaptureFile.swift \
-  Screendrop/RecordingOverlayEffects.swift scripts/check-recording-timelines.swift
+  Framecho/RecordingViewportTimeline.swift Framecho/RecordingPointerTimeline.swift \
+  Framecho/RecordingPointerStream.swift Framecho/RecordingMotionSpring.swift \
+  Framecho/RecordingClipTimeline.swift Framecho/PointerCaptureFile.swift \
+  Framecho/RecordingOverlayEffects.swift scripts/check-recording-timelines.swift
 
 echo "All checks passed."

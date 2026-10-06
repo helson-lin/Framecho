@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "3163891C2F9DC05A002A7AF3"
-               BuildableName = "Screendrop.app"
-               BlueprintName = "Screendrop"
-               ReferencedContainer = "container:Screendrop.xcodeproj">
+               BuildableName = "Framecho.app"
+               BlueprintName = "Framecho"
+               ReferencedContainer = "container:Framecho.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -31,7 +31,7 @@
       shouldAutocreateTestPlan = "YES">
    </TestAction>
    <LaunchAction
-      buildConfiguration = "Debug"
+      buildConfiguration = "Debug Dev"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       launchStyle = "0"
@@ -46,17 +46,11 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "3163891C2F9DC05A002A7AF3"
-            BuildableName = "Screendrop.app"
-            BlueprintName = "Screendrop"
-            ReferencedContainer = "container:Screendrop.xcodeproj">
+            BuildableName = "Framecho.app"
+            BlueprintName = "Framecho"
+            ReferencedContainer = "container:Framecho.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <CommandLineArguments>
-         <CommandLineArgument
-            argument = "--demo-mode"
-            isEnabled = "YES">
-         </CommandLineArgument>
-      </CommandLineArguments>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
@@ -69,9 +63,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "3163891C2F9DC05A002A7AF3"
-            BuildableName = "Screendrop.app"
-            BlueprintName = "Screendrop"
-            ReferencedContainer = "container:Screendrop.xcodeproj">
+            BuildableName = "Framecho.app"
+            BlueprintName = "Framecho"
+            ReferencedContainer = "container:Framecho.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

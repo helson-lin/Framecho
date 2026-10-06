@@ -122,7 +122,7 @@ struct MotionBlurBenchmark {
     static func main() async throws {
         guard let device = MTLCreateSystemDefaultDevice() else { fatalError("No Metal device") }
         let library = try await device.makeLibrary(
-            source: String(contentsOfFile: "Screendrop/StudioMotionBlur.metal", encoding: .utf8), options: nil)
+            source: String(contentsOfFile: "Framecho/StudioMotionBlur.metal", encoding: .utf8), options: nil)
         let output = URL(fileURLWithPath: "/tmp/framecho-motion-blur-benchmark", isDirectory: true)
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         print("Device: \(device.name)")

@@ -53,8 +53,8 @@ From the repository root, with Xcode selected and access to the Mac's GPU:
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc \
   -O -swift-version 6 -strict-concurrency=complete -default-isolation MainActor \
   -module-cache-path /tmp/screendrop-metal-module-cache -parse-as-library \
-  Screendrop/StudioMetalScreenRenderer.swift \
-  Screendrop/StudioScreenLayerCache.swift \
+  Framecho/StudioMetalScreenRenderer.swift \
+  Framecho/StudioScreenLayerCache.swift \
   scripts/benchmark-studio-motion-blur.swift \
   -o /tmp/screendrop-motion-blur-benchmark-bin
 
@@ -98,7 +98,7 @@ This standalone harness uses the production settings decoder and timing/sampling
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc \
   -O -swift-version 6 -strict-concurrency=complete -default-isolation MainActor \
   -module-cache-path /tmp/screendrop-metal-module-cache -parse-as-library \
-  Screendrop/VideoCompressionModels.swift Screendrop/RecordingExportTiming.swift \
+  Framecho/VideoCompressionModels.swift Framecho/RecordingExportTiming.swift \
   scripts/check-recording-export-options.swift -o /tmp/screendrop-export-options-check
 /tmp/screendrop-export-options-check
 ```

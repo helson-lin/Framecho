@@ -2,7 +2,7 @@ import Foundation
 
 // Compile the permission catalogue and its rules without launching the app:
 // xcrun swiftc -module-cache-path /tmp/framecho-permissions-module-cache \
-//   Screendrop/AppPermission.swift scripts/check-app-permissions.swift \
+//   Framecho/AppPermission.swift scripts/check-app-permissions.swift \
 //   -o /tmp/framecho-permissions-check && /tmp/framecho-permissions-check
 @main
 struct AppPermissionChecks {

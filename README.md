@@ -190,8 +190,8 @@ git clone https://github.com/helson-lin/Screendrop.git
 cd Screendrop
 
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
-  -project Screendrop.xcodeproj \
-  -scheme Screendrop \
+  -project Framecho.xcodeproj \
+  -scheme Framecho \
   -configuration Debug \
   -destination "platform=macOS"
 ```

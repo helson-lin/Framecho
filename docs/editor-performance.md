@@ -29,8 +29,8 @@ These checks use synthetic data and do not launch Screendrop. Run from the repos
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc \
   -O -swift-version 6 -strict-concurrency=complete -default-isolation MainActor \
   -module-cache-path /tmp/screendrop-metal-module-cache -parse-as-library \
-  Screendrop/BoundedCGImageCache.swift Screendrop/AnnoRedactionPreviewCache.swift \
-  Screendrop/StudioScreenLayerCache.swift scripts/check-editor-resources.swift \
+  Framecho/BoundedCGImageCache.swift Framecho/AnnoRedactionPreviewCache.swift \
+  Framecho/StudioScreenLayerCache.swift scripts/check-editor-resources.swift \
   -o /tmp/screendrop-editor-resources-check
 /tmp/screendrop-editor-resources-check
 ```
@@ -43,7 +43,7 @@ First run the [export harness](export-performance.md#standalone-check) with `--e
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc \
   -O -swift-version 6 -strict-concurrency=complete -default-isolation MainActor \
   -module-cache-path /tmp/screendrop-metal-module-cache -parse-as-library \
-  Screendrop/SmartRedactionRecognizer.swift Screendrop/RecordingTimelineThumbnails.swift \
+  Framecho/SmartRedactionRecognizer.swift Framecho/RecordingTimelineThumbnails.swift \
   scripts/check-editor-cancellation.swift -o /tmp/screendrop-editor-cancellation-check
 /tmp/screendrop-editor-cancellation-check
 ```

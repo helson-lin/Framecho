@@ -3,7 +3,7 @@ import Foundation
 // Runs the launch-time rename of pre-Framecho documents on a scratch
 // Application Support folder:
 // xcrun swiftc -module-cache-path /tmp/framecho-migration-module-cache \
-//   Screendrop/LegacyStorageMigration.swift scripts/check-legacy-storage-migration.swift \
+//   Framecho/LegacyStorageMigration.swift scripts/check-legacy-storage-migration.swift \
 //   -o /tmp/framecho-migration-check && /tmp/framecho-migration-check
 @main
 struct LegacyStorageMigrationChecks {

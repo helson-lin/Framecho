@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "3163891C2F9DC05A002A7AF3"
-               BuildableName = "Screendrop.app"
-               BlueprintName = "Screendrop"
-               ReferencedContainer = "container:Screendrop.xcodeproj">
+               BuildableName = "Framecho.app"
+               BlueprintName = "Framecho"
+               ReferencedContainer = "container:Framecho.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -46,9 +46,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "3163891C2F9DC05A002A7AF3"
-            BuildableName = "Screendrop.app"
-            BlueprintName = "Screendrop"
-            ReferencedContainer = "container:Screendrop.xcodeproj">
+            BuildableName = "Framecho.app"
+            BlueprintName = "Framecho"
+            ReferencedContainer = "container:Framecho.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -63,9 +63,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "3163891C2F9DC05A002A7AF3"
-            BuildableName = "Screendrop.app"
-            BlueprintName = "Screendrop"
-            ReferencedContainer = "container:Screendrop.xcodeproj">
+            BuildableName = "Framecho.app"
+            BlueprintName = "Framecho"
+            ReferencedContainer = "container:Framecho.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

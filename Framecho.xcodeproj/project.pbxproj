@@ -12,13 +12,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		3163891D2F9DC05A002A7AF3 /* Screendrop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Screendrop.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3163891D2F9DC05A002A7AF3 /* Framecho.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Framecho.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		3163891F2F9DC05A002A7AF3 /* Screendrop */ = {
+		3163891F2F9DC05A002A7AF3 /* Framecho */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Screendrop;
+			path = Framecho;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -39,7 +39,7 @@
 		316389142F9DC05A002A7AF3 = {
 			isa = PBXGroup;
 			children = (
-				3163891F2F9DC05A002A7AF3 /* Screendrop */,
+				3163891F2F9DC05A002A7AF3 /* Framecho */,
 				3163891E2F9DC05A002A7AF3 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -47,7 +47,7 @@
 		3163891E2F9DC05A002A7AF3 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				3163891D2F9DC05A002A7AF3 /* Screendrop.app */,
+				3163891D2F9DC05A002A7AF3 /* Framecho.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -55,9 +55,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		3163891C2F9DC05A002A7AF3 /* Screendrop */ = {
+		3163891C2F9DC05A002A7AF3 /* Framecho */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 316389282F9DC05B002A7AF3 /* Build configuration list for PBXNativeTarget "Screendrop" */;
+			buildConfigurationList = 316389282F9DC05B002A7AF3 /* Build configuration list for PBXNativeTarget "Framecho" */;
 			buildPhases = (
 				316389192F9DC05A002A7AF3 /* Sources */,
 				3163891A2F9DC05A002A7AF3 /* Frameworks */,
@@ -68,15 +68,15 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				3163891F2F9DC05A002A7AF3 /* Screendrop */,
+				3163891F2F9DC05A002A7AF3 /* Framecho */,
 			);
-			name = Screendrop;
+			name = Framecho;
 			packageProductDependencies = (
 				31A100012F9DC05A002A7AF3 /* Sparkle */,
 				6711E7AD88BD96C1258D3CE6 /* DockProgress */,
 			);
-			productName = Screendrop;
-			productReference = 3163891D2F9DC05A002A7AF3 /* Screendrop.app */;
+			productName = Framecho;
+			productReference = 3163891D2F9DC05A002A7AF3 /* Framecho.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -94,7 +94,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 316389182F9DC05A002A7AF3 /* Build configuration list for PBXProject "Screendrop" */;
+			buildConfigurationList = 316389182F9DC05A002A7AF3 /* Build configuration list for PBXProject "Framecho" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -113,7 +113,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				3163891C2F9DC05A002A7AF3 /* Screendrop */,
+				3163891C2F9DC05A002A7AF3 /* Framecho */,
 			);
 		};
 /* End PBXProject section */
@@ -265,7 +265,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = Screendrop/Screendrop.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Framecho/Framecho.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -276,7 +276,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Screendrop/Info.plist;
+				INFOPLIST_FILE = Framecho/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Framecho;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -286,7 +286,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/Screendrop/Vendor/DeepFilterNet/lib",
+					"$(PROJECT_DIR)/Framecho/Vendor/DeepFilterNet/lib",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.40.0;
@@ -308,7 +308,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = Screendrop/Screendrop.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Framecho/Framecho.entitlements;
 				CODE_SIGN_IDENTITY = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -319,7 +319,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Screendrop/Info.plist;
+				INFOPLIST_FILE = Framecho/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Framecho;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -329,7 +329,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/Screendrop/Vendor/DeepFilterNet/lib",
+					"$(PROJECT_DIR)/Framecho/Vendor/DeepFilterNet/lib",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.40.0;
@@ -415,7 +415,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = Screendrop/Screendrop.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Framecho/Framecho.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -426,7 +426,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Screendrop/Info.plist;
+				INFOPLIST_FILE = Framecho/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Framecho Dev";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -436,7 +436,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/Screendrop/Vendor/DeepFilterNet/lib",
+					"$(PROJECT_DIR)/Framecho/Vendor/DeepFilterNet/lib",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.40.0;
@@ -455,7 +455,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		316389182F9DC05A002A7AF3 /* Build configuration list for PBXProject "Screendrop" */ = {
+		316389182F9DC05A002A7AF3 /* Build configuration list for PBXProject "Framecho" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				316389262F9DC05B002A7AF3 /* Debug */,
@@ -465,7 +465,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		316389282F9DC05B002A7AF3 /* Build configuration list for PBXNativeTarget "Screendrop" */ = {
+		316389282F9DC05B002A7AF3 /* Build configuration list for PBXNativeTarget "Framecho" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				316389292F9DC05B002A7AF3 /* Debug */,

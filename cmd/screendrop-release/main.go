@@ -75,14 +75,15 @@ const (
 	bundleID     = "com.jarinhe.Framecho"
 
 	// Build/notarize configuration (used with -build).
-	projectName   = "Screendrop.xcodeproj"
-	releaseScheme = "Screendrop"
+	projectName   = "Framecho.xcodeproj"
+	releaseScheme = "Framecho"
 	// Developer ID team for -build (archive, export, notarize, staple).
 	developmentTeam = "64S5F787T9"
 	archiveName     = "Framecho.xcarchive"
 )
 
 var derivedDataPrefixes = []string{
+	"Framecho-",
 	"Screendrop-",
 	"OpenShot-",
 }

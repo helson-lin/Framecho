@@ -5,7 +5,7 @@ import SwiftUI
 // Compile the capture shortcuts and their stored preferences without
 // launching the app:
 // xcrun swiftc -module-cache-path /tmp/framecho-hotkeys-module-cache \
-//   Screendrop/CaptureHotkeys.swift scripts/check-hotkeys.swift \
+//   Framecho/CaptureHotkeys.swift scripts/check-hotkeys.swift \
 //   -o /tmp/framecho-hotkeys-check && /tmp/framecho-hotkeys-check
 @main
 struct HotkeyChecks {

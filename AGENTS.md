@@ -13,14 +13,14 @@ Use `xcodebuild` from the command line. The project requires Xcode 27.1, the too
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
-  -project Screendrop.xcodeproj \
-  -scheme Screendrop \
+  -project Framecho.xcodeproj \
+  -scheme Framecho \
   -configuration Debug \
   -destination "platform=macOS" \
   2>&1 | grep -E "(BUILD SUCCEEDED|BUILD FAILED|error:)" | head -20
 ```
 
-There are two shared schemes (`Screendrop` and `Screendrop Dev`) - both build the same target with Debug config. Use `Screendrop` unless told otherwise.
+There are three shared schemes, all building the same target: `Framecho`, `Framecho Dev` (runs the `Debug Dev` configuration: a separate `Framecho Dev` app with bundle ID `com.jarinhe.Framecho.dev`) and `Framecho Demo` (launches with `--demo-mode`). Use `Framecho` unless told otherwise.
 
 No Xcode test target exists. Automated verification is:
 
@@ -42,7 +42,7 @@ When adding new types, assume `@MainActor` isolation by default. If a type must 
 
 ## Architecture
 
-All source is in `Screendrop/` (flat, no subdirectories). Key flow:
+All source is in `Framecho/` (flat, no subdirectories). Key flow:
 
 1. **App entry** - `ScreendropApp.swift`: `@main` App struct. Creates a `MenuBarExtra`, a Settings window, and an annotation editor `WindowGroup`.
 2. **Hotkeys** - `HotkeyManager.swift`: Registers global Carbon hotkeys (Option+1/2/3) at launch via `AppDelegate`.

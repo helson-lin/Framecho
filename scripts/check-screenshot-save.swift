@@ -2,7 +2,7 @@ import Foundation
 
 // Exercises the production file transaction without launching Framecho.
 // xcrun swiftc -module-cache-path /tmp/framecho-save-module-cache \
-//   Screendrop/ScreenshotEditFileTransaction.swift scripts/check-screenshot-save.swift \
+//   Framecho/ScreenshotEditFileTransaction.swift scripts/check-screenshot-save.swift \
 //   -o /tmp/framecho-save-check && /tmp/framecho-save-check
 @main
 struct ScreenshotSaveChecks {
