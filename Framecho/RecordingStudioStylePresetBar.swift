@@ -3,7 +3,6 @@
 //  Framecho
 //
 
-import AppKit
 import SwiftUI
 
 struct RecordingStudioStylePresetBar: View {
@@ -38,38 +37,90 @@ struct RecordingStudioStylePresetBar: View {
             && !model.style.hasMissingCustomWallpaper
     }
 
-    var body: some View {
-        HStack(spacing: 7) {
-            presetMenu
-                .layoutPriority(1)
+    /// What the menu shows as applied: nothing once the style has been
+    /// changed away from the preset, so the checkmark never lies.
+    private var selectedPresetID: RecordingStudioStylePreset.ID? {
+        isAppliedPresetModified ? nil : model.appliedStylePresetID
+    }
 
-            if let appliedPreset {
-                PresetBarIconButton(
-                    systemImage: "trash",
-                    accessibilityLabel: "Delete \(appliedPreset.name)",
-                    help: "Delete \(appliedPreset.name)"
-                ) {
-                    presetPendingDeletion = appliedPreset
+    private var availablePresets: [RecordingStudioStylePreset] {
+        presetStore.presets.filter { !$0.hasMissingWallpaper }
+    }
+
+    private var missingPresets: [RecordingStudioStylePreset] {
+        presetStore.presets.filter(\.hasMissingWallpaper)
+    }
+
+    /// A toolbar menu: presets restyle the whole video, so they sit with the
+    /// window's other document actions rather than inside one inspector tab.
+    var body: some View {
+        Menu {
+            if !availablePresets.isEmpty {
+                Picker("Saved Presets", selection: Binding(
+                    get: { selectedPresetID },
+                    set: { selectPreset($0) }
+                )) {
+                    Text("Current Settings").tag(RecordingStudioStylePreset.ID?.none)
+                    ForEach(availablePresets) { preset in
+                        Text(preset.name).tag(Optional(preset.id))
+                    }
                 }
-                .transition(.opacity.combined(with: .scale(scale: 0.82)))
+                .pickerStyle(.inline)
             }
 
-            PresetBarIconButton(
-                systemImage: "plus",
-                accessibilityLabel: "Add Preset",
-                help: "Save current settings as a preset"
-            ) {
+            if !missingPresets.isEmpty {
+                Section("Wallpaper Missing") {
+                    ForEach(missingPresets) { preset in
+                        Button("Delete “\(preset.name)”…", systemImage: "trash") {
+                            presetPendingDeletion = preset
+                        }
+                    }
+                }
+            }
+
+            if !availablePresets.isEmpty {
+                Menu("Default Preset") {
+                    Picker("Default Preset", selection: Binding(
+                        get: { presetStore.activePreset?.id },
+                        set: { presetStore.setActivePreset(id: $0) }
+                    )) {
+                        Text("None").tag(RecordingStudioStylePreset.ID?.none)
+                        ForEach(availablePresets) { preset in
+                            Text(preset.name).tag(Optional(preset.id))
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                }
+            }
+
+            Divider()
+
+            Button("Save as Preset…", systemImage: "plus") {
                 draftName = ""
                 isNameEditorPresented = true
             }
-            .popover(isPresented: $isNameEditorPresented, arrowEdge: .top) {
-                nameEditor
+
+            if let appliedPreset {
+                Button("Delete “\(appliedPreset.name)”…", systemImage: "trash") {
+                    presetPendingDeletion = appliedPreset
+                }
             }
+        } label: {
+            Label {
+                Text(verbatim: displayTitle)
+                    .lineLimit(1)
+            } icon: {
+                Image(systemName: "wand.and.stars")
+            }
+            .labelStyle(.titleAndIcon)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, InspectorMetrics.horizontalPadding)
-        .padding(.vertical, 9)
-        .animation(.snappy(duration: 0.18), value: appliedPreset?.id)
+        .help(presetHelp)
+        .accessibilityLabel("Studio style preset")
+        .accessibilityValue(presetAccessibilityValue)
+        .popover(isPresented: $isNameEditorPresented, arrowEdge: .bottom) {
+            nameEditor
+        }
         .alert(
             "Delete Preset?",
             isPresented: Binding(
@@ -91,24 +142,6 @@ struct RecordingStudioStylePresetBar: View {
         } message: { preset in
             Text("“\(preset.name)” will be removed from your saved presets. The current recording won’t change.")
         }
-    }
-
-    private var presetMenu: some View {
-        RecordingStudioStylePresetPopUpButton(
-            title: displayTitle,
-            presets: presetStore.presets,
-            appliedPresetID: isAppliedPresetModified ? nil : model.appliedStylePresetID,
-            defaultPresetID: presetStore.activePreset?.id,
-            accessibilityValue: presetAccessibilityValue,
-            onSelectPreset: selectPreset,
-            onSetDefaultPreset: { presetStore.setActivePreset(id: $0) },
-            onDeletePreset: { presetID in
-                guard let preset = presetStore.preset(id: presetID) else { return }
-                presetPendingDeletion = preset
-            }
-        )
-        .frame(maxWidth: .infinity, minHeight: 28, maxHeight: 28)
-        .help(presetHelp)
     }
 
     private func selectPreset(_ presetID: RecordingStudioStylePreset.ID?) {
@@ -215,189 +248,5 @@ struct RecordingStudioStylePresetBar: View {
         model.appliedStylePresetID = preset.id
         presetStore.setActivePreset(id: preset.id)
         isNameEditorPresented = false
-    }
-}
-
-private struct RecordingStudioStylePresetPopUpButton: NSViewRepresentable {
-    let title: String
-    let presets: [RecordingStudioStylePreset]
-    let appliedPresetID: RecordingStudioStylePreset.ID?
-    let defaultPresetID: RecordingStudioStylePreset.ID?
-    let accessibilityValue: String
-    let onSelectPreset: (RecordingStudioStylePreset.ID?) -> Void
-    let onSetDefaultPreset: (RecordingStudioStylePreset.ID?) -> Void
-    let onDeletePreset: (RecordingStudioStylePreset.ID) -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(parent: self)
-    }
-
-    func makeNSView(context: Context) -> NSPopUpButton {
-        let button = NSPopUpButton(frame: .zero, pullsDown: true)
-        button.usesItemFromMenu = false
-        button.autoenablesItems = false
-        button.altersStateOfSelectedItem = false
-        button.preferredEdge = .minY
-        button.bezelStyle = .rounded
-        button.controlSize = .regular
-        button.font = NSFont.systemFont(ofSize: 12, weight: .medium)
-        button.alignment = .left
-        button.cell?.lineBreakMode = .byTruncatingTail
-        return button
-    }
-
-    func updateNSView(_ button: NSPopUpButton, context: Context) {
-        context.coordinator.parent = self
-        context.coordinator.update(button)
-    }
-
-    final class Coordinator: NSObject {
-        var parent: RecordingStudioStylePresetPopUpButton
-
-        init(parent: RecordingStudioStylePresetPopUpButton) {
-            self.parent = parent
-        }
-
-        func update(_ button: NSPopUpButton) {
-            button.menu = makeMenu()
-            let displayItem = NSMenuItem(
-                title: parent.title,
-                action: nil,
-                keyEquivalent: ""
-            )
-            (button.cell as? NSPopUpButtonCell)?.menuItem = displayItem
-            button.setAccessibilityLabel(String(localized: "Studio style preset"))
-            button.setAccessibilityValue(parent.accessibilityValue)
-        }
-
-        private func makeMenu() -> NSMenu {
-            let menu = NSMenu()
-            menu.autoenablesItems = false
-
-            let availablePresets = parent.presets.filter { !$0.hasMissingWallpaper }
-            let missingPresets = parent.presets.filter(\.hasMissingWallpaper)
-
-            if availablePresets.isEmpty && missingPresets.isEmpty {
-                let emptyItem = NSMenuItem(title: String(localized: "No Saved Presets"), action: nil, keyEquivalent: "")
-                emptyItem.isEnabled = false
-                menu.addItem(emptyItem)
-                return menu
-            }
-
-            if !availablePresets.isEmpty {
-                menu.addItem(.sectionHeader(title: String(localized: "Saved Presets")))
-
-                let currentItem = NSMenuItem(
-                    title: String(localized: "Current Settings"),
-                    action: #selector(selectCurrentSettings(_:)),
-                    keyEquivalent: ""
-                )
-                currentItem.target = self
-                currentItem.state = parent.appliedPresetID == nil ? .on : .off
-                menu.addItem(currentItem)
-
-                for preset in availablePresets {
-                    let item = presetItem(
-                        preset,
-                        action: #selector(selectPreset(_:)),
-                        isSelected: preset.id == parent.appliedPresetID
-                    )
-                    menu.addItem(item)
-                }
-            }
-
-            if !missingPresets.isEmpty {
-                if !availablePresets.isEmpty {
-                    menu.addItem(.separator())
-                }
-                menu.addItem(.sectionHeader(title: String(localized: "Wallpaper Missing")))
-
-                for preset in missingPresets {
-                    let item = presetItem(
-                        preset,
-                        action: #selector(deletePreset(_:)),
-                        isSelected: false
-                    )
-                    item.title = String(localized: "Delete “\(preset.name)”…")
-                    item.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
-                    menu.addItem(item)
-                }
-            }
-
-            if !availablePresets.isEmpty {
-                menu.addItem(.separator())
-
-                let defaultItem = NSMenuItem(title: String(localized: "Default Preset"), action: nil, keyEquivalent: "")
-                defaultItem.submenu = makeDefaultMenu(presets: availablePresets)
-                menu.addItem(defaultItem)
-            }
-
-            return menu
-        }
-
-        private func makeDefaultMenu(presets: [RecordingStudioStylePreset]) -> NSMenu {
-            let menu = NSMenu(title: String(localized: "Default Preset"))
-            menu.autoenablesItems = false
-
-            let noneItem = NSMenuItem(
-                title: String(localized: "None"),
-                action: #selector(clearDefaultPreset(_:)),
-                keyEquivalent: ""
-            )
-            noneItem.target = self
-            noneItem.state = parent.defaultPresetID == nil ? .on : .off
-            menu.addItem(noneItem)
-
-            for preset in presets {
-                let item = presetItem(
-                    preset,
-                    action: #selector(setDefaultPreset(_:)),
-                    isSelected: preset.id == parent.defaultPresetID
-                )
-                menu.addItem(item)
-            }
-
-            return menu
-        }
-
-        private func presetItem(
-            _ preset: RecordingStudioStylePreset,
-            action: Selector,
-            isSelected: Bool
-        ) -> NSMenuItem {
-            let item = NSMenuItem(title: preset.name, action: action, keyEquivalent: "")
-            item.target = self
-            item.representedObject = preset.id.uuidString
-            item.state = isSelected ? .on : .off
-            return item
-        }
-
-        private func presetID(from sender: NSMenuItem) -> RecordingStudioStylePreset.ID? {
-            guard let rawValue = sender.representedObject as? String else { return nil }
-            return UUID(uuidString: rawValue)
-        }
-
-        @objc private func selectCurrentSettings(_ sender: NSMenuItem) {
-            parent.onSelectPreset(nil)
-        }
-
-        @objc private func selectPreset(_ sender: NSMenuItem) {
-            guard let presetID = presetID(from: sender) else { return }
-            parent.onSelectPreset(presetID)
-        }
-
-        @objc private func clearDefaultPreset(_ sender: NSMenuItem) {
-            parent.onSetDefaultPreset(nil)
-        }
-
-        @objc private func setDefaultPreset(_ sender: NSMenuItem) {
-            guard let presetID = presetID(from: sender) else { return }
-            parent.onSetDefaultPreset(presetID)
-        }
-
-        @objc private func deletePreset(_ sender: NSMenuItem) {
-            guard let presetID = presetID(from: sender) else { return }
-            parent.onDeletePreset(presetID)
-        }
     }
 }

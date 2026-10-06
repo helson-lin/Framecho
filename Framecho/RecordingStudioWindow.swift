@@ -54,6 +54,7 @@ private struct RecordingStudioContent: View {
     @Bindable var model: RecordingStudioModel
     @State private var isInspectorPresented = true
     @State private var closeGuard = EditorCloseGuard()
+    @State private var stylePresetStore = RecordingStudioStylePresetStore.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -65,9 +66,12 @@ private struct RecordingStudioContent: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                StudioCanvas(model: model)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(AnnotationEditorWorkspaceBackground())
+                VStack(spacing: 0) {
+                    StudioCanvasBar(model: model)
+                    StudioCanvas(model: model)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .background(AnnotationEditorWorkspaceBackground())
 
                 StudioTimelineEditor(model: model)
             }
@@ -78,6 +82,16 @@ private struct RecordingStudioContent: View {
             StudioInspector(model: model)
         }
         .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    NSWorkspace.shared.activateFileViewerSelecting([model.sessionURL])
+                } label: {
+                    Label("Show in Finder", systemImage: "folder")
+                }
+                .help("Show this recording in Finder")
+                .disabled(!model.isLoaded)
+            }
+
             ToolbarItemGroup(placement: .primaryAction) {
                 if !model.isCroppingVideo {
                     Button {
@@ -104,16 +118,8 @@ private struct RecordingStudioContent: View {
                 if model.isCroppingVideo {
                     videoCropActions
                 } else {
-                    Button {
-                        withAnimation(.snappy(duration: 0.22)) {
-                            model.beginVideoCrop()
-                        }
-                    } label: {
-                        Label("Crop", systemImage: "crop")
-                            .labelStyle(.titleAndIcon)
-                    }
-                    .disabled(!model.isLoaded || model.exportState.isExporting)
-                    .help("Crop the finished video canvas")
+                    RecordingStudioStylePresetBar(model: model, presetStore: stylePresetStore)
+                        .disabled(!model.isLoaded)
 
                     if model.isProject {
                         saveStatus
@@ -510,6 +516,68 @@ private struct ExportProgressPill: View {
 }
 
 // MARK: - Canvas
+
+/// The tools that reshape the frame, kept right above it: crop the finished
+/// video and choose the shape it is delivered in.
+private struct StudioCanvasBar: View {
+    @Bindable var model: RecordingStudioModel
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Button {
+                withAnimation(.snappy(duration: 0.22)) {
+                    model.beginVideoCrop()
+                }
+            } label: {
+                Label("Crop", systemImage: "crop")
+                    .labelStyle(.titleAndIcon)
+                    .font(.system(size: 11.5, weight: .medium))
+            }
+            .buttonStyle(TransportTextButtonStyle())
+            .disabled(!model.isLoaded || model.isCroppingVideo || model.exportState.isExporting)
+            .help("Crop the finished video canvas")
+
+            aspectMenu
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.top, 6)
+        .frame(height: 34)
+    }
+
+    private var aspectMenu: some View {
+        Menu {
+            Picker("Aspect ratio", selection: $model.exportAspect) {
+                ForEach(ExportAspectPreset.allCases, id: \.self) { preset in
+                    Text(preset.title).tag(preset)
+                }
+            }
+            .pickerStyle(.inline)
+
+            if model.exportAspect != .original {
+                Picker("Fit", selection: $model.exportAspectMode) {
+                    ForEach(ExportAspectContentMode.allCases, id: \.self) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.inline)
+            }
+        } label: {
+            Label(model.exportAspect.title, systemImage: "aspectratio")
+                .labelStyle(.titleAndIcon)
+                .font(.system(size: 11.5, weight: .medium))
+        }
+        .menuStyle(.button)
+        .buttonStyle(TransportTextButtonStyle())
+        .menuIndicator(.visible)
+        .fixedSize()
+        .disabled(!model.isLoaded || model.isCroppingVideo)
+        .help(model.exportAspect.help)
+        .accessibilityLabel("Aspect ratio")
+        .accessibilityValue(Text(model.exportAspect.title))
+    }
+}
 
 private struct StudioCanvas: View {
     @Bindable var model: RecordingStudioModel
@@ -4310,37 +4378,6 @@ private enum StudioInspectorTab: Hashable, CaseIterable {
     }
 }
 
-/// Aspect choice drawn as its frame shape over the ratio, so the options
-/// read at a glance.
-private struct AspectPresetLabel: View {
-    let preset: ExportAspectPreset
-    let sourceSize: CGSize
-
-    private static let box: CGFloat = 16
-
-    var body: some View {
-        VStack(spacing: 3) {
-            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                .strokeBorder(lineWidth: 1.2)
-                .frame(width: shapeSize.width, height: shapeSize.height)
-                .frame(width: Self.box + 4, height: Self.box)
-            Text(preset.title)
-                .font(.system(size: 10, weight: .medium))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-        }
-    }
-
-    private var shapeSize: CGSize {
-        let ratio = preset.ratio
-            ?? (sourceSize.height > 0 ? sourceSize.width / sourceSize.height : 16.0 / 10.0)
-        let box = Self.box
-        return ratio >= 1
-            ? CGSize(width: box + 4, height: (box + 4) / ratio)
-            : CGSize(width: box * ratio, height: box)
-    }
-}
-
 private struct StudioInspector: View {
     /// Whole-number playback rates offered for a clip, within
     /// `RecordingClipSegment`'s 1...8 range.
@@ -4348,7 +4385,6 @@ private struct StudioInspector: View {
 
     @Bindable var model: RecordingStudioModel
     @State private var wallpaperStore = AnnotationWallpaperStore.shared
-    @State private var stylePresetStore = RecordingStudioStylePresetStore.shared
     @State private var selectedTab: StudioInspectorTab = .canvas
     @State private var showsBasePoseControls = false
     @State private var isAudioExportOptionsPresented = false
@@ -4397,9 +4433,6 @@ private struct StudioInspector: View {
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
-                // Presets span the Canvas and Overlays tabs, so they sit above both.
-                RecordingStudioStylePresetBar(model: model, presetStore: stylePresetStore)
-
                 tabPicker
 
                 Rectangle()
@@ -4464,8 +4497,6 @@ private struct StudioInspector: View {
             accessory: {
                 if !usesDefaultComposition {
                     InspectorResetButton(help: "Reset composition") {
-                        model.exportAspect = .original
-                        model.exportAspectMode = .fill
                         model.style.padding = RecordingStudioStyle().padding
                     }
                 }
@@ -4720,42 +4751,14 @@ private struct StudioInspector: View {
 
     // MARK: Background
 
+    /// Aspect ratio lives in the bar above the canvas, beside crop.
     private var compositionControls: some View {
-        VStack(alignment: .leading, spacing: InspectorMetrics.groupSpacing) {
-            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
-                InspectorSegmented(
-                    options: ExportAspectPreset.allCases,
-                    isSelected: { $0 == model.exportAspect },
-                    onTap: { model.exportAspect = $0 },
-                    label: { preset in
-                        AspectPresetLabel(preset: preset, sourceSize: model.videoSize)
-                            .help(preset.help)
-                    },
-                    height: 42
-                )
-                .accessibilityLabel("Aspect ratio")
-
-                if model.exportAspect != .original {
-                    InspectorSegmented(
-                        options: ExportAspectContentMode.allCases,
-                        isSelected: { $0 == model.exportAspectMode },
-                        onTap: { model.exportAspectMode = $0 },
-                        label: { mode in
-                            Text(mode.title)
-                                .font(.inspectorSegment)
-                                .help(mode.help)
-                        }
-                    )
-                }
-            }
-
-            InspectorSlider(
-                "Padding",
-                value: $model.style.padding,
-                range: 0...0.18,
-                format: .percent()
-            )
-        }
+        InspectorSlider(
+            "Padding",
+            value: $model.style.padding,
+            range: 0...0.18,
+            format: .percent()
+        )
     }
 
     private var backgroundControls: some View {
@@ -5655,9 +5658,7 @@ private struct StudioInspector: View {
     // MARK: Helpers
 
     private var usesDefaultComposition: Bool {
-        model.exportAspect == .original
-            && model.exportAspectMode == .fill
-            && abs(model.style.padding - RecordingStudioStyle().padding) < 0.0001
+        abs(model.style.padding - RecordingStudioStyle().padding) < 0.0001
     }
 
     private var usesDefaultVideoCard: Bool {

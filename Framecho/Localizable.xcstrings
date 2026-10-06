@@ -1039,6 +1039,16 @@
         }
       }
     },
+    "Save as Preset…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存储为预设…"
+          }
+        }
+      }
+    },
     "Save As…" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1175,6 +1185,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "显示字幕"
+          }
+        }
+      }
+    },
+    "Show this recording in Finder" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在访达中显示这段录制"
           }
         }
       }
