@@ -16,6 +16,11 @@ struct ScreendropApp: App {
     @Environment(\.openWindow) var openWindow
     @AppStorage(ScreendropPreferences.showMenuBarIconKey) private var showMenuBarIcon = true
 
+    init() {
+        // Before any store reads History or the recordings folder.
+        LegacyStorageMigration.run(in: ScreenshotHistoryStore.applicationSupportDirectory)
+    }
+
     var body: some Scene {
         let _ = configurePreviewPresentation()
 

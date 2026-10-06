@@ -43,6 +43,28 @@
 			<key>UTTypeDescription</key>
 			<string>Framecho Screenshot Preset</string>
 			<key>UTTypeIdentifier</key>
+			<string>com.jarinhe.framecho.preset</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>framechopreset</string>
+				</array>
+				<key>public.mime-type</key>
+				<string>application/vnd.framecho.preset+json</string>
+			</dict>
+		</dict>
+	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.json</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Framecho Screenshot Preset (legacy)</string>
+			<key>UTTypeIdentifier</key>
 			<string>com.fayazahmed.screendrop.preset</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
@@ -50,8 +72,6 @@
 				<array>
 					<string>screendroppreset</string>
 				</array>
-				<key>public.mime-type</key>
-				<string>application/vnd.screendrop.preset+json</string>
 			</dict>
 		</dict>
 	</array>

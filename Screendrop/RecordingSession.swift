@@ -13,7 +13,7 @@ import CoreGraphics
 import Foundation
 
 nonisolated struct RecordingSession: Sendable, Equatable {
-    static let directoryExtension = "screendroprec"
+    static let directoryExtension = CaptureStorageExtension.recordingPackage
     static let screenFileName = "screen.mov"
     static let cameraFileName = "camera.mov"
     static let pointerCaptureFileName = "input.json"
@@ -149,7 +149,9 @@ nonisolated struct RecordingSession: Sendable, Equatable {
     }
 
     static func isSessionDirectory(_ url: URL) -> Bool {
-        url.pathExtension == directoryExtension
+        // Packages from before the Framecho rename are renamed at launch;
+        // one that couldn't be is still opened under its old extension.
+        [directoryExtension, CaptureStorageExtension.legacyRecordingPackage].contains(url.pathExtension)
             && FileManager.default.fileExists(atPath: url.appendingPathComponent(screenFileName).path)
     }
 

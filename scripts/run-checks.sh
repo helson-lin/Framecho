@@ -118,6 +118,9 @@ check annotation-document -default-isolation MainActor -parse-as-library \
 check history-metadata "${strict[@]}" \
   Screendrop/ScreenshotHistoryItem.swift scripts/check-history-metadata.swift
 
+check legacy-storage-migration "${strict[@]}" \
+  Screendrop/LegacyStorageMigration.swift scripts/check-legacy-storage-migration.swift
+
 check hotkeys "${strict[@]}" \
   Screendrop/CaptureHotkeys.swift scripts/check-hotkeys.swift
 

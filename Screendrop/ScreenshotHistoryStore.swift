@@ -49,14 +49,14 @@ final class ScreenshotHistoryStore {
     }
 
     /// Location of the editable annotation sidecar document for a display image,
-    /// e.g. `Screendrop_2026.png` -> `Screendrop_2026.png.screendrop`.
-    static func editDocumentURL(for displayURL: URL) -> URL {
-        displayURL.appendingPathExtension("screendrop")
+    /// e.g. `Framecho_2026.png` -> `Framecho_2026.png.framecho`.
+    nonisolated static func editDocumentURL(for displayURL: URL) -> URL {
+        displayURL.appendingPathExtension(CaptureStorageExtension.editDocument)
     }
 
     /// Location of the untouched base image for a display image,
-    /// e.g. `Screendrop_2026.png` -> `Screendrop_2026.base.png`.
-    static func baseImageURL(for displayURL: URL) -> URL {
+    /// e.g. `Framecho_2026.png` -> `Framecho_2026.base.png`.
+    nonisolated static func baseImageURL(for displayURL: URL) -> URL {
         let ext = displayURL.pathExtension
         let stem = displayURL.deletingPathExtension().lastPathComponent
         let directory = displayURL.deletingLastPathComponent()
@@ -215,7 +215,7 @@ final class ScreenshotHistoryStore {
     /// - Preserves the untouched base image (lazily, on first edit) so future
     ///   edits always re-render from the original pixels.
     /// - Overwrites the display image with the freshly rendered composite.
-    /// - Writes the editable `.screendrop` sidecar document so the annotations
+    /// - Writes the editable `.framecho` sidecar document so the annotations
     ///   can be re-opened and edited later.
     @discardableResult
     func commitAnnotations(

@@ -8,8 +8,13 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 extension UTType {
-    static let screendropPreset = UTType(
-        exportedAs: "com.fayazahmed.screendrop.preset",
+    static let framechoPreset = UTType(
+        exportedAs: "com.jarinhe.framecho.preset",
+        conformingTo: .json
+    )
+    /// Presets exported before the Framecho rename; still importable.
+    static let legacyPreset = UTType(
+        importedAs: "com.fayazahmed.screendrop.preset",
         conformingTo: .json
     )
 }
@@ -19,8 +24,9 @@ extension UTType {
 /// while a shared preset must not be able to represent a path or image asset.
 struct AnnotationBackgroundPresetTransferFile: Codable {
     static let currentVersion = 1
-    static let formatIdentifier = "screendrop-screenshot-presets"
-    static let filenameExtension = "screendroppreset"
+    static let formatIdentifier = "framecho-screenshot-presets"
+    static let legacyFormatIdentifier = "screendrop-screenshot-presets"
+    static let filenameExtension = "framechopreset"
     static let maximumFileSize = 1_000_000
     static let maximumPresetCount = 100
 
@@ -66,7 +72,7 @@ struct AnnotationBackgroundPresetTransferFile: Codable {
     }
 
     func validatedPresets() throws -> [Preset] {
-        guard format == Self.formatIdentifier else {
+        guard [Self.formatIdentifier, Self.legacyFormatIdentifier].contains(format) else {
             throw AnnotationBackgroundPresetTransferError.invalidFormat
         }
         guard version == Self.currentVersion else {

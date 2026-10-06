@@ -249,7 +249,7 @@ struct AnnotationBackgroundPresetBar: View {
         onEditorAction()
 
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.screendropPreset]
+        panel.allowedContentTypes = [.framechoPreset, .legacyPreset]
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
@@ -301,7 +301,7 @@ struct AnnotationBackgroundPresetBar: View {
             }
 
             let panel = NSSavePanel()
-            panel.allowedContentTypes = [.screendropPreset]
+            panel.allowedContentTypes = [.framechoPreset]
             panel.canCreateDirectories = true
             panel.isExtensionHidden = false
             panel.title = String(localized: "Export Screenshot Preset")

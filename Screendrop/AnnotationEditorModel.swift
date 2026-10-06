@@ -238,7 +238,7 @@ final class AnnotationEditorModel {
         RedactionImageProcessor.removeAllCachedPreviewImages()
     }
 
-    /// Renders the composite, writes the `.screendrop` sidecar, and repoints
+    /// Renders the composite, writes the `.framecho` sidecar, and repoints
     /// the editor at the preserved base image so continued edits don't re-bake
     /// annotations onto an already-composited picture. Returns nil when there
     /// is nothing to persist.
