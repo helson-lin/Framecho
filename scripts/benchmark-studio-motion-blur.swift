@@ -7,6 +7,17 @@ import ImageIO
 import Metal
 import UniformTypeIdentifiers
 
+extension StudioMetalScreenRenderer {
+    /// One frame submitted and waited for. The exporter keeps a frame in
+    /// flight, but the benchmark times each pass on its own.
+    func render(screenFrame: CVPixelBuffer, sampleRects: [CGRect], into destination: CVPixelBuffer) -> Bool {
+        guard let submission = submit(screenFrame: screenFrame, sampleRects: sampleRects, into: destination) else {
+            return false
+        }
+        return wait(for: submission)
+    }
+}
+
 @main
 struct MotionBlurBenchmark {
     static let space = CGColorSpace(name: CGColorSpace.sRGB)!

@@ -158,7 +158,7 @@ nonisolated final class StudioMetalScreenRenderer {
     static func shouldAccelerate(screenFrame: CVPixelBuffer, sampleRects: [CGRect]) -> Bool {
         guard let widest = sampleRects.map(\.width).max(),
               let tallest = sampleRects.map(\.height).max() else { return false }
-        // Mirrors the downsample bound in render(screenFrame:sampleRects:into:).
+        // Mirrors the downsample bound in submit(screenFrame:sampleRects:into:).
         let sampledWidth = min(CGFloat(CVPixelBufferGetWidth(screenFrame)), ceil(widest * 2))
         let sampledHeight = min(CGFloat(CVPixelBufferGetHeight(screenFrame)), ceil(tallest * 2))
         return sampleRects.allSatisfy {
