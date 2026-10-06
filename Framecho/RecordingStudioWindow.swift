@@ -817,8 +817,10 @@ private struct StudioPoseAdjustOverlay: View {
     @State private var dragStart: DragStart?
     @State private var hoverMode: DragMode?
 
-    /// Dragging across the ball's diameter turns the card this far.
-    private static let diameterDegrees: Double = 120
+    /// How far a turn, tilt or trackball drag turns the card per point. Fixed
+    /// rather than tied to the ball's size, so a small ball on a small canvas
+    /// isn't coarser to steer than a large one.
+    private static let degreesPerPoint: Double = 0.6
     /// Vertical squash of the turn and tilt rings, which is what makes the
     /// ball read as a sphere rather than a flat target.
     private static let ringDepth: CGFloat = 0.34
@@ -894,8 +896,9 @@ private struct StudioPoseAdjustOverlay: View {
 
     // MARK: Ball
 
+    /// Small enough to leave most of the card visible while adjusting it.
     private func ballRadius(for cardBounds: CGRect) -> CGFloat {
-        min(max(min(cardBounds.width, cardBounds.height) * 0.26, 48), 120)
+        min(max(min(cardBounds.width, cardBounds.height) * 0.15, 36), 64)
     }
 
     private func ball(pose: RecordingCardPose, center: CGPoint, radius: CGFloat) -> some View {
@@ -1060,7 +1063,7 @@ private struct StudioPoseAdjustOverlay: View {
         let modifiers = NSEvent.modifierFlags
         var dx = Double(value.location.x - start.location.x)
         var dy = Double(value.location.y - start.location.y)
-        let degreesPerPoint = Self.diameterDegrees / Double(max(radius * 2, 1))
+        let degreesPerPoint = Self.degreesPerPoint
         var pose = start.pose
 
         switch start.mode {
