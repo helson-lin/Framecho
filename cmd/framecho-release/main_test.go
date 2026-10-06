@@ -54,7 +54,7 @@ func TestWriteAppcast(t *testing.T) {
 	if !strings.Contains(text, "<title>Framecho Updates</title>") {
 		t.Fatal("appcast title was not written")
 	}
-	if !strings.Contains(text, "Run: go run ./cmd/screendrop-release") {
+	if !strings.Contains(text, "Run: go run ./cmd/framecho-release") {
 		t.Fatal("release instructions were not written")
 	}
 

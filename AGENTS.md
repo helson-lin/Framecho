@@ -84,7 +84,7 @@ Updates are served by Sparkle from `appcast.xml` on `main` of `helson-lin/Screen
 
 Builds are signed for team `64S5F787T9`: Debug with the Apple Development certificate, Release with Developer ID Application (hardened runtime on). Because the signature is tied to the team rather than the binary, privacy permissions survive rebuilds and updates.
 
-To release, run `go run ./cmd/screendrop-release -build -set-version <x.y.z> -set-build <n>`. It first runs the same checks as CI (`scripts/run-checks.sh`, `go vet`, `go test`) and stops if any fail or if CI failed for the commit; `-skip-checks` bypasses that, for emergencies only. Then it archives, exports with Developer ID, notarizes, staples, builds and Sparkle-signs the DMG, prepends `appcast.xml`, pushes it, and creates the GitHub release. Notarization reads the `framecho-notary` keychain profile; create it once with:
+To release, run `go run ./cmd/framecho-release -build -set-version <x.y.z> -set-build <n>`. It first runs the same checks as CI (`scripts/run-checks.sh`, `go vet`, `go test`) and stops if any fail or if CI failed for the commit; `-skip-checks` bypasses that, for emergencies only. Then it archives, exports with Developer ID, notarizes, staples, builds and Sparkle-signs the DMG, prepends `appcast.xml`, pushes it, and creates the GitHub release. Notarization reads the `framecho-notary` keychain profile; create it once with:
 
 ```bash
 xcrun notarytool store-credentials framecho-notary --apple-id <apple-id> --team-id 64S5F787T9

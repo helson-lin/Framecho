@@ -1,3 +1,3 @@
-module github.com/fayazara/screendrop
+module framecho
 
 go 1.25.4

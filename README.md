@@ -224,13 +224,13 @@ scripts/run-checks.sh
 
 ### 发布
 
-发布工具位于 `cmd/screendrop-release`，发布目标为 `helson-lin/Screendrop`。完整流程需要 Go、`create-dmg`、已登录的 `gh`、Xcode、Developer ID Application 证书、Sparkle 签名密钥，以及名为 `framecho-notary` 的公证凭据配置。
+发布工具位于 `cmd/framecho-release`，发布目标为 `helson-lin/Screendrop`。完整流程需要 Go、`create-dmg`、已登录的 `gh`、Xcode、Developer ID Application 证书、Sparkle 签名密钥，以及名为 `framecho-notary` 的公证凭据配置。
 
 ```bash
 brew install create-dmg
 
 # 示例：在 0.35.3（build 38）之后发布下一版
-go run ./cmd/screendrop-release -build -yes \
+go run ./cmd/framecho-release -build -yes \
   -set-version 0.35.4 -set-build 39 \
   -notes-file /path/to/release-notes.txt
 ```

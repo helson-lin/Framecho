@@ -2,13 +2,10 @@ package main
 
 import (
 	"bufio"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/xml"
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -61,18 +58,12 @@ const (
 	appName        = "Framecho.app"
 	dmgName        = "Framecho.dmg"
 	appcastFile    = "appcast.xml"
-	repoEnvVar     = "SCREENDROP_REPO"
+	repoEnvVar     = "FRAMECHO_REPO"
 	appcastURL     = "https://raw.githubusercontent.com/helson-lin/Screendrop/main/appcast.xml"
 
 	// Keychain account of the EdDSA key made with
 	// `generate_keys --account com.jarinhe.Framecho`.
 	sparkleAccount = "com.jarinhe.Framecho"
-
-	// Homebrew tap (cask) configuration. Empty skips the cask update.
-	tapRepo      = ""
-	caskRelPath  = "Casks/screendrop.rb"
-	tapDirEnvVar = "SCREENDROP_TAP_DIR"
-	bundleID     = "com.jarinhe.Framecho"
 
 	// Build/notarize configuration (used with -build).
 	projectName   = "Framecho.xcodeproj"
@@ -82,11 +73,8 @@ const (
 	archiveName     = "Framecho.xcarchive"
 )
 
-var derivedDataPrefixes = []string{
-	"Framecho-",
-	"Screendrop-",
-	"OpenShot-",
-}
+// Xcode names a project's DerivedData folder after it: Framecho-<hash>.
+const derivedDataPrefix = "Framecho-"
 
 type Appcast struct {
 	XMLName xml.Name `xml:"rss"`
@@ -290,7 +278,6 @@ func main() {
 	//   1. push local commits  (so the release tag includes the released source)
 	//   2. create/upload the GitHub release + DMG
 	//   3. update + push the appcast
-	//   4. update the Homebrew cask
 
 	step("Pushing commits to GitHub...")
 	if out, err := runCmdRetry(3, "git", "-C", repoDir, "push", "origin", gitBranch); err != nil {
@@ -367,122 +354,10 @@ func main() {
 	}
 	success("Pushed to " + gitBranch)
 
-	if tapRepo != "" {
-		step("Updating Homebrew cask...")
-		if err := updateHomebrewCask(homeDir, version, dmgPath); err != nil {
-			warn("Homebrew cask not updated: " + err.Error())
-		} else {
-			success("Homebrew cask updated in " + tapRepo)
-		}
-	}
-
 	fmt.Printf("\n%s%s=======================================%s\n", green, bold, reset)
 	fmt.Printf("%s%s  Released %s v%s%s\n", green, bold, appDisplayName, version, reset)
 	fmt.Printf("%s%s  %s%s\n", green, bold, releaseURL, reset)
 	fmt.Printf("%s%s=======================================%s\n\n", green, bold, reset)
-}
-
-// updateHomebrewCask regenerates the cask with the new version and the DMG's
-// sha256, then commits and pushes it to the tap repo. Non-fatal: a missing or
-// unconfigured tap should never block a release.
-func updateHomebrewCask(homeDir, version, dmgPath string) error {
-	sum, err := sha256File(dmgPath)
-	if err != nil {
-		return fmt.Errorf("hashing DMG: %w", err)
-	}
-
-	tapDir, cleanup, err := resolveTapDir(homeDir)
-	if err != nil {
-		return err
-	}
-	if cleanup != nil {
-		defer cleanup()
-	}
-
-	caskPath := filepath.Join(tapDir, caskRelPath)
-	if err := os.MkdirAll(filepath.Dir(caskPath), 0o755); err != nil {
-		return err
-	}
-	if err := os.WriteFile(caskPath, []byte(renderCask(version, sum)), 0o644); err != nil {
-		return err
-	}
-
-	if out, err := runCmd("git", "-C", tapDir, "add", caskRelPath); err != nil {
-		return fmt.Errorf("git add: %s", out)
-	}
-
-	commitMsg := fmt.Sprintf("screendrop %s", version)
-	if out, err := runCmd("git", "-C", tapDir, "commit", "-m", commitMsg); err != nil {
-		if strings.Contains(out, "nothing to commit") {
-			return nil
-		}
-		return fmt.Errorf("git commit: %s", out)
-	}
-
-	if out, err := runCmd("git", "-C", tapDir, "push"); err != nil {
-		return fmt.Errorf("git push: %s", out)
-	}
-	return nil
-}
-
-// resolveTapDir returns a working copy of the tap repo. It honours
-// SCREENDROP_TAP_DIR (a local clone) or falls back to a temporary clone.
-func resolveTapDir(homeDir string) (string, func(), error) {
-	if dir := strings.TrimSpace(os.Getenv(tapDirEnvVar)); dir != "" {
-		if !fileExists(dir) {
-			return "", nil, fmt.Errorf("%s set but %s does not exist", tapDirEnvVar, dir)
-		}
-		_, _ = runCmd("git", "-C", dir, "pull", "--ff-only")
-		return dir, nil, nil
-	}
-
-	tmp, err := os.MkdirTemp("", "screendrop-tap-")
-	if err != nil {
-		return "", nil, err
-	}
-	cleanup := func() { _ = os.RemoveAll(tmp) }
-
-	if out, err := runCmd("gh", "repo", "clone", tapRepo, tmp); err != nil {
-		cleanup()
-		return "", nil, fmt.Errorf("clone %s failed (create it or set %s): %s", tapRepo, tapDirEnvVar, out)
-	}
-	return tmp, cleanup, nil
-}
-
-func renderCask(version, sha string) string {
-	return fmt.Sprintf(`cask "screendrop" do
-  version "%s"
-  sha256 "%s"
-
-  url "https://github.com/%s/releases/download/v#{version}/%s"
-  name "Screendrop"
-  desc "Native macOS menu bar screenshot and screen recording tool"
-  homepage "https://github.com/%s"
-
-  auto_updates true
-
-  app "%s"
-
-  zap trash: [
-    "~/Library/Preferences/%s.plist",
-    "~/Library/Application Support/Screendrop",
-  ]
-end
-`, version, sha, githubRepo, dmgName, githubRepo, appName, bundleID)
-}
-
-func sha256File(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-
-	hasher := sha256.New()
-	if _, err := io.Copy(hasher, f); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
 func findRepoDir(homeDir string) string {
@@ -506,6 +381,7 @@ func findRepoDir(homeDir string) string {
 	}
 
 	candidates := []string{
+		filepath.Join(homeDir, "person", "Framecho"),
 		filepath.Join(homeDir, "person", "Screendrop"),
 	}
 	for _, candidate := range candidates {
@@ -533,17 +409,15 @@ func findSignUpdate(homeDir, repoDir string) string {
 		return ""
 	}
 
-	for _, prefix := range derivedDataPrefixes {
-		for _, entry := range entries {
-			if !strings.HasPrefix(entry.Name(), prefix) {
-				continue
-			}
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), derivedDataPrefix) {
+			continue
+		}
 
-			candidate := filepath.Join(derivedData, entry.Name(),
-				"SourcePackages", "artifacts", "sparkle", "Sparkle", "bin", "sign_update")
-			if fileExists(candidate) {
-				return candidate
-			}
+		candidate := filepath.Join(derivedData, entry.Name(),
+			"SourcePackages", "artifacts", "sparkle", "Sparkle", "bin", "sign_update")
+		if fileExists(candidate) {
+			return candidate
 		}
 	}
 	return ""
@@ -805,7 +679,7 @@ func cleanNote(line string) string {
 // runBuildPhase reproduces the Xcode GUI release flow on the command line:
 // optional version/build bump, archive, export with Developer ID, notarize via
 // notarytool, and staple. The notarized + stapled app is placed at appPath
-// (~/Downloads/Screendrop.app) so the rest of the pipeline can package it.
+// (~/Downloads/Framecho.app) so the rest of the pipeline can package it.
 func runBuildPhase(repoDir, homeDir, appPath string) {
 	if developmentTeam == "" {
 		fail("-build needs a Developer ID team: set developmentTeam in main.go, or export " + appName + " to ~/Downloads and run without -build.")
@@ -849,7 +723,7 @@ func runBuildPhase(repoDir, homeDir, appPath string) {
 	success("Archived")
 
 	step("Exporting with Developer ID...")
-	exportDir, err := os.MkdirTemp("", "screendrop-export-")
+	exportDir, err := os.MkdirTemp("", "framecho-export-")
 	if err != nil {
 		fail("Could not create export dir: " + err.Error())
 	}
@@ -876,7 +750,7 @@ func runBuildPhase(repoDir, homeDir, appPath string) {
 	success("Exported")
 
 	step("Notarizing (waiting for Apple)... this can take a few minutes")
-	zipPath := filepath.Join(exportDir, "Screendrop-notarize.zip")
+	zipPath := filepath.Join(exportDir, "Framecho-notarize.zip")
 	if out, err := runCmd("ditto", "-c", "-k", "--keepParent", exportedApp, zipPath); err != nil {
 		fail("Zipping for notarization failed:\n" + out)
 	}
@@ -1046,10 +920,10 @@ func writeAppcast(path string, items []Item) error {
       HOW TO ADD A NEW RELEASE:
       1. Bump MARKETING_VERSION and CURRENT_PROJECT_VERSION in Xcode.
       2. Export Framecho.app to ~/Downloads (a Release build; see AGENTS.md).
-      3. Run: go run ./cmd/screendrop-release
+      3. Run: go run ./cmd/framecho-release
          - Enter release notes when prompted, or run non-interactively with
            flags, e.g.:
-             go run ./cmd/screendrop-release -yes \
+             go run ./cmd/framecho-release -yes \
                -notes "Fixed pixelate preview
              Improved upload flow"
            (-notes-file <path> reads bullets from a file instead.)
