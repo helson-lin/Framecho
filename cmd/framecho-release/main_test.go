@@ -126,11 +126,7 @@ func TestCommitVersionBump(t *testing.T) {
 	repo := t.TempDir()
 	git := func(args ...string) string {
 		t.Helper()
-		cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
-		cmd.Env = append(os.Environ(),
-			"GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@example.com",
-			"GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@example.com")
-		out, err := cmd.CombinedOutput()
+		out, err := exec.Command("git", append([]string{"-C", repo}, args...)...).CombinedOutput()
 		if err != nil {
 			t.Fatalf("git %v: %v\n%s", args, err, out)
 		}
@@ -149,6 +145,10 @@ func TestCommitVersionBump(t *testing.T) {
 
 	project := filepath.Join("App.xcodeproj", "project.pbxproj")
 	git("init", "-q")
+	// In the repo's config rather than the environment, so the git that
+	// commitVersionBump runs has an identity too (CI runners have none).
+	git("config", "user.name", "test")
+	git("config", "user.email", "test@example.com")
 	write(project, "MARKETING_VERSION = 1.0.0;\n")
 	write("notes.txt", "a\n")
 	git("add", ".")
