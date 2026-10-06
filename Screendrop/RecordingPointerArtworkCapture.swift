@@ -15,6 +15,26 @@ enum PointerArtworkCapture {
         capture(NSCursor.arrow, id: "pointer-default")
     }
 
+    /// Identifies what a cursor looks like without encoding it.
+    /// `NSCursor.currentSystem` returns a new object on every call, so object
+    /// identity never repeats; hot spot, size, and pixels do. Nil when the
+    /// pixels can't be read, so the caller captures rather than guessing.
+    static func fingerprint(of cursor: NSCursor) -> Int? {
+        let image = cursor.image
+        var proposedRect = CGRect(origin: .zero, size: image.size)
+        guard let pixels = image.cgImage(forProposedRect: &proposedRect, context: nil, hints: nil)?
+            .dataProvider?.data else {
+            return nil
+        }
+        var hasher = Hasher()
+        hasher.combine(cursor.hotSpot.x)
+        hasher.combine(cursor.hotSpot.y)
+        hasher.combine(image.size.width)
+        hasher.combine(image.size.height)
+        hasher.combine(pixels as Data)
+        return hasher.finalize()
+    }
+
     static func capture(_ cursor: NSCursor, id: String) -> PointerArtwork? {
         let image = cursor.image
         guard let tiffData = image.tiffRepresentation,

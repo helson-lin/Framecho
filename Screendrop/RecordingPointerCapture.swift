@@ -58,8 +58,13 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
     private static let duplicatePressWindow: TimeInterval = 0.05
     /// Cursor identities can change briefly over links, resize handles, and
     /// text. Sample near display cadence; artwork encoding still runs only when
-    /// the NSCursor identity actually changes.
+    /// the cursor's fingerprint actually changes.
     private static let appearanceSampleInterval: TimeInterval = 1.0 / 30.0
+    /// With a live event tap, pointer input schedules appearance checks, so
+    /// the timer only catches changes made while the pointer rests (a busy
+    /// spinner, an I-beam after typing). Reading the system cursor costs a
+    /// few milliseconds of main thread, which 30 idle polls a second wasted.
+    private static let appearanceHeartbeatInterval: TimeInterval = 0.25
 
     private let lock = NSLock()
     private var mapping: RecordingInputMapping?
@@ -69,7 +74,7 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
     private var frameGeometries: [CapturedFrameGeometry] = []
     private var capturedArtwork: [PointerArtwork] = []
     private var activeArtworkID: String?
-    private var lastCursorIdentity: ObjectIdentifier?
+    private var lastCursorFingerprint: Int?
     private var hasFrameAlignedSample = false
     private var pressedButtons = Set<Int>()
     private var pauseStartedUptime: TimeInterval?
@@ -81,6 +86,8 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
     private var fallbackGlobalMonitor: Any?
     private var fallbackLocalMonitor: Any?
     private var cursorAppearanceTimer: Timer?
+    /// Main-thread only: a pointer-driven appearance check is already queued.
+    private var appearanceCheckPending = false
 
     @MainActor
     func start(
@@ -97,7 +104,7 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
             frameGeometries = []
             capturedArtwork = []
             activeArtworkID = nil
-            lastCursorIdentity = nil
+            lastCursorFingerprint = nil
             hasFrameAlignedSample = false
             pressedButtons = []
             pauseStartedUptime = nil
@@ -124,7 +131,7 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
         }
 
         let appearanceTimer = Timer(
-            timeInterval: Self.appearanceSampleInterval,
+            timeInterval: tapIsLive ? Self.appearanceHeartbeatInterval : Self.appearanceSampleInterval,
             target: self,
             selector: #selector(pointerAppearanceTimer(_:)),
             userInfo: nil,
@@ -347,6 +354,10 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
                 }
             } else {
                 recorder.record(type: type, event: event)
+                // The tap's run loop source lives on the main run loop.
+                MainActor.assumeIsolated {
+                    recorder.scheduleAppearanceCheck()
+                }
             }
             return Unmanaged.passUnretained(event)
         }
@@ -569,6 +580,24 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
         captureActiveArtwork()
     }
 
+    /// Coalesces pointer input into at most one appearance check per
+    /// `appearanceSampleInterval`. The check runs after the delay rather than
+    /// immediately because the app under the pointer swaps its cursor in
+    /// response to the same move; reading it at once would see the old shape.
+    @MainActor
+    private func scheduleAppearanceCheck() {
+        guard !appearanceCheckPending, cursorAppearanceTimer != nil else { return }
+        appearanceCheckPending = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.appearanceSampleInterval) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.appearanceCheckPending = false
+                guard self.cursorAppearanceTimer != nil else { return }
+                self.captureActiveArtwork()
+            }
+        }
+    }
+
     @MainActor
     private func captureActiveArtwork() {
         // This is the only public AppKit API that can expose another app's
@@ -594,8 +623,10 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
 
     @MainActor
     private func captureArtwork(from cursor: NSCursor) -> Bool {
-        let identity = ObjectIdentifier(cursor)
-        let shouldCapture = lock.withLock { lastCursorIdentity != identity }
+        let fingerprint = PointerArtworkCapture.fingerprint(of: cursor)
+        let shouldCapture = lock.withLock {
+            fingerprint == nil || lastCursorFingerprint != fingerprint
+        }
         guard shouldCapture else { return true }
 
         guard let artwork = PointerArtworkCapture.capture(
@@ -611,7 +642,7 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
         let cursorPoint = CGEvent(source: nil)?.location
         let uptime = ProcessInfo.processInfo.systemUptime
         lock.withLock {
-            lastCursorIdentity = identity
+            lastCursorFingerprint = fingerprint
             let artworkID: String
             if let existing = capturedArtwork.first(where: {
                 $0.imageData == imageData
@@ -652,7 +683,7 @@ nonisolated final class PointerActivityRecorder: NSObject, @unchecked Sendable {
         let cursorPoint = CGEvent(source: nil)?.location
         let uptime = ProcessInfo.processInfo.systemUptime
         lock.withLock {
-            lastCursorIdentity = nil
+            lastCursorFingerprint = nil
             guard activeArtworkID != nil else { return }
             activeArtworkID = nil
             guard pauseStartedUptime == nil, let cursorPoint else { return }
