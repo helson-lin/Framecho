@@ -22,6 +22,19 @@ extension View {
     }
 }
 
+// MARK: - Latin Symbol Glyphs
+
+extension Image {
+    /// SF Symbols draws text symbols such as `textformat` with localized glyphs
+    /// (格式 in Simplified Chinese). Applied to an icon that stands for a tool
+    /// rather than for words, this keeps its Latin design in every language.
+    /// Give the icon its own accessibility label or hide it: VoiceOver would
+    /// otherwise read the symbol's name in English.
+    func latinSymbolGlyphs() -> some View {
+        environment(\.locale, Locale(identifier: "en"))
+    }
+}
+
 // MARK: - On Click Outside
 
 /// Fires when a mouse-down occurs outside the view's bounds within the same window.

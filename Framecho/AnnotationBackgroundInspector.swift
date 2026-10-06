@@ -467,9 +467,11 @@ struct AnnotationWatermarkInspector: View {
         Button(action: beginTextEditing) {
             HStack(spacing: 7) {
                 Image(systemName: hasWatermarkText ? "textformat" : "plus")
+                    .latinSymbolGlyphs()
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .frame(width: 12)
+                    .accessibilityHidden(true)
 
                 Text(hasWatermarkText ? settings.text : String(localized: "Add watermark"))
                     .font(.inspectorValue)

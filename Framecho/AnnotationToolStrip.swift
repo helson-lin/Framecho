@@ -59,6 +59,7 @@ private struct AnnotationToolStripButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: tool.systemImage)
+                .latinSymbolGlyphs()
                 .font(.system(size: 14, weight: .medium))
                 .frame(width: 32, height: 28)
                 .foregroundStyle(isSelected ? Color.white : Color.primary)

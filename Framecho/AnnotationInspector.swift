@@ -561,9 +561,11 @@ private struct AnnotationInspectorContextRow: View {
         let _ = model.revision
         HStack(spacing: 8) {
             Image(systemName: model.selectedTool.systemImage)
+                .latinSymbolGlyphs()
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 18)
+                .accessibilityHidden(true)
             Text(title)
                 .font(.inspectorLabel)
                 .lineLimit(1)
