@@ -163,16 +163,7 @@
 | `uihssn` | UIHSSN | [Ahmed Hassan](https://x.com/uihssn) | 12 | [uihssn-wallpaper-pack.zip](https://r2.jarin.me/Frameecho/uihssn-wallpaper-pack.zip) |
 | `fayaz` | Fayazara | [Fayaz Ahmed](https://x.com/fayazara) | 5 | [fayaz-wallpaper-pack.zip](https://r2.jarin.me/Frameecho/fayaz-wallpaper-pack.zip) |
 
-<details>
-<summary>托管与许可说明</summary>
-
-- 两个包由 Framecho 维护者托管在 Cloudflare R2，应用直接通过公开 HTTPS 地址下载。
-- 托管包与原始下载包的 SHA-256 一致，包 ID、内部文件名和目录结构不变，已有本地壁纸和已保存的引用可继续使用。
-- 对象路径中的 `Frameecho` 是当前 R2 路径，大小写和拼写须保持一致。
-- 下载失败时，可继续使用已有壁纸、纯色、渐变或自定义图片。下载器目前不校验资源摘要，也没有镜像回退。
-- 资源来自 Screendrop 的壁纸包，保留原作者署名。迁移托管不改变素材许可，本仓库的 CC0 许可不适用于这些壁纸。
-
-</details>
+下载失败时，仍可使用已安装的壁纸、纯色、渐变或自定义图片。壁纸来自 Screendrop 的壁纸包，版权归原作者所有，本仓库的 CC0 许可不适用于这些图片。托管细节见 [壁纸包托管](docs/wallpaper-hosting.md)。
 
 ## 云端分享
 
