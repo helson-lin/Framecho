@@ -43,6 +43,9 @@ extension CaptureLibraryModel {
                     guard NSPasteboard.general.writeObjects(urls) else { throw CocoaError(.fileWriteUnknown) }
                 }
             }
+        case .copyLink:
+            guard selected.count == 1, let item = selected.first else { return }
+            copyLink(item)
         case .export:
             export(selected)
         case .reveal:
