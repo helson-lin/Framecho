@@ -74,9 +74,9 @@ struct SettingsAboutPane: View {
 
             Section("Project") {
                 LabeledContent {
-                    Link("View on GitHub", destination: URL(string: "https://github.com/helson-lin/Screendrop")!)
+                    Link("View on GitHub", destination: URL(string: "https://github.com/helson-lin/Framecho")!)
                 } label: {
-                    SettingsControlLabel(String(localized: "Source code"), detail: "github.com/helson-lin/Screendrop")
+                    SettingsControlLabel(String(localized: "Source code"), detail: "github.com/helson-lin/Framecho")
                 }
 
                 LabeledContent {

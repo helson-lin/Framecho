@@ -90,7 +90,7 @@ go run ./cmd/framecho-release -yes -notes "Your notes here"
 4. **Collect release notes** (from `-notes`/`-notes-file`, else stdin).
 5. **Create** `~/Downloads/Framecho.dmg` with `create-dmg` and **sign** it with Sparkle's `sign_update`.
 6. **Push commits** (e.g. the version bump) to `main`.
-7. **GitHub release** - `gh release create vX.Y.Z` on `helson-lin/Screendrop` with the DMG attached.
+7. **GitHub release** - `gh release create vX.Y.Z` on `helson-lin/Framecho` with the DMG attached.
 8. **Update and push `appcast.xml`** - prepend the new `<item>` (replacing any entry for the same build).
 
 The release is created **before** the appcast is pushed, so a published
@@ -100,15 +100,15 @@ and the appcast entry for that build is replaced, not duplicated.
 
 ## Configuration
 
-- GitHub repo: `helson-lin/Screendrop` · branch: `main` · team: `64S5F787T9` · bundle ID: `com.jarinhe.Framecho`.
-- Sparkle feed: `https://raw.githubusercontent.com/helson-lin/Screendrop/main/appcast.xml` (`SUFeedURL` in `Framecho/Info.plist`, alongside `SUPublicEDKey`).
+- GitHub repo: `helson-lin/Framecho` · branch: `main` · team: `64S5F787T9` · bundle ID: `com.jarinhe.Framecho`.
+- Sparkle feed: `https://raw.githubusercontent.com/helson-lin/Framecho/main/appcast.xml` (`SUFeedURL` in `Framecho/Info.plist`, alongside `SUPublicEDKey`).
 - Repo auto-detected from the working directory (override with `FRAMECHO_REPO`).
 - DMG volume: `Framecho` · minimum macOS: `26.4`.
 
 ## After releasing
 
 ```bash
-gh release view v<x.y.z> --repo helson-lin/Screendrop --json tagName,assets -q '{tag: .tagName, assets: [.assets[].name]}'
+gh release view v<x.y.z> --repo helson-lin/Framecho --json tagName,assets -q '{tag: .tagName, assets: [.assets[].name]}'
 ```
 
 The CLI pushes the appcast commit itself, so run `git pull --ff-only origin main`

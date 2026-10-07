@@ -33,7 +33,7 @@ func TestWriteAppcast(t *testing.T) {
 			PubDate:            "Tue, 12 May 2026 09:30:00 +0000",
 			Description:        buildDescription("1.0", []string{"Initial release"}),
 			Enclosure: Enclosure{
-				URL:         "https://github.com/helson-lin/Screendrop/releases/download/v1.0/Framecho.dmg",
+				URL:         "https://github.com/helson-lin/Framecho/releases/download/v1.0/Framecho.dmg",
 				Type:        "application/octet-stream",
 				EdSignature: "sig==",
 				Length:      "123",
