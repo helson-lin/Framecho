@@ -15,7 +15,7 @@
 
 **[下载 Framecho.dmg](https://github.com/helson-lin/Framecho/releases/latest/download/Framecho.dmg)** · [发布记录](https://github.com/helson-lin/Framecho/releases) · [反馈问题](https://github.com/helson-lin/Framecho/issues)
 
-<img src="docs/images/editor.png" alt="Framecho 图片编辑器：在一张仪表盘截图上添加了矩形框、编号、箭头和文字标注，并套用了蓝色渐变背景" width="900">
+<img src="docs/images/editor.webp" alt="Framecho 图片编辑器：在一张网页对比表格截图上添加了编号、矩形框、手绘圈注和两个指向原像素的颜色值标注，并套用了壁纸背景" width="900">
 
 </div>
 
