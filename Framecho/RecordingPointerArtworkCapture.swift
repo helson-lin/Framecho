@@ -3,7 +3,7 @@
 //  Framecho
 //
 //  Converts AppKit-provided cursor images into the recording sidecar format.
-//  Framecho does not ship or substitute its own pointer artwork.
+//  Shapes Framecho draws in place of the pointer are in RecordingCursorStyle.
 //
 
 import AppKit

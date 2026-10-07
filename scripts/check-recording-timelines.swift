@@ -32,6 +32,7 @@ struct RecordingTimelineChecks {
         checkViewport()
         checkViewportAcrossCuts()
         checkPointer()
+        checkCursorStyles()
         print("Recording timeline checks passed (\(checks) assertions).")
     }
 
@@ -213,5 +214,36 @@ struct RecordingTimelineChecks {
                                         clipTimeline: RecordingClipTimeline(segments: [RecordingClipSegment(sourceStart: 10, sourceEnd: 20)]))
         expect((cut.frame(at: 1)?.location.x ?? 1) < 0.3, "Before the move, at its new time")
         expect((cut.frame(at: 6)?.location.x ?? 0) > 0.8, "After the move, at its new time")
+    }
+
+    // MARK: - Cursor and click styles
+
+    static func checkCursorStyles() {
+        let arrow = PointerArtwork(
+            artworkID: "arrow", imageData: Data([1]),
+            anchorPoint: .init(x: 0, y: 0), referenceSize: .init(width: 16, height: 24)
+        )
+        let beam = PointerArtwork(
+            artworkID: "beam", imageData: Data([2]),
+            anchorPoint: .init(x: 4, y: 8), referenceSize: .init(width: 8, height: 16)
+        )
+        let travel = [PointerTravelSample(time: 0, x: 0.5, y: 0.5, kind: .move, artworkID: "beam")]
+        var file = capture(travel: travel)
+        file.artwork = [beam]
+        let timeline = PointerTimeline.build(capture: file, duration: 2, fallbackArtwork: arrow)
+
+        expect(timeline.artwork(id: "beam", style: .recorded) == beam, "Original keeps the recorded artwork")
+        expect(timeline.artwork(id: "beam", style: .arrow) == arrow, "Arrow always uses the system arrow")
+        for style in [RecordingCursorStyle.highlight, .dot, .ring, .crosshair] {
+            guard let shape = timeline.artwork(id: "beam", style: style) else {
+                expect(false, "\(style) artwork renders")
+                continue
+            }
+            expect(shape.artworkID != beam.artworkID && !shape.imageData.isEmpty, "\(style) replaces the pointer")
+            expect(shape.normalizedAnchor == CGPoint(x: 0.5, y: 0.5), "\(style) is centered on the pointer")
+        }
+        let shapeIDs = [RecordingCursorStyle.highlight, .dot, .ring, .crosshair]
+            .compactMap { timeline.artwork(id: nil, style: $0)?.artworkID }
+        expect(Set(shapeIDs).count == 4, "Shapes cache under their own IDs")
     }
 }

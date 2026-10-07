@@ -104,6 +104,26 @@ nonisolated struct PointerTimeline: Sendable {
         return artworkByID[id] ?? fallbackArtwork
     }
 
+    /// Every pointer image recorded with the video, in a stable order.
+    var recordedArtwork: [PointerArtwork] {
+        artworkByID.values.sorted { $0.artworkID < $1.artworkID }
+    }
+
+    /// The artwork drawn for `id` in a Studio cursor style. The arrow is the
+    /// fallback artwork (the system arrow); a style whose artwork can't be
+    /// made falls back to the recorded pointer.
+    func artwork(id: String?, style: RecordingCursorStyle) -> PointerArtwork? {
+        let replacement: PointerArtwork? = switch style {
+        case .recorded: nil
+        case .arrow: fallbackArtwork
+        case .highlight: RecordingCursorArtwork.highlight
+        case .dot: RecordingCursorArtwork.dot
+        case .ring: RecordingCursorArtwork.ring
+        case .crosshair: RecordingCursorArtwork.crosshair
+        }
+        return replacement ?? artwork(id: id)
+    }
+
     static func build(
         capture: PointerCaptureFile,
         duration: TimeInterval,

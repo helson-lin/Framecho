@@ -7945,16 +7945,6 @@
         }
       }
     },
-    "Reset cursor size" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重置光标大小"
-          }
-        }
-      }
-    },
     "Reset screenshot appearance" : {
       "localizations" : {
         "zh-Hans" : {
@@ -11905,6 +11895,76 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Framecho 应用图标"
+          }
+        }
+      }
+    },
+    "The pointer as it looked while recording" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录制时的指针样式"
+          }
+        }
+      }
+    },
+    "Always show the arrow pointer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "始终显示箭头指针"
+          }
+        }
+      }
+    },
+    "Replace the pointer with a dot" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用圆点代替指针"
+          }
+        }
+      }
+    },
+    "Replace the pointer with a ring" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用圆环代替指针"
+          }
+        }
+      }
+    },
+    "Reset cursor" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置光标"
+          }
+        }
+      }
+    },
+    "Replace the pointer with a soft highlight" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用柔和的高亮圈代替指针"
+          }
+        }
+      }
+    },
+    "Replace the pointer with a crosshair" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用十字准星代替指针"
           }
         }
       }

@@ -287,6 +287,10 @@ struct StoredRecordingStudioStyle: Codable, Equatable {
     /// current default.
     var cursorScale: Double?
     var hidesCursor: Bool?
+    /// Raw RecordingCursorStyle value. Optional, and left out for the
+    /// original pointer, so projects and presets saved before cursor styling
+    /// match and decode unchanged.
+    var cursorStyle: String?
     var cameraIsVisible: Bool
     var cameraCenterX: Double
     var cameraCenterY: Double
@@ -309,6 +313,7 @@ struct StoredRecordingStudioStyle: Codable, Equatable {
         shadow = Double(style.shadow)
         cursorScale = Double(style.cursorScale)
         hidesCursor = style.hidesCursor ? true : nil
+        cursorStyle = style.cursorStyle == .recorded ? nil : style.cursorStyle.rawValue
         cameraIsVisible = style.camera.isVisible
         cameraCenterX = Double(style.camera.center.x)
         cameraCenterY = Double(style.camera.center.y)
@@ -336,6 +341,7 @@ struct StoredRecordingStudioStyle: Codable, Equatable {
             shadow: CGFloat(shadow),
             cursorScale: CGFloat(cursorScale ?? RecordingStudioStyle.defaultCursorScale),
             hidesCursor: hidesCursor ?? false,
+            cursorStyle: cursorStyle.flatMap(RecordingCursorStyle.init(rawValue:)) ?? .recorded,
             camera: RecordingCameraBubbleSettings(
                 isVisible: cameraIsVisible,
                 center: CGPoint(x: cameraCenterX, y: cameraCenterY),
@@ -364,6 +370,7 @@ struct RecordingStudioStyle: Equatable {
     /// Synthetic cursor magnification (1 = natural size, up to 4).
     var cursorScale: CGFloat = RecordingStudioStyle.defaultCursorScale
     var hidesCursor = false
+    var cursorStyle = RecordingCursorStyle.recorded
     var camera = RecordingCameraBubbleSettings()
 }
 

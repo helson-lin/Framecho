@@ -1548,6 +1548,59 @@ private struct StudioCursorOverlay: View {
     }
 }
 
+/// Three picker tiles per row, for options recognized by sight.
+private struct StudioPreviewTileGrid<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3),
+            spacing: 6
+        ) {
+            content()
+        }
+    }
+}
+
+/// A picker tile that shows its option rather than naming it. The selected
+/// tile also takes an accent tint so the choice reads at a glance.
+private struct StudioPreviewTile<Content: View>: View {
+    let help: String
+    let isSelected: Bool
+    let action: () -> Void
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        // The tile uses its title for the tooltip and VoiceOver; the longer
+        // description serves both better than the bare name.
+        InspectorTile(title: help, aspectRatio: 1.55, isSelected: isSelected, action: action) {
+            content()
+                .background(isSelected ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.05))
+        }
+    }
+}
+
+/// The pointer images a cursor style draws, at a size that fits a tile.
+private struct StudioCursorStylePreview: View {
+    let artwork: [PointerArtwork]
+
+    var body: some View {
+        ZStack {
+            Color.clear
+            HStack(spacing: 5) {
+                ForEach(artwork, id: \.artworkID) { artwork in
+                    if let image = StudioCursorImageCache.image(for: artwork) {
+                        Image(nsImage: image)
+                            .resizable()
+                            .aspectRatio(artwork.aspectRatio, contentMode: .fit)
+                            .frame(height: min(24, 13 * artwork.intrinsicScale))
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// The keystroke caption pill: one rounded container with the chord's
 /// modifiers and key. Geometry comes from KeystrokeCaptionMetrics so the
 /// exporter draws the identical pill.
@@ -4555,9 +4608,11 @@ private struct StudioInspector: View {
                 title: "Cursor",
                 accessory: {
                     HStack(spacing: 5) {
-                        if model.style.cursorScale != RecordingStudioStyle.defaultCursorScale {
-                            InspectorResetButton(help: "Reset cursor size") {
-                                model.style.cursorScale = RecordingStudioStyle.defaultCursorScale
+                        if !usesDefaultCursor {
+                            InspectorResetButton(help: "Reset cursor") {
+                                let defaults = RecordingStudioStyle()
+                                model.style.cursorScale = defaults.cursorScale
+                                model.style.cursorStyle = defaults.cursorStyle
                             }
                         }
                         InspectorToggle(
@@ -5325,8 +5380,26 @@ private struct StudioInspector: View {
 
     // MARK: Cursor
 
+    private var usesDefaultCursor: Bool {
+        let defaults = RecordingStudioStyle()
+        return model.style.cursorScale == defaults.cursorScale
+            && model.style.cursorStyle == defaults.cursorStyle
+    }
+
     private var cursorControls: some View {
         VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+            StudioPreviewTileGrid {
+                ForEach(RecordingCursorStyle.allCases) { cursorStyle in
+                    StudioPreviewTile(
+                        help: cursorStyle.help,
+                        isSelected: model.style.cursorStyle == cursorStyle,
+                        action: { model.style.cursorStyle = cursorStyle }
+                    ) {
+                        StudioCursorStylePreview(artwork: model.previewArtwork(for: cursorStyle))
+                    }
+                }
+            }
+
             InspectorSlider(
                 "Size",
                 value: $model.style.cursorScale,

@@ -693,6 +693,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
     private let cardShadowStrength: CGFloat
     private var artworkImageCache: [String: CGImage] = [:]
     private let pointerScale: CGFloat
+    private let cursorStyle: RecordingCursorStyle
     private let colorSpace: CGColorSpace
     private let backdrop: CGImage?
     private let timing: RecordingExportTiming
@@ -760,6 +761,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         self.cardShadowStrength = style.shadow > 0.01 && style.background != .none ? style.shadow : 0
         self.timing = timing
         self.pointerScale = style.cursorScale
+        self.cursorStyle = style.cursorStyle
         self.colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
         self.backdrop = Self.renderBackdrop(
             canvasSize: canvasSize,
@@ -1821,7 +1823,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         for pointer: PointerFrame,
         in timeline: PointerTimeline
     ) -> (image: CGImage, anchor: CGPoint, aspectRatio: CGFloat, intrinsicScale: CGFloat)? {
-        if let resolved = timeline.artwork(id: pointer.artworkID),
+        if let resolved = timeline.artwork(id: pointer.artworkID, style: cursorStyle),
            let image = artworkImage(for: resolved) {
             return (
                 image,
