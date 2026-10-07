@@ -6,6 +6,7 @@ enum CaptureLibraryAction: String {
     case edit = "Edit"
     case rename = "Rename…"
     case copy = "Copy"
+    case copyLink = "Copy Link"
     case export = "Export…"
     case reveal = "Reveal in Finder"
     case trash = "Move to Trash"
@@ -16,6 +17,7 @@ enum CaptureLibraryAction: String {
         case .edit: String(localized: "Edit")
         case .rename: String(localized: "Rename…")
         case .copy: String(localized: "Copy")
+        case .copyLink: String(localized: "Copy Link")
         case .export: String(localized: "Export…")
         case .reveal: String(localized: "Reveal in Finder")
         case .trash: String(localized: "Move to Trash")
@@ -190,7 +192,10 @@ struct CaptureLibraryCollection: NSViewRepresentable {
             let count = collection.selectionIndexPaths.count
             let menu = NSMenu()
             menu.autoenablesItems = false
-            for action in [CaptureLibraryAction.preview, .edit, .rename, .copy, .export, .reveal, .trash] {
+            var actions: [CaptureLibraryAction] = [.preview, .edit, .rename, .copy]
+            if count == 1, item(at: path)?.cloudURL != nil { actions.append(.copyLink) }
+            actions += [.export, .reveal, .trash]
+            for action in actions {
                 if action == .copy || action == .trash { menu.addItem(.separator()) }
                 let item = NSMenuItem(title: action.title, action: #selector(performMenuAction(_:)), keyEquivalent: "")
                 item.target = self
