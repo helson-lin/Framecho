@@ -13,7 +13,11 @@
 ![macOS 26.4+](https://img.shields.io/badge/macOS-26.4%2B-black)
 [![License: CC0](https://img.shields.io/badge/license-CC0%201.0-lightgrey)](LICENSE)
 
-**[下载 Framecho.dmg](https://github.com/helson-lin/Framecho/releases/latest/download/Framecho.dmg)** · [发布记录](https://github.com/helson-lin/Framecho/releases) · [反馈问题](https://github.com/helson-lin/Framecho/issues)
+<p>
+  <a href="https://github.com/helson-lin/Framecho/releases/latest/download/Framecho.dmg"><img src="docs/images/button-download.svg" alt="下载 Framecho.dmg" width="252" height="56"></a>
+  <a href="https://github.com/helson-lin/Framecho/releases"><img src="docs/images/button-releases.svg" alt="发布记录" width="148" height="56"></a>
+  <a href="https://github.com/helson-lin/Framecho/issues"><img src="docs/images/button-issues.svg" alt="反馈问题" width="148" height="56"></a>
+</p>
 
 <img src="docs/images/editor.webp" alt="Framecho 图片编辑器：在一张网页对比表格截图上添加了编号、矩形框、手绘圈注和两个指向原像素的颜色值标注，并套用了壁纸背景" width="900">
 
