@@ -51,7 +51,7 @@ func fail(msg string) {
 
 const (
 	appDisplayName = "Framecho"
-	githubRepo     = "helson-lin/Screendrop"
+	githubRepo     = "helson-lin/Framecho"
 	gitBranch      = "main"
 	minSystemVer   = "26.4"
 	dmgVolumeName  = "Framecho"
@@ -59,7 +59,7 @@ const (
 	dmgName        = "Framecho.dmg"
 	appcastFile    = "appcast.xml"
 	repoEnvVar     = "FRAMECHO_REPO"
-	appcastURL     = "https://raw.githubusercontent.com/helson-lin/Screendrop/main/appcast.xml"
+	appcastURL     = "https://raw.githubusercontent.com/helson-lin/Framecho/main/appcast.xml"
 
 	// Keychain account of the EdDSA key made with
 	// `generate_keys --account com.jarinhe.Framecho`.

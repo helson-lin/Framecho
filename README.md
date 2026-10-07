@@ -6,12 +6,12 @@
 
 本地素材库 · 非破坏性编辑 · 简体中文界面 · 部署在自己 Cloudflare 账号上的云端分享
 
-[![最新版本](https://img.shields.io/github/v/release/helson-lin/Screendrop?label=%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC)](https://github.com/helson-lin/Screendrop/releases/latest)
-[![CI](https://github.com/helson-lin/Screendrop/actions/workflows/ci.yml/badge.svg)](https://github.com/helson-lin/Screendrop/actions/workflows/ci.yml)
+[![最新版本](https://img.shields.io/github/v/release/helson-lin/Framecho?label=%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC)](https://github.com/helson-lin/Framecho/releases/latest)
+[![CI](https://github.com/helson-lin/Framecho/actions/workflows/ci.yml/badge.svg)](https://github.com/helson-lin/Framecho/actions/workflows/ci.yml)
 ![macOS 26.4+](https://img.shields.io/badge/macOS-26.4%2B-black)
 [![License: CC0](https://img.shields.io/badge/license-CC0%201.0-lightgrey)](LICENSE)
 
-**[下载 Framecho.dmg](https://github.com/helson-lin/Screendrop/releases/latest/download/Framecho.dmg)** · [发布记录](https://github.com/helson-lin/Screendrop/releases) · [反馈问题](https://github.com/helson-lin/Screendrop/issues)
+**[下载 Framecho.dmg](https://github.com/helson-lin/Framecho/releases/latest/download/Framecho.dmg)** · [发布记录](https://github.com/helson-lin/Framecho/releases) · [反馈问题](https://github.com/helson-lin/Framecho/issues)
 
 <img src="docs/images/editor.png" alt="Framecho 图片编辑器：在一张仪表盘截图上添加了矩形框、编号、箭头和文字标注，并套用了蓝色渐变背景" width="900">
 
@@ -20,7 +20,7 @@
 ---
 
 - **系统要求**：macOS 26.4 或更高版本；发布包同时支持 Apple Silicon 和 Intel。
-- **项目来源**：基于 [Screendrop](https://github.com/fayazara/Screendrop) 开发，现由 [helson-lin](https://github.com/helson-lin) 完全独立维护，不再同步上游；使用自己的应用标识、签名、公证、发布渠道和 Sparkle 更新源。GitHub 仓库暂沿用 `helson-lin/Screendrop` 名称。
+- **项目来源**：基于 [Screendrop](https://github.com/fayazara/Screendrop) 开发，现由 [helson-lin](https://github.com/helson-lin) 完全独立维护，不再同步上游；使用自己的应用标识、签名、公证、发布渠道和 Sparkle 更新源。GitHub 仓库已由 `helson-lin/Screendrop` 更名为 `helson-lin/Framecho`，旧地址会自动跳转。
 
 > [!NOTE]
 > 项目仍在持续开发中。反馈问题时，请附上 macOS 版本、Framecho 版本和复现步骤。
@@ -29,13 +29,13 @@
 
 ## 安装与更新
 
-1. 下载最新的 [`Framecho.dmg`](https://github.com/helson-lin/Screendrop/releases/latest/download/Framecho.dmg)。
+1. 下载最新的 [`Framecho.dmg`](https://github.com/helson-lin/Framecho/releases/latest/download/Framecho.dmg)。
 2. 打开 DMG，将 **Framecho** 拖入「应用程序」文件夹。
 3. 启动 Framecho，按提示授予屏幕录制权限。
 
 正常启动会打开素材库，菜单栏提供截图和录屏入口；登录时启动只留在菜单栏。正式发布包使用 Developer ID 签名并经过 Apple 公证。
 
-**自动更新**：Framecho 通过 Sparkle 检查更新，更新源为本仓库 `main` 分支上的 [`appcast.xml`](https://raw.githubusercontent.com/helson-lin/Screendrop/main/appcast.xml)，DMG 保存在 GitHub Release 附件中。已是最新版时不会提示；Debug 构建不检查更新。
+**自动更新**：Framecho 通过 Sparkle 检查更新，更新源为本仓库 `main` 分支上的 [`appcast.xml`](https://raw.githubusercontent.com/helson-lin/Framecho/main/appcast.xml)，DMG 保存在 GitHub Release 附件中。已是最新版时不会提示；Debug 构建不检查更新。
 
 **从旧版本升级**：早期版本保存的 `.screendrop` 编辑记录、`.screendroprec` 录屏项目会在启动时自动改名为 `.framecho`、`.framechorec`，素材库和编辑记录不受影响。
 
@@ -237,7 +237,7 @@ npx wrangler secret put UPLOAD_TOKEN
 需要 macOS 26.4 或更高版本，以及 Xcode 27.1（发布版与 CI 使用的版本）。Xcode 会自动解析 Sparkle 和 DockProgress 依赖。
 
 ```bash
-git clone https://github.com/helson-lin/Screendrop.git
+git clone https://github.com/helson-lin/Framecho.git
 cd Screendrop
 
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
@@ -285,6 +285,6 @@ go test ./cmd/...
 
 ## 致谢与许可
 
-感谢 [Screendrop](https://github.com/fayazara/Screendrop) 及其贡献者提供项目基础。Framecho 的发布与维护在本仓库进行，问题请提交到 [Framecho Issues](https://github.com/helson-lin/Screendrop/issues)。
+感谢 [Screendrop](https://github.com/fayazara/Screendrop) 及其贡献者提供项目基础。Framecho 的发布与维护在本仓库进行，问题请提交到 [Framecho Issues](https://github.com/helson-lin/Framecho/issues)。
 
 本仓库沿用 [CC0 1.0 Universal](LICENSE)。外部壁纸、第三方依赖和云端 Worker 的许可请分别查看各自来源，本仓库的许可不自动适用于它们。

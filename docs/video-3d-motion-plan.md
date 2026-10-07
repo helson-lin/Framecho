@@ -221,7 +221,7 @@ nonisolated struct RecordingMotionCue: Identifiable, Codable, Equatable, Sendabl
 
 ## 9. 实施顺序与 PR 划分
 
-开发分支沿用仓库现有的描述性命名（如 `video-3d-motion-prototype`），PR 只提交到 `helson-lin/Screendrop`。
+开发分支沿用仓库现有的描述性命名（如 `video-3d-motion-prototype`），PR 只提交到 `helson-lin/Framecho`。
 
 | 阶段 | 交付 | 通过条件 |
 | --- | --- | --- |

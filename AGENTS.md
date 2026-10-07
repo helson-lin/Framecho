@@ -6,7 +6,7 @@ Framecho is a native macOS screenshot and screen recording tool. Its Library win
 
 **Deployment target:** macOS 26.4, built with Xcode 27.1 (macOS 27 SDK).
 **Bundle ID:** `com.jarinhe.Framecho`
-**Origin:** started as a fork of [Screendrop](https://github.com/fayazara/screendrop) and is now maintained independently; upstream changes are no longer merged. The GitHub repository is still named `helson-lin/Screendrop`, and the Sparkle feed URL depends on that name.
+**Origin:** started as a fork of [Screendrop](https://github.com/fayazara/screendrop) and is now maintained independently; upstream changes are no longer merged. The GitHub repository was renamed from `helson-lin/Screendrop` to `helson-lin/Framecho` on 2026-10-07. Copies installed before then poll the old `raw.githubusercontent.com/helson-lin/Screendrop` feed URL and older appcast entries link to old release URLs; both rely on GitHub's rename redirects, so never create a new repository named `helson-lin/Screendrop`.
 
 ## Build
 
@@ -82,7 +82,7 @@ Make atomic commits. Each commit should represent exactly one logical change (e.
 
 ## Releasing Framecho
 
-Updates are served by Sparkle from `appcast.xml` on `main` of `helson-lin/Screendrop`, with DMGs attached to GitHub releases. The EdDSA private key lives in the login keychain under the account `com.jarinhe.Framecho`; its public key is `SUPublicEDKey` in `Info.plist`. Back the key up (`generate_keys --account com.jarinhe.Framecho -x <file>`); without it, installed copies can't be updated.
+Updates are served by Sparkle from `appcast.xml` on `main` of `helson-lin/Framecho`, with DMGs attached to GitHub releases. The EdDSA private key lives in the login keychain under the account `com.jarinhe.Framecho`; its public key is `SUPublicEDKey` in `Info.plist`. Back the key up (`generate_keys --account com.jarinhe.Framecho -x <file>`); without it, installed copies can't be updated.
 
 Builds are signed for team `64S5F787T9`: Debug with the Apple Development certificate, Release with Developer ID Application (hardened runtime on). Because the signature is tied to the team rather than the binary, privacy permissions survive rebuilds and updates.
 

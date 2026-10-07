@@ -30,7 +30,7 @@
 	<key>SUEnableInstallerLauncherService</key>
 	<true/>
 	<key>SUFeedURL</key>
-	<string>https://raw.githubusercontent.com/helson-lin/Screendrop/main/appcast.xml</string>
+	<string>https://raw.githubusercontent.com/helson-lin/Framecho/main/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>xME1rgjHkyv9KVfsKFtZ8JMF1+i7HMly4U+c37+a1Ds=</string>
 	<key>UTExportedTypeDeclarations</key>

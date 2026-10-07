@@ -2,7 +2,7 @@
 
 维护者发布流程。普通用户和贡献者不需要阅读本文档。
 
-发布工具位于 `cmd/framecho-release`，发布目标为 `helson-lin/Screendrop`。完整流程需要 Go、`create-dmg`、已登录的 `gh`、Xcode、Developer ID Application 证书、Sparkle 签名密钥，以及名为 `framecho-notary` 的公证凭据配置。
+发布工具位于 `cmd/framecho-release`，发布目标为 `helson-lin/Framecho`。完整流程需要 Go、`create-dmg`、已登录的 `gh`、Xcode、Developer ID Application 证书、Sparkle 签名密钥，以及名为 `framecho-notary` 的公证凭据配置。
 
 ```bash
 brew install create-dmg
