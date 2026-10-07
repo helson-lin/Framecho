@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/images/icon.png" alt="Framecho 应用图标" width="128" height="128">
+
 # Framecho
 
 原生 macOS 截图、录屏与编辑工具
