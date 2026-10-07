@@ -11548,6 +11548,36 @@
           }
         }
       }
+    },
+    "Allow Framecho in Screen & System Audio Recording" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在「录屏与系统录音」中允许 Framecho"
+          }
+        }
+      }
+    },
+    "Drag the Framecho icon into the list, then turn it on." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "把 Framecho 图标拖进列表，然后打开开关。"
+          }
+        }
+      }
+    },
+    "Framecho app icon" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Framecho 应用图标"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

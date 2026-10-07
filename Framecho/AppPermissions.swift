@@ -130,7 +130,7 @@ final class AppPermissionCenter {
             // On current macOS this shows a dialog that leads to System
             // Settings; the grant itself happens there.
             if !CGRequestScreenCaptureAccess() {
-                sentToSettings.insert(.screenRecording)
+                openSettings(for: .screenRecording)
             }
             refresh()
         case .microphone, .camera:
@@ -156,6 +156,9 @@ final class AppPermissionCenter {
         sentToSettings.insert(permission)
         guard let url = permission.settingsURL else { return }
         NSWorkspace.shared.open(url)
+        if permission == .screenRecording, status(of: permission) != .granted {
+            ScreenRecordingPermissionPresenter.shared.show()
+        }
     }
 
     // MARK: Capture gate
