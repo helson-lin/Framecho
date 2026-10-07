@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="252" height="56" viewBox="0 0 252 56" role="img" aria-labelledby="title">
+  <title id="title">下载 Framecho.dmg</title>
+  <rect x="4" y="4" width="244" height="48" rx="12" fill="#F0643C"/>
+  <g fill="none" stroke="#1A0A05" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M28 17v14m-5-5 5 5 5-5"/>
+    <path d="M19 33v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4"/>
+  </g>
+  <text x="50" y="33.5" fill="#1A0A05" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="16" font-weight="600">下载 Framecho.dmg</text>
+</svg>
