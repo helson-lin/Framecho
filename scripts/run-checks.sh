@@ -97,7 +97,7 @@ check onboarding-launch "${strict[@]}" \
 engine=(
   Framecho/Engine/AnnoEditor.swift Framecho/Engine/AnnoEditorInteraction.swift
   Framecho/Engine/ArrowShared.swift Framecho/Engine/ArrowTypes.swift Framecho/Engine/Arrowheads.swift
-  Framecho/Engine/Box.swift Framecho/Engine/CurvedArrow.swift Framecho/Engine/Document.swift
+  Framecho/Engine/Box.swift Framecho/Engine/ColorTag.swift Framecho/Engine/CurvedArrow.swift Framecho/Engine/Document.swift
   Framecho/Engine/GeoPaths.swift Framecho/Engine/Geometry2d.swift Framecho/Engine/InkPath.swift
   Framecho/Engine/Intersect.swift Framecho/Engine/Mat.swift Framecho/Engine/MathUtils.swift
   Framecho/Engine/PathBuilder.swift Framecho/Engine/PerfectDash.swift Framecho/Engine/Shape.swift
@@ -108,7 +108,7 @@ engine=(
 )
 
 check annotation-engine -default-isolation MainActor -parse-as-library \
-  "${engine[@]}" scripts/check-annotation-engine.swift
+  "${engine[@]}" Framecho/AnnotationColorSampler.swift scripts/check-annotation-engine.swift
 
 check annotation-document -default-isolation MainActor -parse-as-library \
   "${engine[@]}" Framecho/AnnotationDocument.swift Framecho/AnnotationBackground.swift \

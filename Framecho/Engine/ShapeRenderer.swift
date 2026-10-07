@@ -73,6 +73,10 @@ enum AnnoShapeRenderer {
             [RenderElement(content: .spotlight(CGSize(width: props.w, height: props.h)))]
         case let .numbered(props):
             [RenderElement(content: .numbered(props))]
+        case let .colorTag(props):
+            ColorTagLayout(props).elements(
+                anchor: shape.pageTransform.inverse.applyToPoint(shape.colorTagAnchor ?? Vec(0, 0))
+            )
         }
     }
 

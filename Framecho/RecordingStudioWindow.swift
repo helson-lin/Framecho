@@ -54,6 +54,7 @@ private struct RecordingStudioContent: View {
     @Bindable var model: RecordingStudioModel
     @State private var isInspectorPresented = true
     @State private var closeGuard = EditorCloseGuard()
+    @State private var stylePresetStore = RecordingStudioStylePresetStore.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -65,9 +66,12 @@ private struct RecordingStudioContent: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                StudioCanvas(model: model)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(AnnotationEditorWorkspaceBackground())
+                VStack(spacing: 0) {
+                    StudioCanvasBar(model: model)
+                    StudioCanvas(model: model)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .background(AnnotationEditorWorkspaceBackground())
 
                 StudioTimelineEditor(model: model)
             }
@@ -78,6 +82,16 @@ private struct RecordingStudioContent: View {
             StudioInspector(model: model)
         }
         .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    NSWorkspace.shared.activateFileViewerSelecting([model.sessionURL])
+                } label: {
+                    Label("Show in Finder", systemImage: "folder")
+                }
+                .help("Show this recording in Finder")
+                .disabled(!model.isLoaded)
+            }
+
             ToolbarItemGroup(placement: .primaryAction) {
                 if !model.isCroppingVideo {
                     Button {
@@ -104,16 +118,8 @@ private struct RecordingStudioContent: View {
                 if model.isCroppingVideo {
                     videoCropActions
                 } else {
-                    Button {
-                        withAnimation(.snappy(duration: 0.22)) {
-                            model.beginVideoCrop()
-                        }
-                    } label: {
-                        Label("Crop", systemImage: "crop")
-                            .labelStyle(.titleAndIcon)
-                    }
-                    .disabled(!model.isLoaded || model.exportState.isExporting)
-                    .help("Crop the finished video canvas")
+                    RecordingStudioStylePresetBar(model: model, presetStore: stylePresetStore)
+                        .disabled(!model.isLoaded)
 
                     if model.isProject {
                         saveStatus
@@ -511,6 +517,68 @@ private struct ExportProgressPill: View {
 
 // MARK: - Canvas
 
+/// The tools that reshape the frame, kept right above it: crop the finished
+/// video and choose the shape it is delivered in.
+private struct StudioCanvasBar: View {
+    @Bindable var model: RecordingStudioModel
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Button {
+                withAnimation(.snappy(duration: 0.22)) {
+                    model.beginVideoCrop()
+                }
+            } label: {
+                Label("Crop", systemImage: "crop")
+                    .labelStyle(.titleAndIcon)
+                    .font(.system(size: 11.5, weight: .medium))
+            }
+            .buttonStyle(TransportTextButtonStyle())
+            .disabled(!model.isLoaded || model.isCroppingVideo || model.exportState.isExporting)
+            .help("Crop the finished video canvas")
+
+            aspectMenu
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.top, 6)
+        .frame(height: 34)
+    }
+
+    private var aspectMenu: some View {
+        Menu {
+            Picker("Aspect ratio", selection: $model.exportAspect) {
+                ForEach(ExportAspectPreset.allCases, id: \.self) { preset in
+                    Text(preset.title).tag(preset)
+                }
+            }
+            .pickerStyle(.inline)
+
+            if model.exportAspect != .original {
+                Picker("Fit", selection: $model.exportAspectMode) {
+                    ForEach(ExportAspectContentMode.allCases, id: \.self) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.inline)
+            }
+        } label: {
+            Label(model.exportAspect.title, systemImage: "aspectratio")
+                .labelStyle(.titleAndIcon)
+                .font(.system(size: 11.5, weight: .medium))
+        }
+        .menuStyle(.button)
+        .buttonStyle(TransportTextButtonStyle())
+        .menuIndicator(.visible)
+        .fixedSize()
+        .disabled(!model.isLoaded || model.isCroppingVideo)
+        .help(model.exportAspect.help)
+        .accessibilityLabel("Aspect ratio")
+        .accessibilityValue(Text(model.exportAspect.title))
+    }
+}
+
 private struct StudioCanvas: View {
     @Bindable var model: RecordingStudioModel
 
@@ -858,12 +926,10 @@ private struct StudioPoseAdjustOverlay: View {
     let layout: RecordingStudioLayout
     let canvasSize: CGSize
 
-    /// What a drag changes, decided where it starts.
+    /// What a drag changes, decided where it starts: a part of the rotation
+    /// ball, or the card itself.
     private enum DragMode: Equatable {
-        case trackball
-        case turn
-        case tilt
-        case rotate
+        case ball(RecordingPoseBallGeometry.Mode)
         case move
         case scale
     }
@@ -880,15 +946,6 @@ private struct StudioPoseAdjustOverlay: View {
     @State private var dragStart: DragStart?
     @State private var hoverMode: DragMode?
 
-    /// How far a turn, tilt or trackball drag turns the card per point. Fixed
-    /// rather than tied to the ball's size, so a small ball on a small canvas
-    /// isn't coarser to steer than a large one.
-    private static let degreesPerPoint: Double = 0.6
-    /// Vertical squash of the turn and tilt rings, which is what makes the
-    /// ball read as a sphere rather than a flat target.
-    private static let ringDepth: CGFloat = 0.34
-    /// How close to a ring a press must land to grab it.
-    private static let ringGrabDistance: CGFloat = 7
     private static let handleSize: CGFloat = 9
     private static let coordinateSpace = CoordinateSpace.named(VideoCropOverlay.coordinateSpaceName)
 
@@ -965,96 +1022,12 @@ private struct StudioPoseAdjustOverlay: View {
     }
 
     private func ball(pose: RecordingCardPose, center: CGPoint, radius: CGFloat) -> some View {
-        let active = dragStart?.mode ?? hoverMode
-        let turnRing = Path(ellipseIn: CGRect(
-            x: center.x - radius,
-            y: center.y - radius * Self.ringDepth,
-            width: radius * 2,
-            height: radius * 2 * Self.ringDepth
-        ))
-        let tiltRing = Path(ellipseIn: CGRect(
-            x: center.x - radius * Self.ringDepth,
-            y: center.y - radius,
-            width: radius * 2 * Self.ringDepth,
-            height: radius * 2
-        ))
-        let rotateRing = Path(ellipseIn: CGRect(
-            x: center.x - radius,
-            y: center.y - radius,
-            width: radius * 2,
-            height: radius * 2
-        ))
-
-        return ZStack(alignment: .topLeading) {
-            // A soft shaded sphere so the controls read as 3D.
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [Color.white.opacity(0.28), Color.black.opacity(0.18)],
-                        center: UnitPoint(x: 0.35, y: 0.3),
-                        startRadius: 0,
-                        endRadius: radius * 1.2
-                    )
-                )
-                .frame(width: radius * 2, height: radius * 2)
-                .position(center)
-
-            ring(rotateRing, color: .blue, isActive: active == .rotate, width: 2.5)
-            ring(turnRing, color: .green, isActive: active == .turn)
-            ring(tiltRing, color: .red, isActive: active == .tilt)
-
-            // Where the card's front faces on each ring.
-            marker(at: turnMarker(pose: pose, center: center, radius: radius), color: .green)
-            marker(at: tiltMarker(pose: pose, center: center, radius: radius), color: .red)
-            marker(at: rotateMarker(pose: pose, center: center, radius: radius), color: .blue)
-
-            Circle()
-                .fill(Color.white.opacity(active == .trackball ? 0.9 : 0.6))
-                .frame(width: 6, height: 6)
-                .position(center)
+        let active: RecordingPoseBallGeometry.Mode? = switch dragStart?.mode ?? hoverMode {
+        case .ball(let mode): mode
+        default: nil
         }
-        .allowsHitTesting(false)
-    }
-
-    private func ring(_ path: Path, color: Color, isActive: Bool, width: CGFloat = 2) -> some View {
-        path
-            .stroke(color.opacity(isActive ? 1 : 0.75), lineWidth: isActive ? width + 1.5 : width)
-            .shadow(color: .black.opacity(0.35), radius: 1, y: 0.5)
-    }
-
-    private func marker(at point: CGPoint, color: Color) -> some View {
-        Circle()
-            .fill(color)
-            .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
-            .frame(width: 9, height: 9)
-            .position(point)
-    }
-
-    /// Yaw as a point travelling around the horizontal ring's front.
-    private func turnMarker(pose: RecordingCardPose, center: CGPoint, radius: CGFloat) -> CGPoint {
-        let angle = pose.yawDegrees * .pi / 180
-        return CGPoint(
-            x: center.x + radius * CGFloat(sin(angle)),
-            y: center.y + radius * Self.ringDepth * CGFloat(cos(angle))
-        )
-    }
-
-    /// Pitch as a point travelling around the vertical ring's front.
-    private func tiltMarker(pose: RecordingCardPose, center: CGPoint, radius: CGFloat) -> CGPoint {
-        let angle = pose.pitchDegrees * .pi / 180
-        return CGPoint(
-            x: center.x + radius * Self.ringDepth * CGFloat(cos(angle)),
-            y: center.y + radius * CGFloat(sin(angle))
-        )
-    }
-
-    /// Roll as a point on the outer ring, starting at the top.
-    private func rotateMarker(pose: RecordingCardPose, center: CGPoint, radius: CGFloat) -> CGPoint {
-        let angle = pose.rollDegrees * .pi / 180
-        return CGPoint(
-            x: center.x + radius * CGFloat(sin(angle)),
-            y: center.y - radius * CGFloat(cos(angle))
-        )
+        return RecordingPoseBallFace(pose: pose, radius: radius, activeMode: active)
+            .position(center)
     }
 
     // MARK: Hit testing
@@ -1068,37 +1041,17 @@ private struct StudioPoseAdjustOverlay: View {
         if quad.contains(where: { hypot(location.x - $0.x, location.y - $0.y) <= 10 }) {
             return .scale
         }
-        let dx = location.x - center.x
-        let dy = location.y - center.y
-        let distance = hypot(dx, dy)
-        if abs(distance - radius) <= Self.ringGrabDistance {
-            return .rotate
-        }
-        if distance < radius {
-            if Self.distance(toEllipseWithRadii: CGSize(width: radius, height: radius * Self.ringDepth),
-                             dx: dx, dy: dy) <= Self.ringGrabDistance {
-                return .turn
-            }
-            if Self.distance(toEllipseWithRadii: CGSize(width: radius * Self.ringDepth, height: radius),
-                             dx: dx, dy: dy) <= Self.ringGrabDistance {
-                return .tilt
-            }
-            return .trackball
+        if let mode = RecordingPoseBallGeometry.mode(
+            at: CGSize(width: location.x - center.x, height: location.y - center.y),
+            radius: radius
+        ) {
+            return .ball(mode)
         }
         let outline = Path { path in
             path.addLines(quad)
             path.closeSubpath()
         }
         return outline.contains(location) ? .move : nil
-    }
-
-    /// Approximate distance from a point to an axis-aligned ellipse's curve.
-    private static func distance(toEllipseWithRadii radii: CGSize, dx: CGFloat, dy: CGFloat) -> CGFloat {
-        guard radii.width > 0, radii.height > 0 else { return .infinity }
-        let normalized = hypot(dx / radii.width, dy / radii.height)
-        guard normalized > 0 else { return min(radii.width, radii.height) }
-        let gradient = hypot(dx / (radii.width * radii.width), dy / (radii.height * radii.height))
-        return abs(normalized * normalized - 1) / (2 * max(gradient, 0.0001))
     }
 
     // MARK: Dragging
@@ -1123,40 +1076,23 @@ private struct StudioPoseAdjustOverlay: View {
         }
         guard let start = dragStart else { return }
 
-        let modifiers = NSEvent.modifierFlags
+        let constrained = NSEvent.modifierFlags.contains(.shift)
         var dx = Double(value.location.x - start.location.x)
         var dy = Double(value.location.y - start.location.y)
-        let degreesPerPoint = Self.degreesPerPoint
         var pose = start.pose
 
         switch start.mode {
-        case .trackball:
-            if modifiers.contains(.shift) {
-                if abs(dx) > abs(dy) { dy = 0 } else { dx = 0 }
-            }
-            // Like rolling the ball: dragging right sends the card's right
-            // edge away, dragging down sends its bottom away.
-            pose.yawDegrees = Self.detent(start.pose.yawDegrees + dx * degreesPerPoint)
-            pose.pitchDegrees = Self.detent(start.pose.pitchDegrees - dy * degreesPerPoint)
-        case .turn:
-            pose.yawDegrees = Self.snapped(start.pose.yawDegrees + dx * degreesPerPoint, modifiers)
-        case .tilt:
-            pose.pitchDegrees = Self.snapped(start.pose.pitchDegrees - dy * degreesPerPoint, modifiers)
-        case .rotate:
-            let startAngle = atan2(
-                Double(start.location.y - start.center.y),
-                Double(start.location.x - start.center.x)
+        case .ball(let mode):
+            pose = RecordingPoseBallGeometry.pose(
+                dragging: mode,
+                from: start.pose,
+                startLocation: start.location,
+                location: value.location,
+                center: start.center,
+                constrained: constrained
             )
-            let angle = atan2(
-                Double(value.location.y - start.center.y),
-                Double(value.location.x - start.center.x)
-            )
-            var delta = (angle - startAngle) * 180 / .pi
-            if delta > 180 { delta -= 360 }
-            if delta < -180 { delta += 360 }
-            pose.rollDegrees = Self.snapped(start.pose.rollDegrees + delta, modifiers)
         case .move:
-            if modifiers.contains(.shift) {
+            if constrained {
                 if abs(dx) > abs(dy) { dy = 0 } else { dx = 0 }
             }
             pose.translationX = start.pose.translationX + dx / Double(max(canvasSize.width, 1))
@@ -1198,19 +1134,19 @@ private struct StudioPoseAdjustOverlay: View {
         switch dragStart?.mode ?? hoverMode {
         case .move: .grabIdle
         case .scale: .frameResize(position: .topLeading)
-        case .turn: .columnResize
-        case .tilt: .rowResize
-        case .trackball, .rotate: .default
+        case .ball(.turn): .columnResize
+        case .ball(.tilt): .rowResize
+        case .ball(.trackball), .ball(.rotate): .default
         case nil: nil
         }
     }
 
     private var helpText: String {
         switch hoverMode {
-        case .turn: String(localized: "Drag the green ring to turn the card left or right")
-        case .tilt: String(localized: "Drag the red ring to tilt the card up or down")
-        case .rotate: String(localized: "Drag the blue ring to rotate the card. Hold Shift for 15° steps.")
-        case .trackball: String(localized: "Drag inside the ball to turn and tilt freely. Hold Shift to keep to one direction.")
+        case .ball(.turn): String(localized: "Drag the green ring to turn the card left or right")
+        case .ball(.tilt): String(localized: "Drag the red ring to tilt the card up or down")
+        case .ball(.rotate): String(localized: "Drag the blue ring to rotate the card. Hold Shift for 15° steps.")
+        case .ball(.trackball): String(localized: "Drag inside the ball to turn and tilt freely. Hold Shift to keep to one direction.")
         case .move: String(localized: "Drag the card to move it")
         case .scale: String(localized: "Drag to scale the card, or press = and -")
         case nil: ""
@@ -1280,16 +1216,6 @@ private struct StudioPoseAdjustOverlay: View {
         let rotate = degrees.displayString(for: CGFloat(pose.rollDegrees))
         let scale = percent.displayString(for: CGFloat(pose.scale))
         return String(localized: "Turn \(turn) · Tilt \(tilt) · Rotate \(rotate) · Scale \(scale)")
-    }
-
-    /// Lands exactly on zero when a drag passes close to it.
-    private static func detent(_ degrees: Double) -> Double {
-        abs(degrees) < 1.5 ? 0 : degrees
-    }
-
-    /// Shift snaps a single-axis drag to 15° steps.
-    private static func snapped(_ degrees: Double, _ modifiers: NSEvent.ModifierFlags) -> Double {
-        modifiers.contains(.shift) ? (degrees / 15).rounded() * 15 : detent(degrees)
     }
 }
 
@@ -2324,10 +2250,7 @@ private struct StudioTimelineEditor: View {
                 clampZoom()
             }
         }
-        .frame(height: StudioTimelineMetrics.lanesHeight(
-            showsAudioLane: showsAudioLane,
-            showsMotionLane: showsMotionLane
-        ))
+        .frame(height: StudioTimelineMetrics.lanesHeight(lanes: visibleLanes))
         .onChange(of: model.duration) { _, _ in clampZoom() }
         .onChange(of: model.currentTime) { _, time in followPlayhead(to: time) }
     }
@@ -2357,12 +2280,14 @@ private struct StudioTimelineEditor: View {
                     showsHint: model.zoomEnabled && model.zoomTimelineBlocks.isEmpty
                 )
                     .frame(height: StudioTimelineMetrics.zoomLaneHeight)
-                if showsMotionLane {
-                    StudioMotionLaneBackground(
-                        showsHint: model.motionTimelineBlocks.isEmpty
-                    )
-                        .frame(height: StudioTimelineMetrics.motionLaneHeight)
+                if showsCaptionLane {
+                    StudioCaptionLaneBackground(isEmpty: !model.hasSubtitles)
+                        .frame(height: StudioTimelineMetrics.captionLaneHeight)
                 }
+                StudioMotionLaneBackground(
+                    showsHint: model.motionTimelineBlocks.isEmpty
+                )
+                    .frame(height: StudioTimelineMetrics.motionLaneHeight)
                 Color.clear
                     .frame(height: StudioTimelineMetrics.scrollerGutter)
             }
@@ -2393,17 +2318,27 @@ private struct StudioTimelineEditor: View {
                         height: StudioTimelineMetrics.zoomLaneHeight
                     )
 
-                    if showsMotionLane {
-                        StudioMotionLane(
+                    if showsCaptionLane {
+                        StudioCaptionLane(
                             model: model,
                             scale: scale,
                             visibleRange: scale.visibleRange(scrollX: scrollX)
                         )
                         .frame(
                             width: scale.contentWidth,
-                            height: StudioTimelineMetrics.motionLaneHeight
+                            height: StudioTimelineMetrics.captionLaneHeight
                         )
                     }
+
+                    StudioMotionLane(
+                        model: model,
+                        scale: scale,
+                        visibleRange: scale.visibleRange(scrollX: scrollX)
+                    )
+                    .frame(
+                        width: scale.contentWidth,
+                        height: StudioTimelineMetrics.motionLaneHeight
+                    )
 
                     Color.clear
                         .frame(height: StudioTimelineMetrics.scrollerGutter)
@@ -2419,19 +2354,51 @@ private struct StudioTimelineEditor: View {
                     scrollX = offset
                 }
             }
+
+            // An unused caption lane offers to fill itself. It sits over the
+            // scroll view, centered in the viewport rather than in a lane
+            // that may be many screens wide.
+            if showsCaptionLane, !model.hasSubtitles {
+                VStack(spacing: StudioTimelineMetrics.rowSpacing) {
+                    Color.clear
+                        .frame(height: captionLaneOffset)
+                        .allowsHitTesting(false)
+                    StudioCaptionLanePrompt(model: model)
+                        .frame(height: StudioTimelineMetrics.captionLaneHeight)
+                }
+                .frame(maxWidth: .infinity, alignment: .top)
+            }
         }
-        .frame(height: StudioTimelineMetrics.scrollingLanesHeight(
-            showsAudioLane: showsAudioLane,
-            showsMotionLane: showsMotionLane
-        ))
+        .frame(height: StudioTimelineMetrics.scrollingLanesHeight(lanes: visibleLanes))
     }
 
-    private var showsMotionLane: Bool {
-        model.motion.isEnabled || !model.motion.cues.isEmpty
-    }
-
+    /// Recorded sound is drawn inside the clips; a lane of its own only
+    /// appears for a replacement file, which no longer follows the picture.
     private var showsAudioLane: Bool {
-        model.hasAudio
+        model.replacementAudio != nil
+    }
+
+    private var showsCaptionLane: Bool {
+        model.canTranscribe || model.hasSubtitles
+    }
+
+    private var visibleLanes: StudioTimelineMetrics.Lanes {
+        StudioTimelineMetrics.Lanes(
+            audio: showsAudioLane,
+            captions: showsCaptionLane
+        )
+    }
+
+    /// Height above the caption lane inside the scrolling block.
+    private var captionLaneOffset: CGFloat {
+        StudioTimelineMetrics.clipLaneHeight
+            + (showsAudioLane ? StudioTimelineMetrics.audioLaneHeight + StudioTimelineMetrics.rowSpacing : 0)
+            + StudioTimelineMetrics.zoomLaneHeight
+            + StudioTimelineMetrics.rowSpacing
+    }
+
+    private var showsClipWaveform: Bool {
+        model.replacementAudio == nil && model.hasRecordedAudio
     }
 
     /// Mute keeps the level it replaced, so unmuting restores it rather
@@ -2452,18 +2419,34 @@ private struct StudioTimelineEditor: View {
     }
 
     /// Names each lane so the tracks read without hovering, with the switch
-    /// that turns that lane's effect on or off beside it.
+    /// that turns that lane's effect on or off beside it. The corner above
+    /// them adds the lanes a recording doesn't show yet.
     private var laneHeaders: some View {
         VStack(alignment: .leading, spacing: StudioTimelineMetrics.rowSpacing) {
-            Color.clear
+            addTrackMenu
                 .frame(
                     height: StudioTimelineMetrics.playheadLaneHeight
                         + StudioTimelineMetrics.rulerHeight
-                        + StudioTimelineMetrics.rowSpacing
+                        + StudioTimelineMetrics.rowSpacing,
+                    alignment: .bottomLeading
                 )
 
-            StudioLaneHeader(title: "Video", systemImage: "film")
+            if showsClipWaveform {
+                StudioLaneHeader(
+                    title: "Video",
+                    systemImage: "film",
+                    tint: .accentColor,
+                    isOn: audioOnBinding,
+                    toggleHelp: model.audioVolume > 0 ? "Mute" : "Unmute",
+                    onSymbol: "speaker.wave.2",
+                    offSymbol: "speaker.slash",
+                    dimsWhenOff: false
+                )
                 .frame(height: StudioTimelineMetrics.clipLaneHeight)
+            } else {
+                StudioLaneHeader(title: "Video", systemImage: "film", tint: .accentColor)
+                    .frame(height: StudioTimelineMetrics.clipLaneHeight)
+            }
 
             if showsAudioLane {
                 StudioLaneHeader(
@@ -2487,18 +2470,63 @@ private struct StudioTimelineEditor: View {
             )
             .frame(height: StudioTimelineMetrics.zoomLaneHeight)
 
-            if showsMotionLane {
-                StudioLaneHeader(
-                    title: "3D Motion",
-                    systemImage: "rotate.3d",
-                    tint: StudioMotionCueBlock.tint,
-                    isOn: $model.motionEnabled,
-                    toggleHelp: model.motionEnabled ? "Turn 3D Motion Off" : "Turn 3D Motion On"
-                )
-                .frame(height: StudioTimelineMetrics.motionLaneHeight)
+            if showsCaptionLane {
+                if model.hasSubtitles {
+                    StudioLaneHeader(
+                        title: "Captions",
+                        systemImage: "captions.bubble",
+                        tint: StudioCaptionLane.tint,
+                        isOn: $model.showsSubtitles,
+                        toggleHelp: model.showsSubtitles ? "Hide Subtitles" : "Show Subtitles"
+                    )
+                    .frame(height: StudioTimelineMetrics.captionLaneHeight)
+                } else {
+                    StudioLaneHeader(
+                        title: "Captions",
+                        systemImage: "captions.bubble",
+                        tint: StudioCaptionLane.tint
+                    )
+                    .frame(height: StudioTimelineMetrics.captionLaneHeight)
+                }
             }
+
+            StudioLaneHeader(
+                title: "3D Motion",
+                systemImage: "rotate.3d",
+                tint: StudioMotionCueBlock.tint
+            )
+            .frame(height: StudioTimelineMetrics.motionLaneHeight)
         }
         .frame(width: StudioTimelineMetrics.headerWidth, alignment: .leading)
+    }
+
+    /// Lanes that stay hidden until used. Each item starts the thing that
+    /// fills its lane, which is what makes the lane appear.
+    private var addTrackMenu: some View {
+        Menu {
+            Button {
+                model.transcribe()
+            } label: {
+                Label("Captions", systemImage: "captions.bubble")
+            }
+            .disabled(!model.canTranscribe || model.hasSubtitles || model.transcriptionState.isTranscribing)
+
+            Button {
+                model.chooseReplacementAudio()
+            } label: {
+                Label("Replacement Audio…", systemImage: "music.note")
+            }
+            .disabled(model.replacementAudio != nil)
+        } label: {
+            Label("Add Track", systemImage: "plus")
+                .font(.system(size: 11.5, weight: .medium))
+        }
+        .menuStyle(.button)
+        .buttonStyle(TransportTextButtonStyle())
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .disabled(!model.isLoaded)
+        .help("Add a caption or audio track")
     }
 
     private var clipLane: some View {
@@ -2508,6 +2536,8 @@ private struct StudioTimelineEditor: View {
             timeline: model.clipTimeline,
             sourceDuration: model.sourceDuration,
             thumbnails: model.timelineThumbnails,
+            waveform: showsClipWaveform ? model.audioWaveform : nil,
+            isAudioMuted: model.audioVolume <= 0,
             onSelect: { model.selectClip(id: $0) },
             onSeek: { time in
                 model.pause()
@@ -2645,17 +2675,15 @@ private struct StudioTimelineEditor: View {
 
     private var editControls: some View {
         HStack(spacing: 2) {
-            transportTextButton("Split", systemImage: "scissors", shortcut: "⌘B") {
+            timelineButton("Split at Playhead (⌘B)", systemImage: "scissors") {
                 model.splitClip(at: model.currentTime)
             }
             .keyboardShortcut("b", modifiers: .command)
-            .help("Split at Playhead (⌘B)")
 
-            transportTextButton("Delete", systemImage: "trash") {
+            timelineButton("Delete Selection (⌫)", systemImage: "trash") {
                 deleteSelection()
             }
             .disabled(!canDeleteSelection)
-            .help("Delete Selection (⌫)")
 
             speedMenu
 
@@ -2697,7 +2725,6 @@ private struct StudioTimelineEditor: View {
             HStack(spacing: 4) {
                 Image(systemName: "gauge.with.dots.needle.67percent")
                     .font(.system(size: 11, weight: .medium))
-                Text("Speed")
                 Text(Self.speedLabel(clip?.speed ?? 1))
                     .fontWeight(.semibold)
                     .monospacedDigit()
@@ -2710,6 +2737,7 @@ private struct StudioTimelineEditor: View {
         .fixedSize()
         .disabled(clip == nil)
         .help(clip == nil ? "Select a clip to change its speed" : "Clip Speed")
+        .accessibilityLabel("Clip Speed")
     }
 
     /// The inspector's whole-number rates, within `RecordingClipSegment`'s
@@ -2720,12 +2748,23 @@ private struct StudioTimelineEditor: View {
         InspectorValueFormat.magnification(fractionDigits: 0).displayString(for: speed)
     }
 
-    private var playbackControls: some View {
+    /// Where the playhead is against the length of the cut, on the leading
+    /// edge where the eye starts reading the transport.
+    private var timecode: some View {
         HStack(spacing: 4) {
             Text(studioPreciseTimecode(model.displayTime))
                 .foregroundStyle(.primary.opacity(0.9))
-                .frame(minWidth: 52, alignment: .trailing)
+            Text(verbatim: "/")
+                .foregroundStyle(.tertiary)
+            Text(studioPreciseTimecode(model.duration))
+                .foregroundStyle(.secondary)
+        }
+        .font(.system(size: 12, weight: .medium).monospacedDigit())
+        .accessibilityElement(children: .combine)
+    }
 
+    private var playbackControls: some View {
+        HStack(spacing: 6) {
             timelineButton("Previous Edit Point", systemImage: "backward.end.fill") {
                 model.pause()
                 model.seek(to: previousEditPoint)
@@ -2735,9 +2774,9 @@ private struct StudioTimelineEditor: View {
                 model.togglePlayback()
             } label: {
                 Image(systemName: model.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(Color(nsColor: .windowBackgroundColor))
-                    .frame(width: 30, height: 30)
+                    .frame(width: 34, height: 34)
                     .background(Circle().fill(Color.primary.opacity(0.85)))
                     .contentShape(Circle())
             }
@@ -2751,12 +2790,7 @@ private struct StudioTimelineEditor: View {
                 model.pause()
                 model.seek(to: nextEditPoint)
             }
-
-            Text(studioPreciseTimecode(model.duration))
-                .foregroundStyle(.secondary)
-                .frame(minWidth: 52, alignment: .leading)
         }
-        .font(.system(size: 12, weight: .medium).monospacedDigit())
     }
 
     /// Clip boundaries plus both ends of the cut, in editor time.
@@ -2783,9 +2817,17 @@ private struct StudioTimelineEditor: View {
         editPoints.first { $0 > model.currentTime + Self.editPointTolerance } ?? model.duration
     }
 
+    /// Time and the cut tools on the leading edge, playback in the middle,
+    /// and the timeline scale on the trailing edge. The cut tools are
+    /// icon-only so the row still clears the centered playback buttons at
+    /// the window's minimum width.
     private var transport: some View {
         ZStack {
             HStack(spacing: 0) {
+                timecode
+                Divider()
+                    .frame(height: 16)
+                    .padding(.horizontal, 8)
                 editControls
                 Spacer(minLength: 0)
                 zoomControls
@@ -2793,7 +2835,7 @@ private struct StudioTimelineEditor: View {
 
             playbackControls
         }
-        .frame(height: 32)
+        .frame(height: 36)
     }
 
     private var canDeleteSelection: Bool {
@@ -2824,30 +2866,6 @@ private struct StudioTimelineEditor: View {
         .buttonStyle(TransportIconButtonStyle())
         .help(Text(help))
         .accessibilityLabel(Text(help))
-    }
-
-    /// Icon-and-title transport button for the cut tools, with its shortcut
-    /// shown inline so it is learnt by sight.
-    private func transportTextButton(
-        _ title: LocalizedStringKey,
-        systemImage: String,
-        shortcut: String? = nil,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 11, weight: .medium))
-                Text(title)
-                if let shortcut {
-                    Text(verbatim: shortcut)
-                        .font(.system(size: 10, weight: .medium).monospaced())
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .font(.system(size: 11.5, weight: .medium))
-        }
-        .buttonStyle(TransportTextButtonStyle())
     }
 }
 
@@ -2906,11 +2924,12 @@ private enum StudioTimelineMetrics {
     static let rowSpacing: CGFloat = 4
     static let playheadLaneHeight: CGFloat = 14
     static let rulerHeight: CGFloat = 16
-    static let clipLaneHeight: CGFloat = 44
+    static let clipLaneHeight: CGFloat = 54
     static let zoomLaneHeight: CGFloat = 24
+    static let captionLaneHeight: CGFloat = 24
     static let motionLaneHeight: CGFloat = 24
     /// Lane name column to the left of the tracks.
-    static let headerWidth: CGFloat = 84
+    static let headerWidth: CGFloat = 104
     static let headerSpacing: CGFloat = 8
     /// Room under the lanes for the horizontal scroller, so it never sits on
     /// top of a zoom block.
@@ -2918,17 +2937,23 @@ private enum StudioTimelineMetrics {
 
     static let audioLaneHeight: CGFloat = 22
 
-    /// The audio lane appears for recordings with sound and the motion lane
-    /// once 3D motion is in use, so the timeline only grows for what is there.
-    static func scrollingLanesHeight(showsAudioLane: Bool, showsMotionLane: Bool) -> CGFloat {
-        clipLaneHeight + zoomLaneHeight + scrollerGutter + rowSpacing * 2
-            + (showsAudioLane ? audioLaneHeight + rowSpacing : 0)
-            + (showsMotionLane ? motionLaneHeight + rowSpacing : 0)
+    /// The optional lanes on show. The audio lane appears for replacement
+    /// audio and captions for narrated recordings; the video, zoom and 3D
+    /// motion lanes are always there.
+    struct Lanes: Equatable {
+        var audio: Bool
+        var captions: Bool
     }
 
-    static func lanesHeight(showsAudioLane: Bool, showsMotionLane: Bool) -> CGFloat {
+    static func scrollingLanesHeight(lanes: Lanes) -> CGFloat {
+        clipLaneHeight + zoomLaneHeight + motionLaneHeight + scrollerGutter + rowSpacing * 3
+            + (lanes.audio ? audioLaneHeight + rowSpacing : 0)
+            + (lanes.captions ? captionLaneHeight + rowSpacing : 0)
+    }
+
+    static func lanesHeight(lanes: Lanes) -> CGFloat {
         playheadLaneHeight + rulerHeight
-            + scrollingLanesHeight(showsAudioLane: showsAudioLane, showsMotionLane: showsMotionLane)
+            + scrollingLanesHeight(lanes: lanes)
             + rowSpacing * 2
     }
 }
@@ -3002,7 +3027,9 @@ private struct StudioAudioLane: View {
     }
 }
 
-/// Name, icon and optional on/off switch for one timeline lane.
+/// Name, icon chip and optional on/off switch for one timeline lane. The
+/// chip carries the lane's colour, so a lane reads as the same thing as its
+/// blocks and the canvas marks they produce.
 private struct StudioLaneHeader: View {
     let title: LocalizedStringKey
     let systemImage: String
@@ -3011,13 +3038,20 @@ private struct StudioLaneHeader: View {
     var toggleHelp: LocalizedStringKey = ""
     var onSymbol = "eye"
     var offSymbol = "eye.slash"
+    /// Whether switching off greys the lane out. The video lane's switch
+    /// mutes its sound, which leaves the picture as it was.
+    var dimsWhenOff = true
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 6) {
             Image(systemName: systemImage)
                 .font(.system(size: 10.5, weight: .semibold))
                 .foregroundStyle(isActive ? tint : Color.secondary.opacity(0.6))
-                .frame(width: 14)
+                .frame(width: 20, height: 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill((isActive ? tint : Color.secondary).opacity(0.15))
+                )
             Text(title)
                 .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(isActive ? .primary : .secondary)
@@ -3042,7 +3076,8 @@ private struct StudioLaneHeader: View {
     }
 
     private var isActive: Bool {
-        isOn?.wrappedValue ?? true
+        guard dimsWhenOff else { return true }
+        return isOn?.wrappedValue ?? true
     }
 }
 
@@ -3677,6 +3712,149 @@ private struct StudioZoomCueBlock: View {
 
 // MARK: - Motion lane
 
+/// Frame of the caption lane, drawn behind the scroll view like the other
+/// lanes. An empty lane is dashed so it reads as a slot waiting to be used.
+private struct StudioCaptionLaneBackground: View {
+    var isEmpty = false
+
+    var body: some View {
+        let shape = RoundedRectangle(
+            cornerRadius: StudioZoomLaneMetrics.laneCornerRadius,
+            style: .continuous
+        )
+        Group {
+            if isEmpty {
+                shape.strokeBorder(
+                    Color.primary.opacity(0.12),
+                    style: StrokeStyle(lineWidth: 1, dash: [4, 3])
+                )
+            } else {
+                shape.fill(Color.primary.opacity(0.055))
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+/// Says what the empty caption lane is for and starts the transcription
+/// from where the captions will appear.
+private struct StudioCaptionLanePrompt: View {
+    @Bindable var model: RecordingStudioModel
+
+    var body: some View {
+        HStack(spacing: 6) {
+            switch model.transcriptionState {
+            case .transcribing:
+                ProgressView()
+                    .controlSize(.mini)
+                Text("Transcribing narration…")
+                    .foregroundStyle(.secondary)
+            case .failed(let message):
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .help(message)
+                Text("Couldn't transcribe the narration")
+                    .foregroundStyle(.secondary)
+                promptButton("Try Again")
+            case .idle:
+                Text("Turn the narration into captions")
+                    .foregroundStyle(.tertiary)
+                promptButton("Transcribe")
+            }
+        }
+        .font(.system(size: 10.5, weight: .medium))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func promptButton(_ title: LocalizedStringKey) -> some View {
+        Button(title) {
+            model.transcribe()
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Color.accentColor)
+        .disabled(!model.isLoaded)
+    }
+}
+
+/// Transcribed captions on the edited timeline. A cue cut in two by an edit
+/// still reads as one block, the same way zoom blocks merge across cuts.
+/// Clicking a block jumps to it; blank space seeks like the other lanes.
+private struct StudioCaptionLane: View {
+    static let tint = Color.teal
+
+    @Bindable var model: RecordingStudioModel
+    let scale: StudioTimelineScale
+    let visibleRange: ClosedRange<TimeInterval>
+
+    private struct Block: Identifiable {
+        let id: UUID
+        let text: String
+        let editorStart: TimeInterval
+        let editorEnd: TimeInterval
+    }
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Color.clear
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            guard scale.pointsPerSecond > 0 else { return }
+                            model.pause()
+                            model.seek(to: scale.time(forX: value.location.x))
+                        }
+                )
+
+            ForEach(visibleBlocks) { block in
+                blockView(block)
+            }
+        }
+    }
+
+    private func blockView(_ block: Block) -> some View {
+        let minX = scale.x(for: block.editorStart)
+        let width = max(2, scale.x(for: block.editorEnd) - minX - 2)
+        let isCurrent = (block.editorStart..<block.editorEnd).contains(model.currentTime)
+        return Text(block.text)
+            .font(.system(size: 10.5, weight: .medium))
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 6)
+            .frame(width: width, height: StudioZoomLaneMetrics.blockHeight, alignment: .leading)
+            .foregroundStyle(isCurrent ? Color.white : Color.primary.opacity(0.8))
+            .background(
+                RoundedRectangle(cornerRadius: StudioZoomLaneMetrics.blockCornerRadius, style: .continuous)
+                    .fill(Self.tint.opacity(isCurrent ? 0.85 : 0.2))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioZoomLaneMetrics.blockCornerRadius, style: .continuous)
+                    .strokeBorder(Self.tint.opacity(isCurrent ? 0 : 0.4), lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                model.pause()
+                model.seek(to: block.editorStart)
+            }
+            .offset(x: minX + 1, y: StudioZoomLaneMetrics.blockInset)
+            .help(block.text)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(block.text))
+            .accessibilityAddTraits(.isButton)
+    }
+
+    private var visibleBlocks: [Block] {
+        let timeline = model.clipTimeline
+        return model.subtitleCues.compactMap { cue in
+            let slices = timeline.slices(overlapping: cue.start, sourceEnd: cue.end)
+            guard let first = slices.first, let last = slices.last,
+                  last.editorEnd >= visibleRange.lowerBound,
+                  first.editorStart <= visibleRange.upperBound else { return nil }
+            return Block(id: cue.id, text: cue.text, editorStart: first.editorStart, editorEnd: last.editorEnd)
+        }
+    }
+}
+
 private struct StudioMotionLaneBackground: View {
     var showsHint = false
 
@@ -3710,7 +3888,7 @@ private struct StudioMotionLane: View {
     private static let dragCreateThreshold: CGFloat = 4
     /// A drawn motion starts as this preset; the inspector opens on it to
     /// pick another.
-    private static let drawnPreset: RecordingMotionPreset = .tiltLeft
+    private static let drawnPreset: RecordingMotionPreset = .tiltRight
 
     /// Held as a time rather than a position so a zoom change mid-drag can't
     /// reinterpret where the drag began.
@@ -4042,50 +4220,40 @@ private extension ZoomAnchorMode {
 /// and its sound.
 /// Cutting lives on the timeline itself, so the inspector's tabs cover only
 /// what the timeline can't show: the look, motion, overlays and sound.
+/// One inspector page per thing the recording can show, so every switch has
+/// a fixed place to find it. The tab bar shows icons, named by tooltip and
+/// VoiceOver label.
 private enum StudioInspectorTab: Hashable, CaseIterable {
     case canvas
-    case animation
-    case overlays
+    case motion
+    case cursor
+    case camera
+    case keystrokes
+    case captions
     case audio
 
     var title: String {
         switch self {
         case .canvas: String(localized: "Canvas")
-        case .animation: String(localized: "Animation")
-        case .overlays: String(localized: "Overlays")
+        case .motion: String(localized: "Zoom & 3D Motion")
+        case .cursor: String(localized: "Cursor")
+        case .camera: String(localized: "Camera")
+        case .keystrokes: String(localized: "Keystrokes")
+        case .captions: String(localized: "Captions")
         case .audio: String(localized: "Audio")
         }
     }
-}
 
-/// Aspect choice drawn as its frame shape over the ratio, so the options
-/// read at a glance.
-private struct AspectPresetLabel: View {
-    let preset: ExportAspectPreset
-    let sourceSize: CGSize
-
-    private static let box: CGFloat = 16
-
-    var body: some View {
-        VStack(spacing: 3) {
-            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                .strokeBorder(lineWidth: 1.2)
-                .frame(width: shapeSize.width, height: shapeSize.height)
-                .frame(width: Self.box + 4, height: Self.box)
-            Text(preset.title)
-                .font(.system(size: 10, weight: .medium))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+    var systemImage: String {
+        switch self {
+        case .canvas: "photo"
+        case .motion: "plus.magnifyingglass"
+        case .cursor: "cursorarrow"
+        case .camera: "video"
+        case .keystrokes: "keyboard"
+        case .captions: "captions.bubble"
+        case .audio: "speaker.wave.2"
         }
-    }
-
-    private var shapeSize: CGSize {
-        let ratio = preset.ratio
-            ?? (sourceSize.height > 0 ? sourceSize.width / sourceSize.height : 16.0 / 10.0)
-        let box = Self.box
-        return ratio >= 1
-            ? CGSize(width: box + 4, height: (box + 4) / ratio)
-            : CGSize(width: box * ratio, height: box)
     }
 }
 
@@ -4096,9 +4264,8 @@ private struct StudioInspector: View {
 
     @Bindable var model: RecordingStudioModel
     @State private var wallpaperStore = AnnotationWallpaperStore.shared
-    @State private var stylePresetStore = RecordingStudioStylePresetStore.shared
     @State private var selectedTab: StudioInspectorTab = .canvas
-    @State private var showsBasePoseControls = false
+    @State private var showsBasePoseControls = true
     @State private var isAudioExportOptionsPresented = false
     @State private var scrollPosition = ScrollPosition(edge: .top)
 
@@ -4117,10 +4284,16 @@ private struct StudioInspector: View {
                 switch selectedTab {
                 case .canvas:
                     canvasTab
-                case .animation:
-                    animationTab
-                case .overlays:
-                    overlaysTab
+                case .motion:
+                    motionTab
+                case .cursor:
+                    cursorTab
+                case .camera:
+                    cameraTab
+                case .keystrokes:
+                    keystrokesTab
+                case .captions:
+                    captionsTab
                 case .audio:
                     audioTab
                 }
@@ -4137,7 +4310,7 @@ private struct StudioInspector: View {
         }
         .onChange(of: model.activePoseAdjustment) { _, target in
             if target != nil {
-                selectedTab = .animation
+                selectedTab = .motion
             }
         }
         .onChange(of: selectedTab) { _, _ in
@@ -4145,9 +4318,6 @@ private struct StudioInspector: View {
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
-                // Presets span the Canvas and Overlays tabs, so they sit above both.
-                RecordingStudioStylePresetBar(model: model, presetStore: stylePresetStore)
-
                 tabPicker
 
                 Rectangle()
@@ -4176,21 +4346,60 @@ private struct StudioInspector: View {
     }
 
     private var tabPicker: some View {
-        InspectorSegmented(
-            options: StudioInspectorTab.allCases,
-            isSelected: { $0 == selectedTab },
-            onTap: { selectedTab = $0 },
-            label: { tab in
-                Text(tab.title)
-                    .font(.inspectorSegment)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-            }
-        )
+        VStack(alignment: .leading, spacing: 8) {
+            InspectorSegmented(
+                options: StudioInspectorTab.allCases,
+                isSelected: { $0 == selectedTab },
+                onTap: { selectedTab = $0 },
+                label: { tab in
+                    Image(systemName: tab.systemImage)
+                        .font(.system(size: 13, weight: .medium))
+                        .overlay(alignment: .topTrailing) {
+                            if isInUse(tab) {
+                                Circle()
+                                    .fill(Color.accentColor)
+                                    .frame(width: 5, height: 5)
+                                    .offset(x: 5, y: -3)
+                                    .accessibilityHidden(true)
+                            }
+                        }
+                        .help(tab.title)
+                        .accessibilityLabel(Text(tab.title))
+                        .accessibilityValue(isInUse(tab) ? Text("On") : Text(verbatim: ""))
+                },
+                height: 32
+            )
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Inspector")
+
+            Text(selectedTab.title)
+                .font(.system(size: 13, weight: .semibold))
+                .accessibilityAddTraits(.isHeader)
+        }
         .padding(.horizontal, InspectorMetrics.horizontalPadding)
+        .padding(.top, 10)
         .padding(.bottom, 10)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Inspector")
+    }
+
+    /// Marks the tabs whose effect is showing in the video, so what is
+    /// switched on can be seen without opening every page.
+    private func isInUse(_ tab: StudioInspectorTab) -> Bool {
+        switch tab {
+        case .canvas:
+            false
+        case .motion:
+            (model.zoomEnabled && !model.zoomCues.isEmpty) || !model.motion.isInert
+        case .cursor:
+            model.pointerIsSynthesized && !model.style.hidesCursor
+        case .camera:
+            model.hasCameraVideo && model.style.camera.isVisible
+        case .keystrokes:
+            model.hasKeystrokes && model.showsKeystrokes
+        case .captions:
+            model.hasSubtitles && model.showsSubtitles
+        case .audio:
+            model.replacementAudio != nil
+        }
     }
 
     private func scrollToTop(animated: Bool) {
@@ -4212,8 +4421,6 @@ private struct StudioInspector: View {
             accessory: {
                 if !usesDefaultComposition {
                     InspectorResetButton(help: "Reset composition") {
-                        model.exportAspect = .original
-                        model.exportAspectMode = .fill
                         model.style.padding = RecordingStudioStyle().padding
                     }
                 }
@@ -4247,7 +4454,7 @@ private struct StudioInspector: View {
     }
 
     @ViewBuilder
-    private var animationTab: some View {
+    private var motionTab: some View {
         InspectorSection(
             title: "Zoom",
             accessory: {
@@ -4261,15 +4468,8 @@ private struct StudioInspector: View {
 
         InspectorSectionDivider()
 
-        InspectorSection(
-            title: "3D Motion",
-            accessory: {
-                InspectorToggle("Enable 3D motion", isOn: $model.motionEnabled)
-            }
-        ) {
-            if model.motionEnabled {
-                cardMotionControls
-            }
+        InspectorSection("3D Motion") {
+            cardMotionControls
         }
     }
 
@@ -4349,13 +4549,7 @@ private struct StudioInspector: View {
     }
 
     @ViewBuilder
-    private var overlaysTab: some View {
-        if !hasOverlays {
-            InspectorSection("Overlays") {
-                InspectorHint("This recording has no pointer, keystrokes, narration or camera to show.")
-            }
-        }
-
+    private var cursorTab: some View {
         if model.pointerIsSynthesized {
             InspectorSection(
                 title: "Cursor",
@@ -4380,9 +4574,35 @@ private struct StudioInspector: View {
                     cursorControls
                 }
             }
-            InspectorSectionDivider()
+        } else {
+            InspectorSection("Cursor") {
+                InspectorHint("The pointer is part of this recording's picture, so it can't be restyled.")
+            }
         }
+    }
 
+    @ViewBuilder
+    private var cameraTab: some View {
+        if model.hasCameraVideo {
+            InspectorSection(
+                title: "Camera",
+                accessory: {
+                    InspectorToggle("Show camera", isOn: $model.style.camera.isVisible)
+                }
+            ) {
+                if model.style.camera.isVisible {
+                    cameraControls
+                }
+            }
+        } else {
+            InspectorSection("Camera") {
+                InspectorHint("This recording has no camera video. Turn on the camera before recording to add one.")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var keystrokesTab: some View {
         if model.hasKeystrokes {
             InspectorSection(
                 title: "Keystrokes",
@@ -4394,9 +4614,15 @@ private struct StudioInspector: View {
                     keystrokeControls
                 }
             }
-            InspectorSectionDivider()
+        } else {
+            InspectorSection("Keystrokes") {
+                InspectorHint("No shortcuts were pressed while recording.")
+            }
         }
+    }
 
+    @ViewBuilder
+    private var captionsTab: some View {
         if model.canTranscribe || model.hasSubtitles {
             InspectorSection(
                 title: "Captions",
@@ -4412,32 +4638,21 @@ private struct StudioInspector: View {
             ) {
                 captionSectionControls
             }
-            InspectorSectionDivider()
-        }
 
-        if model.hasCameraVideo {
-            InspectorSection(
-                title: "Camera",
-                accessory: {
-                    InspectorToggle("Show camera", isOn: $model.style.camera.isVisible)
-                }
-            ) {
-                if model.style.camera.isVisible {
-                    cameraControls
-                }
+            InspectorSectionDivider()
+
+            InspectorSection("Edit by Text") {
+                editByTextControls
+            }
+        } else {
+            InspectorSection("Captions") {
+                InspectorHint("Captions come from narration. Record with the microphone on to transcribe it.")
             }
         }
     }
 
     @ViewBuilder
     private var audioTab: some View {
-        if model.canTranscribe || model.hasSubtitles {
-            InspectorSection("Edit by Text") {
-                editByTextControls
-            }
-            InspectorSectionDivider()
-        }
-
         InspectorSection(
             title: "Audio",
             accessory: {
@@ -4458,52 +4673,16 @@ private struct StudioInspector: View {
         }
     }
 
-    private var hasOverlays: Bool {
-        model.pointerIsSynthesized
-            || model.hasKeystrokes
-            || model.canTranscribe
-            || model.hasSubtitles
-            || model.hasCameraVideo
-    }
-
     // MARK: Background
 
+    /// Aspect ratio lives in the bar above the canvas, beside crop.
     private var compositionControls: some View {
-        VStack(alignment: .leading, spacing: InspectorMetrics.groupSpacing) {
-            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
-                InspectorSegmented(
-                    options: ExportAspectPreset.allCases,
-                    isSelected: { $0 == model.exportAspect },
-                    onTap: { model.exportAspect = $0 },
-                    label: { preset in
-                        AspectPresetLabel(preset: preset, sourceSize: model.videoSize)
-                            .help(preset.help)
-                    },
-                    height: 42
-                )
-                .accessibilityLabel("Aspect ratio")
-
-                if model.exportAspect != .original {
-                    InspectorSegmented(
-                        options: ExportAspectContentMode.allCases,
-                        isSelected: { $0 == model.exportAspectMode },
-                        onTap: { model.exportAspectMode = $0 },
-                        label: { mode in
-                            Text(mode.title)
-                                .font(.inspectorSegment)
-                                .help(mode.help)
-                        }
-                    )
-                }
-            }
-
-            InspectorSlider(
-                "Padding",
-                value: $model.style.padding,
-                range: 0...0.18,
-                format: .percent()
-            )
-        }
+        InspectorSlider(
+            "Padding",
+            value: $model.style.padding,
+            range: 0...0.18,
+            format: .percent()
+        )
     }
 
     private var backgroundControls: some View {
@@ -4727,7 +4906,12 @@ private struct StudioInspector: View {
             basePoseDisclosure
 
             VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
-                InspectorGroupLabel("Add motion at playhead")
+                InspectorActionButton("Add Motion at Playhead", systemImage: "plus") {
+                    model.addMotionCue(preset: .tiltRight, at: model.currentTime)
+                }
+                .help("Add a motion block at the playhead, then shape its pose above")
+
+                InspectorGroupLabel("Or start from a preset")
                 InspectorSegmented(
                     options: RecordingMotionPreset.allCases,
                     isSelected: { _ in false },
@@ -4826,6 +5010,21 @@ private struct StudioInspector: View {
                 } trailing: {
                     motionTimingSlider("Out", cue: cue, keyPath: \.exitDuration)
                 }
+                InspectorFieldPair {
+                    motionEasingMenu(
+                        cue: cue,
+                        keyPath: \.enterEasing,
+                        accessibilityLabel: "Entrance curve",
+                        isEnabled: cue.enterDuration > 0
+                    )
+                } trailing: {
+                    motionEasingMenu(
+                        cue: cue,
+                        keyPath: \.exitEasing,
+                        accessibilityLabel: "Exit curve",
+                        isEnabled: cue.exitDuration > 0
+                    )
+                }
                 if let segment {
                     Text(motionTimingSummary(cue: cue, segment: segment))
                         .font(.inspectorLabel)
@@ -4846,8 +5045,7 @@ private struct StudioInspector: View {
                 .help("Remove the selected motion")
             }
         }
-        .disabled(!model.motionEnabled)
-        .opacity(model.motionEnabled ? 1 : 0.48)
+
     }
 
     /// Toggles direct manipulation of a pose on the canvas.
@@ -4888,6 +5086,61 @@ private struct StudioInspector: View {
         return String(localized: "Shortened to fit: in \(inText), out \(outText)")
     }
 
+    /// The curve of one transition, chosen from a menu that draws each
+    /// curve beside its name. Dimmed when that transition has no length.
+    private func motionEasingMenu(
+        cue: RecordingMotionCue,
+        keyPath: WritableKeyPath<RecordingMotionCue, RecordingMotionEasing>,
+        accessibilityLabel: LocalizedStringResource,
+        isEnabled: Bool
+    ) -> some View {
+        let easing = cue[keyPath: keyPath]
+        return Menu {
+            Picker(selection: Binding(
+                get: { cue[keyPath: keyPath] },
+                set: { newValue in
+                    guard var updated = currentMotionCue(id: cue.id) else { return }
+                    updated[keyPath: keyPath] = newValue
+                    model.updateMotionCue(updated)
+                }
+            )) {
+                ForEach(RecordingMotionEasing.allCases) { option in
+                    Text(option.title).tag(option)
+                }
+            } label: {
+                Text(accessibilityLabel)
+            }
+            .pickerStyle(.inline)
+        } label: {
+            HStack(spacing: 6) {
+                RecordingMotionEasingCurve(easing: easing)
+                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                    .frame(width: 18, height: 12)
+                    .accessibilityHidden(true)
+                Text(easing.title)
+                    .font(.inspectorLabel)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .inspectorField()
+            .contentShape(Rectangle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.48)
+        .help(Text(accessibilityLabel))
+        .accessibilityLabel(Text(accessibilityLabel))
+        .accessibilityValue(Text(easing.title))
+    }
+
     private func motionTimingSlider(
         _ title: LocalizedStringResource,
         cue: RecordingMotionCue,
@@ -4909,8 +5162,10 @@ private struct StudioInspector: View {
         )
     }
 
-    /// Turn, tilt, rotate, scale and offset for one pose. Reads the live pose
-    /// on every change so scrubbing one value never resets another.
+    /// Rotation, position and scale for one pose, each with a direct control
+    /// beside its numbers: a rotation ball, a position pad and a scale
+    /// slider. Reads the live pose on every change so steering one value
+    /// never resets another.
     private func poseControls(
         current: @escaping () -> RecordingCardPose,
         set: @escaping (RecordingCardPose) -> Void
@@ -4936,30 +5191,108 @@ private struct StudioInspector: View {
                 format: format
             )
         }
+        func clamped(_ updated: RecordingCardPose) -> RecordingCardPose {
+            var pose = updated
+            pose.yawDegrees = min(max(pose.yawDegrees, RecordingCardPose.yawRange.lowerBound), RecordingCardPose.yawRange.upperBound)
+            pose.pitchDegrees = min(max(pose.pitchDegrees, RecordingCardPose.pitchRange.lowerBound), RecordingCardPose.pitchRange.upperBound)
+            pose.rollDegrees = min(max(pose.rollDegrees, RecordingCardPose.rollRange.lowerBound), RecordingCardPose.rollRange.upperBound)
+            return pose
+        }
+        let hasRotation = pose.yawDegrees != 0 || pose.pitchDegrees != 0 || pose.rollDegrees != 0
+        let hasOffset = pose.translationX != 0 || pose.translationY != 0
 
-        return VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
-            InspectorFieldPair {
-                slider("Turn", \.yawDegrees, range: RecordingCardPose.yawRange, format: .degrees(signed: true))
-                    .help("Turn the card left or right")
-            } trailing: {
-                slider("Tilt", \.pitchDegrees, range: RecordingCardPose.pitchRange, format: .degrees(signed: true))
-                    .help("Tilt the card toward or away from you")
+        return VStack(alignment: .leading, spacing: InspectorMetrics.groupSpacing) {
+            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
+                poseGroupLabel("Rotation", resetHelp: "Reset rotation", showsReset: hasRotation) {
+                    var updated = current()
+                    updated.yawDegrees = 0
+                    updated.pitchDegrees = 0
+                    updated.rollDegrees = 0
+                    set(updated)
+                }
+                HStack(alignment: .center, spacing: InspectorMetrics.rowSpacing) {
+                    VStack(spacing: InspectorMetrics.rowSpacing) {
+                        slider("Turn", \.yawDegrees, range: RecordingCardPose.yawRange, format: .degrees(signed: true))
+                            .help("Turn the card left or right")
+                        slider("Tilt", \.pitchDegrees, range: RecordingCardPose.pitchRange, format: .degrees(signed: true))
+                            .help("Tilt the card toward or away from you")
+                        slider("Rotate", \.rollDegrees, range: RecordingCardPose.rollRange, format: .degrees(signed: true))
+                            .help("Rotate the card in the screen plane")
+                    }
+                    RecordingPoseBallControl(pose: pose, onChange: { set(clamped($0)) }, radius: 38)
+                }
             }
-            InspectorFieldPair {
-                slider("Rotate", \.rollDegrees, range: RecordingCardPose.rollRange, format: .degrees(signed: true))
-                    .help("Rotate the card in the screen plane")
-            } trailing: {
-                slider("Scale", \.scale, range: RecordingCardPose.scaleRange, format: .percent())
-                    .help("Card size, separate from zooms")
+
+            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
+                poseGroupLabel("Position", resetHelp: "Reset position", showsReset: hasOffset) {
+                    var updated = current()
+                    updated.translationX = 0
+                    updated.translationY = 0
+                    set(updated)
+                }
+                HStack(alignment: .center, spacing: InspectorMetrics.rowSpacing) {
+                    VStack(spacing: InspectorMetrics.rowSpacing) {
+                        slider("X", \.translationX, range: RecordingCardPose.translationRange, format: .percent(signed: true))
+                            .help("Horizontal offset, as a share of the canvas width")
+                        slider("Y", \.translationY, range: RecordingCardPose.translationRange, format: .percent(signed: true))
+                            .help("Vertical offset, as a share of the canvas height")
+                    }
+                    RecordingPosePositionPad(
+                        translation: CGPoint(x: pose.translationX, y: pose.translationY),
+                        canvasAspect: canvasAspect
+                    ) { offset in
+                        var updated = current()
+                        updated.translationX = Double(offset.x)
+                        updated.translationY = Double(offset.y)
+                        set(updated)
+                    }
+                    .frame(width: 90)
+                }
             }
-            InspectorFieldPair {
-                slider("X", \.translationX, range: RecordingCardPose.translationRange, format: .percent(signed: true))
-                    .help("Horizontal offset, as a share of the canvas width")
-            } trailing: {
-                slider("Y", \.translationY, range: RecordingCardPose.translationRange, format: .percent(signed: true))
-                    .help("Vertical offset, as a share of the canvas height")
+
+            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
+                poseGroupLabel("Scale", resetHelp: "Reset scale", showsReset: pose.scale != 1) {
+                    var updated = current()
+                    updated.scale = 1
+                    set(updated)
+                }
+                HStack(spacing: 8) {
+                    Image(systemName: "rectangle")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                    slider("Scale", \.scale, range: RecordingCardPose.scaleRange, format: .percent())
+                        .help("Card size, separate from zooms")
+                    Image(systemName: "rectangle")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                }
             }
         }
+    }
+
+    private func poseGroupLabel(
+        _ title: LocalizedStringResource,
+        resetHelp: LocalizedStringResource,
+        showsReset: Bool,
+        reset: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: 6) {
+            InspectorGroupLabel(title)
+            Spacer(minLength: 0)
+            if showsReset {
+                InspectorResetButton(help: resetHelp, action: reset)
+            }
+        }
+        .frame(minHeight: 18)
+    }
+
+    /// Shape of the finished canvas, for the position pad.
+    private var canvasAspect: CGFloat {
+        if let ratio = model.exportAspect.ratio { return ratio }
+        let size = model.videoSize
+        return size.height > 0 ? size.width / size.height : 16.0 / 10.0
     }
 
     // MARK: Selected clip
@@ -5378,16 +5711,7 @@ private struct StudioInspector: View {
     }
 
     private func pickReplacementAudio() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = RecordingAudioFormat.importContentTypes
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        panel.title = String(localized: "Choose Replacement Audio")
-        panel.begin { response in
-            guard response == .OK, let url = panel.url else { return }
-            model.replaceAudio(with: url)
-        }
+        model.chooseReplacementAudio()
     }
 
     private static func clockText(_ seconds: TimeInterval) -> String {
@@ -5412,9 +5736,7 @@ private struct StudioInspector: View {
     // MARK: Helpers
 
     private var usesDefaultComposition: Bool {
-        model.exportAspect == .original
-            && model.exportAspectMode == .fill
-            && abs(model.style.padding - RecordingStudioStyle().padding) < 0.0001
+        abs(model.style.padding - RecordingStudioStyle().padding) < 0.0001
     }
 
     private var usesDefaultVideoCard: Bool {
@@ -5474,5 +5796,44 @@ private struct StudioAudioExportOptions: View {
         .padding(InspectorMetrics.horizontalPadding)
         .frame(width: 240)
         .presentationBackground(InspectorControlPalette.panelBackground(for: colorScheme))
+    }
+}
+
+private extension RecordingStudioModel {
+    /// Asks for a sound file to play instead of the recorded audio; shared by
+    /// the Audio inspector and the timeline's Add Track menu.
+    func chooseReplacementAudio() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = RecordingAudioFormat.importContentTypes
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.title = String(localized: "Choose Replacement Audio")
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            self?.replaceAudio(with: url)
+        }
+    }
+}
+
+/// A small plot of an easing curve from the lower left to the upper right,
+/// leaving headroom so the overshooting curves show their swing.
+private struct RecordingMotionEasingCurve: Shape {
+    let easing: RecordingMotionEasing
+
+    func path(in rect: CGRect) -> Path {
+        let headroom = rect.height * 0.2
+        let plotHeight = rect.height - headroom
+        return Path { path in
+            let steps = 24
+            for step in 0...steps {
+                let u = Double(step) / Double(steps)
+                let point = CGPoint(
+                    x: rect.minX + rect.width * CGFloat(u),
+                    y: rect.maxY - plotHeight * CGFloat(easing.value(at: u))
+                )
+                if step == 0 { path.move(to: point) } else { path.addLine(to: point) }
+            }
+        }
     }
 }

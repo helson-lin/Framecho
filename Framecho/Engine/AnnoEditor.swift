@@ -86,6 +86,10 @@ enum AnnoInteraction {
     case resizing(handle: AnnoSelectionHandle, bounds: AnnoSelectionBounds, initial: AnnoDocument.Snapshot)
     case rotating(center: Vec, startAngle: Double, initial: AnnoDocument.Snapshot)
     case draggingArrowHandle(id: AnnoShapeID, handle: AnnoSelectionHandle)
+    /// A new color tag, its label following the pointer away from the pixel at `origin`.
+    case placingColorTag(id: AnnoShapeID, origin: Vec)
+    /// A color tag's marker, re-targeting the pixel it labels.
+    case draggingColorTagAnchor(id: AnnoShapeID)
 }
 
 /// What the canvas view knows about a pointer event.
@@ -140,6 +144,9 @@ final class AnnoEditor {
     var currentTextAlign: TextAlign = .start
     var currentArrowheadStart: Arrowhead = .none
     var currentArrowheadEnd: Arrowhead = .arrow
+
+    /// The screenshot's sRGB color at a page point, for color tags. Nil while no image is loaded.
+    var sampleColor: ((Vec) -> ColorTagProps?)?
 
     /// The text shape currently being typed into. The canvas puts a text view over it and skips
     /// drawing it, so the two don't double up.
@@ -246,6 +253,14 @@ final class AnnoEditor {
         guard !selected.isEmpty else { return nil }
         if selected.count == 1 {
             let shape = selected[0]
+            // A color tag's frame is its label; its marker is a handle of its own.
+            if let props = shape.colorTagProps {
+                let size = ColorTagLayout(props).size
+                return AnnoSelectionBounds(
+                    box: Box(0, 0, Double(size.width), Double(size.height)),
+                    transform: shape.pageTransform
+                )
+            }
             return AnnoSelectionBounds(box: document.geometry(shape).bounds, transform: shape.pageTransform)
         }
         let boxes = selected.compactMap { document.pageBounds($0.id) }

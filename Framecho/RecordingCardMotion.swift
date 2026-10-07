@@ -187,6 +187,63 @@ nonisolated enum RecordingMotionPreset: String, CaseIterable, Codable, Identifia
     }
 }
 
+// MARK: - Easing
+
+/// How a motion's entrance or exit moves between the base pose and its
+/// target. Stored per cue; projects from before easing was choosable
+/// decode as `.smooth`, the curve every cue used until then.
+nonisolated enum RecordingMotionEasing: String, CaseIterable, Codable, Identifiable, Sendable {
+    case smooth
+    case linear
+    case easeIn
+    case easeOut
+    case overshoot
+    case spring
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .smooth: String(localized: "Smooth")
+        case .linear: String(localized: "Linear")
+        case .easeIn: String(localized: "Ease In")
+        case .easeOut: String(localized: "Ease Out")
+        case .overshoot: String(localized: "Overshoot")
+        case .spring: String(localized: "Spring")
+        }
+    }
+
+    /// Progress through a transition, 0 at its start and 1 at its end.
+    /// Overshoot and spring pass beyond 1 before settling, so the card
+    /// swings slightly past where it is heading.
+    func value(at progress: Double) -> Double {
+        let u = min(max(progress, 0), 1)
+        switch self {
+        case .smooth:
+            // Quintic ease: zero velocity and acceleration at both ends.
+            return u * u * u * (u * (u * 6 - 15) + 10)
+        case .linear:
+            return u
+        case .easeIn:
+            return u * u * u
+        case .easeOut:
+            let inverse = 1 - u
+            return 1 - inverse * inverse * inverse
+        case .overshoot:
+            let c1 = 1.70158
+            let c3 = c1 + 1
+            let t = u - 1
+            return 1 + c3 * t * t * t + c1 * t * t
+        case .spring:
+            guard u < 1 else { return 1 }
+            let raw = 1 - exp(-6.5 * u) * cos(3 * .pi * u)
+            // Corrects the curve's tiny miss at the end so it lands exactly.
+            let endMiss = 1 - (1 - exp(-6.5) * cos(3 * .pi))
+            return raw + endMiss * u
+        }
+    }
+}
+
 // MARK: - Cues
 
 nonisolated struct RecordingMotionCue: Identifiable, Codable, Equatable, Sendable {
@@ -206,6 +263,10 @@ nonisolated struct RecordingMotionCue: Identifiable, Codable, Equatable, Sendabl
     /// Output seconds spent moving back to the base pose.
     var exitDuration: TimeInterval
     var targetPose: RecordingCardPose
+    /// Curve of the move from the base pose to the target.
+    var enterEasing: RecordingMotionEasing
+    /// Curve of the move back to the base pose.
+    var exitEasing: RecordingMotionEasing
     var isEnabled: Bool
     /// Reserved: start from the previous cue's target instead of the base
     /// pose. Always false in this version and not exposed in the editor.
@@ -220,6 +281,8 @@ nonisolated struct RecordingMotionCue: Identifiable, Codable, Equatable, Sendabl
         enterDuration: TimeInterval = RecordingMotionCue.defaultTransition,
         exitDuration: TimeInterval = RecordingMotionCue.defaultTransition,
         targetPose: RecordingCardPose,
+        enterEasing: RecordingMotionEasing = .smooth,
+        exitEasing: RecordingMotionEasing = .smooth,
         isEnabled: Bool = true,
         chainsFromPrevious: Bool = false,
         preset: RecordingMotionPreset? = nil
@@ -230,6 +293,8 @@ nonisolated struct RecordingMotionCue: Identifiable, Codable, Equatable, Sendabl
         self.enterDuration = enterDuration
         self.exitDuration = exitDuration
         self.targetPose = targetPose
+        self.enterEasing = enterEasing
+        self.exitEasing = exitEasing
         self.isEnabled = isEnabled
         self.chainsFromPrevious = chainsFromPrevious
         self.preset = preset
@@ -237,7 +302,7 @@ nonisolated struct RecordingMotionCue: Identifiable, Codable, Equatable, Sendabl
 
     private enum CodingKeys: String, CodingKey {
         case id, start, end, enterDuration, exitDuration, targetPose, isEnabled
-        case chainsFromPrevious, preset
+        case chainsFromPrevious, preset, enterEasing, exitEasing
     }
 
     init(from decoder: any Decoder) throws {
@@ -252,6 +317,11 @@ nonisolated struct RecordingMotionCue: Identifiable, Codable, Equatable, Sendabl
                 ?? Self.defaultTransition,
             targetPose: try container.decodeIfPresent(RecordingCardPose.self, forKey: .targetPose)
                 ?? .identity,
+            // An easing a newer version added reads as the original curve.
+            enterEasing: (try? container.decodeIfPresent(RecordingMotionEasing.self, forKey: .enterEasing))
+                .flatMap { $0 } ?? .smooth,
+            exitEasing: (try? container.decodeIfPresent(RecordingMotionEasing.self, forKey: .exitEasing))
+                .flatMap { $0 } ?? .smooth,
             isEnabled: try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true,
             chainsFromPrevious: try container.decodeIfPresent(Bool.self, forKey: .chainsFromPrevious)
                 ?? false,
@@ -327,6 +397,8 @@ nonisolated struct RecordingMotionTimeline: Equatable, Sendable {
         var enter: TimeInterval
         var exit: TimeInterval
         var target: RecordingCardPose
+        var enterEasing: RecordingMotionEasing = .smooth
+        var exitEasing: RecordingMotionEasing = .smooth
     }
 
     let isEnabled: Bool
@@ -384,7 +456,9 @@ nonisolated struct RecordingMotionTimeline: Equatable, Sendable {
                 editorEnd: last.editorEnd,
                 enter: 0,
                 exit: 0,
-                target: cue.targetPose.clamped
+                target: cue.targetPose.clamped,
+                enterEasing: cue.enterEasing,
+                exitEasing: cue.exitEasing
             ),
             enter: cue.enterDuration,
             exit: cue.exitDuration
@@ -427,18 +501,21 @@ nonisolated struct RecordingMotionTimeline: Equatable, Sendable {
               }) else {
             return basePose
         }
+        // Each transition runs its curve forward in its own time, so an
+        // exit that eases in leaves the target slowly.
         let progress: Double
         if segment.enter > 0, editorTime < segment.editorStart + segment.enter {
-            progress = (editorTime - segment.editorStart) / segment.enter
+            progress = segment.enterEasing.value(at: (editorTime - segment.editorStart) / segment.enter)
         } else if segment.exit > 0, editorTime > segment.editorEnd - segment.exit {
-            progress = (segment.editorEnd - editorTime) / segment.exit
+            let exitProgress = (editorTime - (segment.editorEnd - segment.exit)) / segment.exit
+            progress = 1 - segment.exitEasing.value(at: exitProgress)
         } else {
             progress = 1
         }
         return RecordingCardPose.interpolate(
             from: basePose,
             to: segment.target,
-            progress: Self.smootherStep(progress)
+            progress: progress
         )
     }
 
@@ -446,11 +523,6 @@ nonisolated struct RecordingMotionTimeline: Equatable, Sendable {
         segments.first { $0.cueID == cueID }
     }
 
-    /// Quintic ease: zero velocity and acceleration at both ends.
-    static func smootherStep(_ value: Double) -> Double {
-        let u = min(max(value, 0), 1)
-        return u * u * u * (u * (u * 6 - 15) + 10)
-    }
 }
 
 // MARK: - Projection

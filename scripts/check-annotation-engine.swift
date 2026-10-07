@@ -38,6 +38,8 @@ struct AnnotationEngineChecks {
         checkClickCreatesUsableShape()
         checkArrowBinding()
         checkNumberedCircles()
+        checkColorTags()
+        checkColorSampler()
         print("Annotation engine checks passed (\(checks) assertions).")
     }
 
@@ -313,5 +315,98 @@ struct AnnotationEngineChecks {
         editor.deleteSelected()
         click(editor, at: Vec(800, 300))
         expect(editor.shapes.last?.numberedProps?.value == 4, "Numbering continues from the highest left")
+    }
+
+    static func checkColorTags() {
+        let editor = makeEditor()
+        editor.tool = .colorPicker
+        click(editor, at: Vec(300, 300))
+        expect(editor.shapes.isEmpty, "No tag without pixels to sample")
+
+        // Red on the left half of the image, blue on the right.
+        editor.sampleColor = { point in
+            point.x < 1000 ? ColorTagProps(red: 255, green: 0, blue: 0) : ColorTagProps(red: 0, green: 82, blue: 255)
+        }
+        click(editor, at: Vec(300, 300))
+        guard let tag = editor.shapes.first, let props = tag.colorTagProps else {
+            expect(false, "A click places a color tag")
+            return
+        }
+        expect(tag.tool == .colorPicker && editor.selectedIds == [tag.id], "A color tag, selected")
+        expect(props.hex == "#FF0000" && props.rgbDescription == "R255 G0 B0", "Labels the sampled color")
+        near(tag.colorTagAnchor, Vec(300, 300), "Points at the clicked pixel")
+        expect(tag.x > 300 && tag.y + Double(ColorTagLayout(props).size.height) < 300, "Label up and to the right")
+        expect(editor.hitShape(at: Vec(300, 300))?.id == tag.id, "The marker is clickable")
+
+        // Dragging the label moves it alone: the arrow still points at the same pixel.
+        let label = Vec(tag.x + 5, tag.y + 5)
+        drag(editor, from: label, to: Vec(label.x + 400, label.y + 200))
+        near(editor.shapes[0].x, tag.x + 400, "The label moved")
+        near(editor.shapes[0].colorTagAnchor, Vec(300, 300), "The pixel stays put")
+        expect(editor.shapes[0].colorTagProps?.hex == "#FF0000", "And so does its color")
+        editor.nudgeSelected(dx: 10, dy: 0)
+        near(editor.shapes[0].colorTagAnchor, Vec(300, 300), "Nudging moves only the label")
+
+        // Dragging the marker re-targets the pixel, even with the color tool, and leaves the label.
+        let labelX = editor.shapes[0].x
+        drag(editor, from: Vec(300, 300), to: Vec(1300, 300))
+        expect(editor.shapes.count == 1, "Grabbing a marker doesn't place another tag")
+        near(editor.shapes[0].colorTagAnchor, Vec(1300, 300), "The marker follows the drag")
+        expect(editor.shapes[0].colorTagProps?.hex == "#0052FF", "A re-targeted tag reads its new pixel")
+        near(editor.shapes[0].x, labelX, "The label stays put")
+
+        // A press-and-drag pulls a new tag's label out to the release point.
+        drag(editor, from: Vec(200, 600), to: Vec(700, 800))
+        guard let pulled = editor.shapes.last, let pulledProps = pulled.colorTagProps else {
+            expect(false, "A drag places a tag")
+            return
+        }
+        near(pulled.colorTagAnchor, Vec(200, 600), "Sampled where the drag began")
+        near(pulled.x, 700, "Its label starts at the release point")
+        near(pulled.y + Double(ColorTagLayout(pulledProps).size.height) / 2, 800, "Centred on it")
+    }
+
+    static func checkColorSampler() {
+        // 2x2, y-down: red, green / blue, white.
+        let pixels: [UInt8] = [255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255]
+        let space = CGColorSpace(name: CGColorSpace.sRGB)!
+        guard let provider = CGDataProvider(data: Data(pixels) as CFData),
+              let image = CGImage(
+                width: 2, height: 2, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: 8, space: space,
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+                provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent
+              ) else {
+            expect(false, "Test image")
+            return
+        }
+        let size = CGSize(width: 2, height: 2)
+        func hex(_ point: Vec) -> String? {
+            AnnotationColorSampler.color(in: image, pageSize: size, at: point)?.hex
+        }
+        expect(hex(Vec(0.5, 0.5)) == "#FF0000", "Top left")
+        expect(hex(Vec(1.5, 0.5)) == "#00FF00", "Top right")
+        expect(hex(Vec(0.5, 1.5)) == "#0000FF", "Bottom left: rows count down from the top")
+        expect(hex(Vec(1.9, 1.9)) == "#FFFFFF", "Bottom right")
+        expect(hex(Vec(2, 1)) == nil && hex(Vec(-0.1, 1)) == nil, "Nothing outside the image")
+        // A half-size preview of a 4x4 page maps page pixels onto its own.
+        expect(
+            AnnotationColorSampler.color(in: image, pageSize: CGSize(width: 4, height: 4), at: Vec(3.5, 0.5))?.hex == "#00FF00",
+            "A scaled preview maps page space onto its pixels"
+        )
+
+        // The loupe's 3x3 around the top-left pixel: red in the middle, green to its right,
+        // blue below, and nothing beyond the image's edge.
+        guard let loupe = AnnotationColorSampler.neighborhood(in: image, pageSize: size, around: Vec(0.5, 0.5), radius: 1) else {
+            expect(false, "A neighborhood at the image's corner")
+            return
+        }
+        let grid = CGSize(width: 3, height: 3)
+        func loupeHex(_ column: Double, _ row: Double) -> String? {
+            AnnotationColorSampler.color(in: loupe.image, pageSize: grid, at: Vec(column + 0.5, row + 0.5))?.hex
+        }
+        expect(loupe.image.width == 3 && loupe.image.height == 3 && loupe.center.hex == "#FF0000", "Loupe centre")
+        expect(loupeHex(1, 1) == "#FF0000" && loupeHex(2, 1) == "#00FF00" && loupeHex(1, 2) == "#0000FF"
+               && loupeHex(2, 2) == "#FFFFFF", "Loupe pixels stay upright")
+        expect(loupeHex(0, 0) == "#000000", "Off the edge is empty")
     }
 }

@@ -236,6 +236,15 @@ enum AnnoShapeGeometry {
             return Rectangle2d(width: props.w, height: props.h, isFilled: true)
         case let .numbered(props):
             return Ellipse2d(width: props.diameter, height: props.diameter, isFilled: true)
+        case let .colorTag(props):
+            // The label and the marker; the arrow between them is for looking at, not grabbing.
+            let layout = ColorTagLayout(props)
+            let anchor = shape.pageTransform.inverse.applyToPoint(shape.colorTagAnchor ?? Vec(0, 0))
+            let radius = layout.markerExtent
+            return Group2d(children: [
+                Rectangle2d(width: Double(layout.size.width), height: Double(layout.size.height), isFilled: true),
+                Circle2d(x: anchor.x - radius, y: anchor.y - radius, radius: radius, isFilled: true),
+            ])
         }
     }
 

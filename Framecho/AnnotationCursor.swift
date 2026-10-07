@@ -6,6 +6,9 @@
 import AppKit
 
 extension NSCursor {
+    /// No pointer at all, for while the color loupe stands in for it.
+    static let annotationHidden = NSCursor(image: NSImage(size: NSSize(width: 1, height: 1)), hotSpot: .zero)
+
     static let annotationPlus: NSCursor = {
         let size = NSSize(width: 22, height: 22)
         let image = NSImage(size: size)

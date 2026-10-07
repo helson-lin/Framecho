@@ -461,7 +461,7 @@ final class RecordingStudioModel {
         style = document.style.value
         zoomEnabled = document.zoomEnabled
         zoomCues = document.zoomCues
-        motion = document.motion ?? .disabled
+        motion = Self.editableMotion(document.motion)
         selectedMotionCueID = nil
         // A project that never chose its own settings inherits whatever
         // was picked last, so "export as MP4" sticks across recordings.
@@ -1027,6 +1027,9 @@ final class RecordingStudioModel {
     ) {
         var next = motion
         change(&next)
+        // There is no on/off switch: motion is live as soon as there is a
+        // pose or cue to play, and inert again once there isn't.
+        next.isEnabled = true
         if coalesces {
             if motionEditSnapshot == nil {
                 motionEditSnapshot = motion
@@ -1056,13 +1059,12 @@ final class RecordingStudioModel {
         endMotionEdit()
     }
 
-    var motionEnabled: Bool {
-        get { motion.isEnabled }
-        set {
-            editMotion(newValue
-                ? String(localized: "Turn On 3D Motion")
-                : String(localized: "Turn Off 3D Motion")) { $0.isEnabled = newValue }
-        }
+    /// Projects saved while 3D motion could still be switched off keep the
+    /// video they exported: poses and cues hidden behind the old switch
+    /// never played, so they are left out rather than suddenly appearing.
+    private static func editableMotion(_ stored: RecordingMotionSettings?) -> RecordingMotionSettings {
+        guard let stored, stored.isEnabled else { return .disabled }
+        return stored
     }
 
     var motionBasePose: RecordingCardPose {
@@ -1075,7 +1077,7 @@ final class RecordingStudioModel {
     /// The adjustment in progress, while its pose still exists and motion is
     /// on. The canvas shows this pose instead of the one under the playhead.
     var activePoseAdjustment: RecordingPoseAdjustmentTarget? {
-        guard motion.isEnabled, let target = poseAdjustmentTarget else { return nil }
+        guard let target = poseAdjustmentTarget else { return nil }
         switch target {
         case .base:
             return target
@@ -1096,7 +1098,6 @@ final class RecordingStudioModel {
     }
 
     func beginPoseAdjustment(_ target: RecordingPoseAdjustmentTarget) {
-        guard motion.isEnabled else { return }
         pause()
         if isCroppingVideo { cancelVideoCrop() }
         if case .cue(let id) = target {
@@ -1262,7 +1263,6 @@ final class RecordingStudioModel {
             preset: preset
         )
         editMotion(String(localized: "Add Motion")) { settings in
-            settings.isEnabled = true
             settings.cues.append(cue)
         }
         selectMotionCue(id: cue.id)
@@ -1287,7 +1287,6 @@ final class RecordingStudioModel {
             preset: preset
         )
         editMotion(String(localized: "Add Motion")) { settings in
-            settings.isEnabled = true
             settings.cues.append(cue)
         }
         selectMotionCue(id: cue.id)

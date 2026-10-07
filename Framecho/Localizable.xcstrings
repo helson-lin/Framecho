@@ -83,6 +83,36 @@
         }
       }
     },
+    "Add a caption or audio track" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加字幕或音频轨道"
+          }
+        }
+      }
+    },
+    "Add a motion block at the playhead, then shape its pose above" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在播放头处添加一段运镜，再在上方调整它的姿态"
+          }
+        }
+      }
+    },
+    "Add Track" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加轨道"
+          }
+        }
+      }
+    },
     "Adds your narration to recordings." : {
       "localizations" : {
         "zh-Hans" : {
@@ -199,6 +229,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "返回"
+          }
+        }
+      }
+    },
+    "Captions come from narration. Record with the microphone on to transcribe it." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕来自旁白。录制时打开麦克风，之后即可转写。"
           }
         }
       }
@@ -373,6 +413,16 @@
         }
       }
     },
+    "Couldn't transcribe the narration" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法转写旁白"
+          }
+        }
+      }
+    },
     "Countdown before every capture" : {
       "localizations" : {
         "zh-Hans" : {
@@ -453,12 +503,62 @@
         }
       }
     },
+    "Drag to move the card. Double-click to center it." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动以移动卡片，双击回到中心。"
+          }
+        }
+      }
+    },
+    "Ease In" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缓入"
+          }
+        }
+      }
+    },
+    "Ease Out" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缓出"
+          }
+        }
+      }
+    },
+    "Entrance curve" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "入场曲线"
+          }
+        }
+      }
+    },
     "Every capture mode counts down first, which helps when you need to open a menu." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "所有截图方式都会先倒计时，适合需要先展开菜单的场景。"
+          }
+        }
+      }
+    },
+    "Exit curve" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出场曲线"
           }
         }
       }
@@ -533,6 +633,16 @@
         }
       }
     },
+    "Hide Subtitles" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐藏字幕"
+          }
+        }
+      }
+    },
     "Image" : {
       "localizations" : {
         "zh-Hans" : {
@@ -599,6 +709,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "稍后"
+          }
+        }
+      }
+    },
+    "Linear" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "线性"
           }
         }
       }
@@ -679,6 +799,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "没有已共享的内容"
+          }
+        }
+      }
+    },
+    "No shortcuts were pressed while recording." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录制时没有按下快捷键。"
           }
         }
       }
@@ -773,12 +903,32 @@
         }
       }
     },
+    "Or start from a preset" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "或从预设开始"
+          }
+        }
+      }
+    },
     "Other…" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "其他…"
+          }
+        }
+      }
+    },
+    "Overshoot" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回弹"
           }
         }
       }
@@ -923,12 +1073,52 @@
         }
       }
     },
+    "Replacement Audio…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "替换音频…"
+          }
+        }
+      }
+    },
     "Required" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "必需"
+          }
+        }
+      }
+    },
+    "Reset position" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置位置"
+          }
+        }
+      }
+    },
+    "Reset rotation" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置旋转"
+          }
+        }
+      }
+    },
+    "Reset scale" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置缩放"
           }
         }
       }
@@ -969,6 +1159,16 @@
         }
       }
     },
+    "Rotation" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "旋转"
+          }
+        }
+      }
+    },
     "Save and close (⌘↩)" : {
       "localizations" : {
         "zh-Hans" : {
@@ -985,6 +1185,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "存储标注 (Esc)"
+          }
+        }
+      }
+    },
+    "Save as Preset…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存储为预设…"
           }
         }
       }
@@ -1119,6 +1329,26 @@
         }
       }
     },
+    "Show Subtitles" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示字幕"
+          }
+        }
+      }
+    },
+    "Show this recording in Finder" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在访达中显示这段录制"
+          }
+        }
+      }
+    },
     "Shows a downscaled image in the annotation editor to reduce memory use. Saved and exported screenshots are always full resolution." : {
       "localizations" : {
         "zh-Hans" : {
@@ -1159,6 +1389,16 @@
         }
       }
     },
+    "Smooth" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平滑"
+          }
+        }
+      }
+    },
     "Sort by %@" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1175,6 +1415,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "源代码"
+          }
+        }
+      }
+    },
+    "Spring" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "弹簧"
           }
         }
       }
@@ -1239,6 +1489,26 @@
         }
       }
     },
+    "The pointer is part of this recording's picture, so it can't be restyled." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这段录制的指针已录进画面，无法调整样式。"
+          }
+        }
+      }
+    },
+    "This recording has no camera video. Turn on the camera before recording to add one." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这段录制没有摄像头画面。录制前打开摄像头即可加入。"
+          }
+        }
+      }
+    },
     "Thumbnail size" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1269,6 +1539,16 @@
         }
       }
     },
+    "Transcribe" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "转写"
+          }
+        }
+      }
+    },
     "Try it now: press these keys and drag over any part of the screen." : {
       "localizations" : {
         "zh-Hans" : {
@@ -1279,12 +1559,32 @@
         }
       }
     },
+    "Turn %@ · Tilt %@ · Rotate %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左右转 %@ · 俯仰 %@ · 旋转 %@"
+          }
+        }
+      }
+    },
     "Turn on the switch next to Framecho" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "打开 Framecho 旁边的开关"
+          }
+        }
+      }
+    },
+    "Turn the narration into captions" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "把旁白转成字幕"
           }
         }
       }
@@ -1405,6 +1705,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "缩放 %lld%%"
+          }
+        }
+      }
+    },
+    "Zoom & 3D Motion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缩放与 3D 运动"
           }
         }
       }
@@ -3059,6 +3369,16 @@
         }
       }
     },
+    "Click a pixel to label its color value" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按像素以标注其颜色值"
+          }
+        }
+      }
+    },
     "Click a timestamp to jump there. Edit any line to fix the transcription." : {
       "localizations" : {
         "zh-Hans" : {
@@ -3235,6 +3555,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "颜色"
+          }
+        }
+      }
+    },
+    "Color value" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "颜色值"
           }
         }
       }
