@@ -3419,16 +3419,6 @@
         }
       }
     },
-    "Click highlights" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "点按高亮"
-          }
-        }
-      }
-    },
     "Clips" : {
       "localizations" : {
         "zh-Hans" : {
@@ -11949,6 +11939,46 @@
         }
       }
     },
+    "Clicks" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按"
+          }
+        }
+      }
+    },
+    "Reset click effect" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置点按效果"
+          }
+        }
+      }
+    },
+    "Show click effects" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示点按效果"
+          }
+        }
+      }
+    },
+    "Marks each click in the video" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在视频中标记每次点按"
+          }
+        }
+      }
+    },
     "Replace the pointer with a soft highlight" : {
       "localizations" : {
         "zh-Hans" : {
@@ -11965,6 +11995,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "用十字准星代替指针"
+          }
+        }
+      }
+    },
+    "Ripple: a flash, then a ring spreading out" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "波纹：先闪一下，再扩散出一圈"
+          }
+        }
+      }
+    },
+    "Ring: a single ring spreading out" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圆环：单个圆环向外扩散"
+          }
+        }
+      }
+    },
+    "Pulse: a disc that swells and fades" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "脉冲：圆片放大后淡出"
           }
         }
       }

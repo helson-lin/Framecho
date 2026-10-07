@@ -33,6 +33,7 @@ struct RecordingTimelineChecks {
         checkViewportAcrossCuts()
         checkPointer()
         checkCursorStyles()
+        checkClickEffects()
         print("Recording timeline checks passed (\(checks) assertions).")
     }
 
@@ -245,5 +246,40 @@ struct RecordingTimelineChecks {
         let shapeIDs = [RecordingCursorStyle.highlight, .dot, .ring, .crosshair]
             .compactMap { timeline.artwork(id: nil, style: $0)?.artworkID }
         expect(Set(shapeIDs).count == 4, "Shapes cache under their own IDs")
+    }
+
+    static func checkClickEffects() {
+        func effect(_ kind: PointerPressEffectKind, _ progress: Double, scale: CGFloat = 1) -> PointerPressEffectGeometry {
+            var appearance = PointerPressEffectAppearance()
+            appearance.kind = kind
+            appearance.scale = scale
+            return PointerPressEffectStyle.geometry(
+                progress: progress, referenceHeight: 1_080, cursorScale: 1, appearance: appearance
+            )
+        }
+
+        let defaultRipple = PointerPressEffectStyle.geometry(progress: 0.5, referenceHeight: 1_080, cursorScale: 1)
+        near(Double(defaultRipple.rippleRadius), Double(effect(.ripple, 0.5).rippleRadius), 1e-9,
+             "The default appearance is the ripple")
+
+        let ring = effect(.ring, 0.2)
+        expect(ring.impactOpacity == 0 && ring.rippleOpacity > 0, "Ring draws only its ring")
+        let pulse = effect(.pulse, 0.2)
+        expect(pulse.rippleOpacity == 0 && pulse.impactOpacity > 0, "Pulse draws only its disc")
+
+        for kind in PointerPressEffectKind.allCases {
+            let early = effect(kind, 0.15)
+            let late = effect(kind, 0.9)
+            expect(max(late.impactRadius, late.rippleRadius) > max(early.impactRadius, early.rippleRadius),
+                   "\(kind) grows")
+            let end = effect(kind, 1)
+            expect(end.impactOpacity < 0.01 && end.rippleOpacity < 0.01, "\(kind) has faded by the end")
+        }
+
+        near(Double(effect(.ring, 0.5, scale: 2).rippleRadius), 2 * Double(effect(.ring, 0.5).rippleRadius), 1e-9,
+             "Size scales the effect")
+        near(Double(effect(.ring, 0.5, scale: 10).rippleRadius),
+             Double(effect(.ring, 0.5, scale: PointerPressEffectAppearance.scaleRange.upperBound).rippleRadius), 1e-9,
+             "Size is clamped")
     }
 }

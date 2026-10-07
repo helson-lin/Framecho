@@ -844,6 +844,7 @@ private struct StudioCanvasComposition: View {
                                 cardSize: layout.cardRect.size,
                                 contentSize: layout.contentFillSize,
                                 cursorScale: model.style.cursorScale,
+                                clickEffect: model.style.clickEffect,
                                 showsClickEffect: model.showsPressEffects
                             )
                         }
@@ -1473,6 +1474,7 @@ private struct StudioCursorOverlay: View {
     /// normally, larger when a reframe aspect-fills it.
     var contentSize: CGSize?
     let cursorScale: CGFloat
+    let clickEffect: PointerPressEffectAppearance
     let showsClickEffect: Bool
 
     var body: some View {
@@ -1493,19 +1495,20 @@ private struct StudioCursorOverlay: View {
                 let effect = PointerPressEffectStyle.geometry(
                     progress: press.progress,
                     referenceHeight: content.height,
-                    cursorScale: cursorScale
+                    cursorScale: cursorScale,
+                    appearance: clickEffect
                 )
-                let accent = PointerPressEffectStyle.color
+                let accent = clickEffect.color
                 Circle()
                     .fill(
-                        Color(red: accent.red, green: accent.green, blue: accent.blue)
+                        Color(.sRGB, red: accent.red, green: accent.green, blue: accent.blue)
                             .opacity(effect.impactOpacity)
                     )
                     .frame(width: effect.impactRadius * 2, height: effect.impactRadius * 2)
                     .position(x: pressTip.x, y: pressTip.y)
                 Circle()
                     .stroke(
-                        Color(red: accent.red, green: accent.green, blue: accent.blue)
+                        Color(.sRGB, red: accent.red, green: accent.green, blue: accent.blue)
                             .opacity(effect.rippleOpacity),
                         lineWidth: effect.rippleLineWidth
                     )
@@ -1597,6 +1600,105 @@ private struct StudioCursorStylePreview: View {
                     }
                 }
             }
+        }
+    }
+}
+
+/// A click effect drawn by the same geometry as the video, with the current
+/// cursor on top. Hovering plays it on a loop; at rest (and with Reduce
+/// Motion) it shows a still frame with the parts made legible at tile size.
+private struct StudioClickEffectPreview: View {
+    let kind: PointerPressEffectKind
+    let color: PointerPressEffectColor
+    let cursor: PointerArtwork?
+
+    /// The effect, then a pause before it repeats.
+    private static let loopDuration: TimeInterval = 1.1
+    private static let stillOpacityBoost = 2.2
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
+
+    var body: some View {
+        let animates = isHovering && !reduceMotion
+        ZStack {
+            TimelineView(.animation(paused: !animates)) { context in
+                Canvas { graphics, size in
+                    let effect = animates
+                        ? geometry(
+                            progress: context.date.timeIntervalSinceReferenceDate
+                                .truncatingRemainder(dividingBy: Self.loopDuration)
+                                / PointerPressEffectStyle.duration,
+                            height: size.height
+                        )
+                        : stillGeometry(height: size.height)
+                    draw(effect, in: &graphics, size: size)
+                }
+            }
+
+            if let cursor, let image = StudioCursorImageCache.image(for: cursor) {
+                let height = min(22, 12 * cursor.intrinsicScale)
+                let width = height * cursor.aspectRatio
+                let anchor = cursor.normalizedAnchor
+                Image(nsImage: image)
+                    .resizable()
+                    .frame(width: width, height: height)
+                    .offset(x: (0.5 - anchor.x) * width, y: (0.5 - anchor.y) * height)
+            }
+        }
+        .onHover { isHovering = $0 }
+    }
+
+    private func geometry(progress: Double, height: CGFloat) -> PointerPressEffectGeometry {
+        var appearance = PointerPressEffectAppearance()
+        appearance.kind = kind
+        // Sized so the widest frame stays inside the tile.
+        return PointerPressEffectStyle.geometry(
+            progress: progress,
+            referenceHeight: height * 12,
+            cursorScale: 1,
+            appearance: appearance
+        )
+    }
+
+    /// The impact early and the ring partway out, so one frame shows every
+    /// part of the effect.
+    private func stillGeometry(height: CGFloat) -> PointerPressEffectGeometry {
+        let impact = geometry(progress: 0.08, height: height)
+        let ring = geometry(progress: 0.25, height: height)
+        let pulse = geometry(progress: 0.25, height: height)
+        let boost = Self.stillOpacityBoost
+        return PointerPressEffectGeometry(
+            impactRadius: kind == .pulse ? pulse.impactRadius : impact.impactRadius,
+            impactOpacity: min(1, (kind == .pulse ? pulse.impactOpacity : impact.impactOpacity) * boost),
+            rippleRadius: ring.rippleRadius,
+            rippleOpacity: min(1, ring.rippleOpacity * boost),
+            rippleLineWidth: ring.rippleLineWidth
+        )
+    }
+
+    private func draw(
+        _ effect: PointerPressEffectGeometry,
+        in graphics: inout GraphicsContext,
+        size: CGSize
+    ) {
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let accent = Color(.sRGB, red: color.red, green: color.green, blue: color.blue)
+        func circle(_ radius: CGFloat) -> Path {
+            Path(ellipseIn: CGRect(
+                x: center.x - radius, y: center.y - radius,
+                width: radius * 2, height: radius * 2
+            ))
+        }
+        if effect.impactOpacity > 0 {
+            graphics.fill(circle(effect.impactRadius), with: .color(accent.opacity(effect.impactOpacity)))
+        }
+        if effect.rippleOpacity > 0 {
+            graphics.stroke(
+                circle(effect.rippleRadius),
+                with: .color(accent.opacity(effect.rippleOpacity)),
+                lineWidth: effect.rippleLineWidth
+            )
         }
     }
 }
@@ -4629,6 +4731,28 @@ private struct StudioInspector: View {
                     cursorControls
                 }
             }
+
+            if !model.style.hidesCursor, model.canShowPressEffects {
+                InspectorSectionDivider()
+
+                InspectorSection(
+                    title: "Clicks",
+                    accessory: {
+                        HStack(spacing: 5) {
+                            if model.style.clickEffect != PointerPressEffectAppearance() {
+                                InspectorResetButton(help: "Reset click effect") {
+                                    model.style.clickEffect = PointerPressEffectAppearance()
+                                }
+                            }
+                            InspectorToggle("Show click effects", isOn: $model.showsClickEffects)
+                        }
+                    }
+                ) {
+                    if model.showsClickEffects {
+                        clickEffectControls
+                    }
+                }
+            }
         } else {
             InspectorSection("Cursor") {
                 InspectorHint("The pointer is part of this recording's picture, so it can't be restyled.")
@@ -5406,11 +5530,58 @@ private struct StudioInspector: View {
                 range: 1...4,
                 format: .magnification(fractionDigits: 1)
             )
-
-            if model.canShowPressEffects {
-                InspectorToggleRow("Click highlights", isOn: $model.showsClickEffects)
-            }
         }
+    }
+
+    private var clickEffectControls: some View {
+        VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+            StudioPreviewTileGrid {
+                ForEach(PointerPressEffectKind.allCases) { kind in
+                    StudioPreviewTile(
+                        help: kind.help,
+                        isSelected: model.style.clickEffect.kind == kind,
+                        action: { model.style.clickEffect.kind = kind }
+                    ) {
+                        StudioClickEffectPreview(
+                            kind: kind,
+                            color: model.style.clickEffect.color,
+                            cursor: model.previewArtwork(for: model.style.cursorStyle).first
+                        )
+                    }
+                }
+            }
+
+            InspectorRow("Color") {
+                AnnotationSwatchStrip(selectedSwatch: clickEffectSwatch) { swatch in
+                    model.style.clickEffect.color = PointerPressEffectColor(
+                        red: Double(swatch.red),
+                        green: Double(swatch.green),
+                        blue: Double(swatch.blue)
+                    )
+                }
+            }
+
+            InspectorSlider(
+                "Size",
+                value: $model.style.clickEffect.scale,
+                range: PointerPressEffectAppearance.scaleRange,
+                format: .magnification(fractionDigits: 1)
+            )
+        }
+        .help("Marks each click in the video")
+    }
+
+    /// The strip's swatch for the click color; colors picked from the color
+    /// panel show as the custom well.
+    private var clickEffectSwatch: AnnotationSwatch {
+        let color = model.style.clickEffect.color
+        let matches: (AnnotationSwatch) -> Bool = { swatch in
+            abs(Double(swatch.red) - color.red) < 0.002
+                && abs(Double(swatch.green) - color.green) < 0.002
+                && abs(Double(swatch.blue) - color.blue) < 0.002
+        }
+        return AnnotationSwatch.allCases.first(where: matches)
+            ?? .custom(from: NSColor(srgbRed: color.red, green: color.green, blue: color.blue, alpha: 1))
     }
 
     // MARK: Keystrokes

@@ -287,10 +287,14 @@ struct StoredRecordingStudioStyle: Codable, Equatable {
     /// current default.
     var cursorScale: Double?
     var hidesCursor: Bool?
-    /// Raw RecordingCursorStyle value. Optional, and left out for the
-    /// original pointer, so projects and presets saved before cursor styling
-    /// match and decode unchanged.
+    /// Raw RecordingCursorStyle and PointerPressEffectKind values, plus the
+    /// click color and size. Optional, and left out while at their defaults,
+    /// so projects and presets saved before cursor styling match and decode
+    /// to the original pointer and the blue ripple.
     var cursorStyle: String?
+    var clickEffectKind: String?
+    var clickEffectColor: PointerPressEffectColor?
+    var clickEffectScale: Double?
     var cameraIsVisible: Bool
     var cameraCenterX: Double
     var cameraCenterY: Double
@@ -313,7 +317,12 @@ struct StoredRecordingStudioStyle: Codable, Equatable {
         shadow = Double(style.shadow)
         cursorScale = Double(style.cursorScale)
         hidesCursor = style.hidesCursor ? true : nil
-        cursorStyle = style.cursorStyle == .recorded ? nil : style.cursorStyle.rawValue
+        let defaults = RecordingStudioStyle()
+        cursorStyle = style.cursorStyle == defaults.cursorStyle ? nil : style.cursorStyle.rawValue
+        let clickEffect = style.clickEffect
+        clickEffectKind = clickEffect.kind == defaults.clickEffect.kind ? nil : clickEffect.kind.rawValue
+        clickEffectColor = clickEffect.color == defaults.clickEffect.color ? nil : clickEffect.color
+        clickEffectScale = clickEffect.scale == defaults.clickEffect.scale ? nil : Double(clickEffect.scale)
         cameraIsVisible = style.camera.isVisible
         cameraCenterX = Double(style.camera.center.x)
         cameraCenterY = Double(style.camera.center.y)
@@ -342,6 +351,7 @@ struct StoredRecordingStudioStyle: Codable, Equatable {
             cursorScale: CGFloat(cursorScale ?? RecordingStudioStyle.defaultCursorScale),
             hidesCursor: hidesCursor ?? false,
             cursorStyle: cursorStyle.flatMap(RecordingCursorStyle.init(rawValue:)) ?? .recorded,
+            clickEffect: clickEffectValue,
             camera: RecordingCameraBubbleSettings(
                 isVisible: cameraIsVisible,
                 center: CGPoint(x: cameraCenterX, y: cameraCenterY),
@@ -349,6 +359,23 @@ struct StoredRecordingStudioStyle: Codable, Equatable {
                 roundness: CGFloat(cameraRoundness)
             )
         )
+    }
+
+    private var clickEffectValue: PointerPressEffectAppearance {
+        var appearance = PointerPressEffectAppearance()
+        if let kind = clickEffectKind.flatMap(PointerPressEffectKind.init(rawValue:)) {
+            appearance.kind = kind
+        }
+        if let clickEffectColor {
+            appearance.color = clickEffectColor
+        }
+        if let clickEffectScale, clickEffectScale.isFinite {
+            appearance.scale = min(
+                max(CGFloat(clickEffectScale), PointerPressEffectAppearance.scaleRange.lowerBound),
+                PointerPressEffectAppearance.scaleRange.upperBound
+            )
+        }
+        return appearance
     }
 }
 
@@ -371,6 +398,7 @@ struct RecordingStudioStyle: Equatable {
     var cursorScale: CGFloat = RecordingStudioStyle.defaultCursorScale
     var hidesCursor = false
     var cursorStyle = RecordingCursorStyle.recorded
+    var clickEffect = PointerPressEffectAppearance()
     var camera = RecordingCameraBubbleSettings()
 }
 
