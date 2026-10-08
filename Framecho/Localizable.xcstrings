@@ -71,6 +71,16 @@
         }
       }
     },
+    "Clean up the captions with AI, then review every change" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用 AI 整理字幕，每处修改确认后再应用"
+          }
+        }
+      }
+    },
     "Transcribe the narration to edit its captions and cut the video by its words." : {
       "localizations" : {
         "zh-Hans" : {
@@ -131,12 +141,302 @@
         }
       }
     },
+    "The AI replied in a format Framecho couldn't read: “%@”" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 返回的内容格式无法识别：“%@”"
+          }
+        }
+      }
+    },
+    "The AI ran out of room before answering. Try a model without deep thinking, or a faster variant." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 在给出答案前就用完了输出长度。请换用不带深度思考的模型，或更快的版本。"
+          }
+        }
+      }
+    },
+    "The AI returned an empty reply." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 返回了空内容。"
+          }
+        }
+      }
+    },
+    "Correct Captions" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "校对字幕"
+          }
+        }
+      }
+    },
+    "Proofread…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "校对字幕…"
+          }
+        }
+      }
+    },
+    "Fix misheard words, names and punctuation, and review each fix before it reaches the captions" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "修正听错的字词、名称和标点，每处修改确认后才会写入字幕"
+          }
+        }
+      }
+    },
+    "Proofreading… %lld/%lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在校对… %1$lld/%2$lld"
+          }
+        }
+      }
+    },
+    "No misheard words found in the captions." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕中没有发现听错的字词。"
+          }
+        }
+      }
+    },
+    "%lld fixes suggested" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "建议修改 %lld 处"
+          }
+        }
+      }
+    },
+    "Skip All" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部跳过"
+          }
+        }
+      }
+    },
+    "Accept All" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部接受"
+          }
+        }
+      }
+    },
+    "Click a fix to skip it. Fixes change the captions only, and Restore Original undoes them." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按某处修改即可跳过。修改只影响字幕，可用“恢复原文”撤回。"
+          }
+        }
+      }
+    },
+    "Click to keep the original" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按保留原文"
+          }
+        }
+      }
+    },
+    "Click to use the fix" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按采用修改"
+          }
+        }
+      }
+    },
+    "%@ to %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 改为 %2$@"
+          }
+        }
+      }
+    },
+    "Will be fixed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将被修改"
+          }
+        }
+      }
+    },
+    "Skipped" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已跳过"
+          }
+        }
+      }
+    },
+    "Apple Intelligence (On This Mac)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Intelligence（本机）"
+          }
+        }
+      }
+    },
+    "OpenAI-Compatible API" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenAI 兼容 API"
+          }
+        }
+      }
+    },
+    "Set up an AI provider in Settings › AI to find fillers in context." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在“设置 › AI”中配置 AI 服务后，即可根据上下文识别口头禅。"
+          }
+        }
+      }
+    },
+    "The AI request failed: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 请求失败：%@"
+          }
+        }
+      }
+    },
+    "The AI replied in a format Framecho couldn't read." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 返回的内容格式无法识别。"
+          }
+        }
+      }
+    },
+    "This Mac doesn't support Apple Intelligence." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这台 Mac 不支持 Apple Intelligence。"
+          }
+        }
+      }
+    },
+    "Turn on Apple Intelligence in System Settings to use it here." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先在系统设置中开启 Apple Intelligence。"
+          }
+        }
+      }
+    },
+    "Apple Intelligence is still downloading its model. Try again later." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Intelligence 模型仍在下载，请稍后再试。"
+          }
+        }
+      }
+    },
+    "Apple Intelligence isn't available on this Mac." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这台 Mac 上无法使用 Apple Intelligence。"
+          }
+        }
+      }
+    },
+    "Remove Fillers from Captions" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从字幕中去除口头禅"
+          }
+        }
+      }
+    },
     "Restore Original Captions" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "恢复原始字幕"
+          }
+        }
+      }
+    },
+    "Remove Fillers…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "去除口头禅…"
+          }
+        }
+      }
+    },
+    "Find fillers like “嗯”, “那个” or “um” and review them before they leave the captions. The video isn't cut." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找出“嗯”“那个”“um”等口头禅，确认后再从字幕中去除。视频不会被剪辑。"
           }
         }
       }
@@ -157,6 +457,236 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "按转写原样显示所有字词"
+          }
+        }
+      }
+    },
+    "Finding fillers… %lld/%lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在查找口头禅… %1$lld/%2$lld"
+          }
+        }
+      }
+    },
+    "AI Settings…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 设置…"
+          }
+        }
+      }
+    },
+    "No fillers found in the captions." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕中没有发现口头禅。"
+          }
+        }
+      }
+    },
+    "%lld fillers found" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发现 %lld 个口头禅"
+          }
+        }
+      }
+    },
+    "Apply (%lld)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用（%lld）"
+          }
+        }
+      }
+    },
+    "Click a word to keep it. Fillers leave the captions only; the video isn't cut." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按字词即可保留。口头禅只会从字幕中去除，视频不会被剪辑。"
+          }
+        }
+      }
+    },
+    "Will be removed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将被去除"
+          }
+        }
+      }
+    },
+    "Kept" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留"
+          }
+        }
+      }
+    },
+    "Hesitation sound" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语气声"
+          }
+        }
+      }
+    },
+    "Filler in context (AI)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语境中的口头禅（AI）"
+          }
+        }
+      }
+    },
+    "%@ - click to keep" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ - 点按保留"
+          }
+        }
+      }
+    },
+    "%@ - click to remove" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ - 点按去除"
+          }
+        }
+      }
+    },
+    "AI" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI"
+          }
+        }
+      }
+    },
+    "Provider" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务"
+          }
+        }
+      }
+    },
+    "Caption Cleanup" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕整理"
+          }
+        }
+      }
+    },
+    "Finds fillers like “嗯”, “那个” or “um” in Studio captions. Only the transcript text is sent; audio and video stay on this Mac." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 Studio 字幕中找出“嗯”“那个”“um”等口头禅。只会发送转写文字，音频和视频始终留在这台 Mac 上。"
+          }
+        }
+      }
+    },
+    "Test Connection" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "测试连接"
+          }
+        }
+      }
+    },
+    "Model" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模型"
+          }
+        }
+      }
+    },
+    "Hide key" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐藏密钥"
+          }
+        }
+      }
+    },
+    "Reveal key" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示密钥"
+          }
+        }
+      }
+    },
+    "Endpoint" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接口"
+          }
+        }
+      }
+    },
+    "Presets" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预设"
+          }
+        }
+      }
+    },
+    "Works with any OpenAI-compatible chat API, such as OpenAI, DeepSeek, Qwen, Kimi or a local Ollama. The key is stored in your Keychain." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支持任意 OpenAI 兼容的对话 API，例如 OpenAI、DeepSeek、通义千问、Kimi 或本地 Ollama。密钥保存在钥匙串中。"
           }
         }
       }

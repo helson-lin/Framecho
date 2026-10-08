@@ -139,4 +139,8 @@ check recording-timelines "${strict[@]}" \
 check transcript-captions "${strict[@]}" \
   Framecho/RecordingTranscription.swift scripts/check-transcript-captions.swift
 
+check caption-cleanup "${strict[@]}" \
+  Framecho/RecordingTranscription.swift Framecho/CaptionCleanup.swift \
+  scripts/check-caption-cleanup.swift
+
 echo "All checks passed."

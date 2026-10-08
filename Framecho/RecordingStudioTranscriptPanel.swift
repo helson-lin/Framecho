@@ -3,9 +3,9 @@
 //  Framecho
 //
 //  The studio's transcript panel: the narration as editable captions or as
-//  words to cut the video by. It sits on the leading edge so long reading
-//  and typing never compete with the inspector, which keeps only the
-//  captions' properties.
+//  words to cut the video by, plus AI caption cleanup and its review. It
+//  sits on the leading edge so long reading and typing never compete with
+//  the inspector, which keeps only the captions' properties.
 //
 
 import AppKit
@@ -28,7 +28,7 @@ enum StudioTranscriptMode: String, CaseIterable, Identifiable {
 }
 
 /// The leading panel: the whole narration, editable as captions or as
-/// words to cut. Full window height, so
+/// words to cut, with AI cleanup and its review. Full window height, so
 /// long passages read comfortably beside the video.
 struct StudioTranscriptPanel: View {
     static let isPresentedKey = "studioShowsTranscriptPanel"
@@ -76,6 +76,10 @@ struct StudioTranscriptPanel: View {
 
                 Spacer(minLength: 0)
 
+                if hasTranscript, model.hasTranscriptWords {
+                    aiMenu
+                }
+
                 Button {
                     isPresented = false
                 } label: {
@@ -86,7 +90,7 @@ struct StudioTranscriptPanel: View {
                 .accessibilityLabel("Hide Transcript")
             }
 
-            if hasTranscript, model.hasTranscriptWords {
+            if hasTranscript, model.hasTranscriptWords, model.captionCleanupState != .reviewing {
                 Picker("Mode", selection: $mode) {
                     ForEach(StudioTranscriptMode.allCases) { mode in
                         Text(mode.title).tag(mode)
@@ -96,14 +100,88 @@ struct StudioTranscriptPanel: View {
                 .labelsHidden()
             }
 
-            if hasTranscript, effectiveMode == .captions {
+            if hasTranscript, effectiveMode == .captions, model.captionCleanupState != .reviewing {
                 TextField("Search Transcript", text: $searchText, prompt: Text("Search"))
                     .textFieldStyle(.roundedBorder)
                     .controlSize(.small)
             }
+
+            cleanupStatus
         }
         .padding(.horizontal, Self.horizontalPadding)
         .padding(.vertical, 10)
+    }
+
+    private var aiMenu: some View {
+        Menu {
+            Button("Remove Fillers…", systemImage: "sparkles") {
+                model.suggestCaptionFillers()
+            }
+            Button("Proofread…", systemImage: "text.badge.checkmark") {
+                model.suggestCaptionCorrections()
+            }
+            Divider()
+            Button("Restore Original", systemImage: "arrow.uturn.backward") {
+                model.restoreOriginalCaptions()
+            }
+            .disabled(!model.hasCaptionRevisions)
+            Button("AI Settings…", systemImage: "gearshape") {
+                SettingsWindowController.show(tab: .ai)
+            }
+        } label: {
+            Label("AI", systemImage: "sparkles")
+        }
+        .menuStyle(.button)
+        .controlSize(.small)
+        .fixedSize()
+        .disabled(model.captionCleanupState.isRunning || model.captionCleanupState == .reviewing)
+        .help("Clean up the captions with AI, then review every change")
+    }
+
+    /// Progress and failures of an AI cleanup, under the header so the
+    /// transcript stays readable while it runs.
+    @ViewBuilder
+    private var cleanupStatus: some View {
+        switch model.captionCleanupState {
+        case .running(let completed, let total):
+            HStack(spacing: 8) {
+                ProgressView(value: Double(completed), total: Double(max(total, 1)))
+                    .controlSize(.small)
+                Group {
+                    if model.captionCleanupKind == .fillers {
+                        InspectorHint("Finding fillers… \(completed)/\(total)")
+                    } else {
+                        InspectorHint("Proofreading… \(completed)/\(total)")
+                    }
+                }
+                .monospacedDigit()
+                .fixedSize()
+                InspectorClearButton(help: "Cancel") {
+                    model.discardCaptionCleanup()
+                }
+            }
+        case .failed(let message):
+            VStack(alignment: .leading, spacing: 6) {
+                InspectorHint(message, tint: .orange)
+                HStack(spacing: InspectorMetrics.rowSpacing) {
+                    InspectorActionButton("Try Again", systemImage: "sparkles") {
+                        if model.captionCleanupKind == .fillers {
+                            model.suggestCaptionFillers()
+                        } else {
+                            model.suggestCaptionCorrections()
+                        }
+                    }
+                    InspectorActionButton("AI Settings…", systemImage: "gearshape") {
+                        SettingsWindowController.show(tab: .ai)
+                    }
+                    InspectorClearButton(help: "Dismiss") {
+                        model.discardCaptionCleanup()
+                    }
+                }
+            }
+        case .idle, .reviewing:
+            EmptyView()
+        }
     }
 
     // MARK: Content
@@ -117,6 +195,8 @@ struct StudioTranscriptPanel: View {
     private var content: some View {
         if !hasTranscript {
             emptyState
+        } else if model.captionCleanupState == .reviewing {
+            StudioCaptionCleanupReviewPanel(model: model)
         } else {
             switch effectiveMode {
             case .captions:
@@ -225,7 +305,7 @@ struct StudioTranscriptPanel: View {
     // MARK: Footer
 
     private var showsFooter: Bool {
-        hasTranscript
+        hasTranscript && model.captionCleanupState != .reviewing
     }
 
     private var footer: some View {
@@ -355,6 +435,257 @@ private struct StudioSubtitleRow: View {
         guard let editorTime else { return nil }
         let total = max(0, Int(editorTime.rounded()))
         return String(format: "%d:%02d", total / 60, total % 60)
+    }
+}
+
+/// Review of cleanup suggestions before they reach the captions: each
+/// caption holding a suggestion, its words in reading order. Fillers are
+/// struck through; fixes show the heard words struck through beside the
+/// correction. Clicking a suggestion keeps or drops it.
+private struct StudioCaptionCleanupReviewPanel: View {
+    @Bindable var model: RecordingStudioModel
+
+    var body: some View {
+        let total = model.captionCleanupSuggestionCount
+        let accepted = model.acceptedCaptionCleanupSuggestionCount
+        let isFillers = model.captionCleanupKind == .fillers
+        VStack(spacing: 0) {
+            if let notice = model.captionCleanupNotice {
+                InspectorHint(notice, tint: .orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, StudioTranscriptPanel.horizontalPadding)
+                    .padding(.vertical, 8)
+                Divider()
+            }
+
+            if total == 0 {
+                VStack(spacing: InspectorMetrics.rowSpacing) {
+                    if isFillers {
+                        InspectorHint("No fillers found in the captions.")
+                    } else {
+                        InspectorHint("No misheard words found in the captions.")
+                    }
+                    InspectorActionButton("Done", systemImage: "checkmark") {
+                        model.discardCaptionCleanup()
+                    }
+                    .fixedSize()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                captionList
+                    .frame(maxHeight: .infinity)
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+                    HStack {
+                        if isFillers {
+                            InspectorHint("\(total) fillers found")
+                        } else {
+                            InspectorHint("\(total) fixes suggested")
+                        }
+                        Spacer(minLength: 0)
+                        Button(accepted == total ? "Skip All" : "Accept All") {
+                            model.setAllCaptionCleanupSuggestions(accepted: accepted != total)
+                        }
+                        .buttonStyle(.link)
+                        .font(.inspectorLabel)
+                    }
+
+                    if isFillers {
+                        InspectorHint("Click a word to keep it. Fillers leave the captions only; the video isn't cut.")
+                    } else {
+                        InspectorHint("Click a fix to skip it. Fixes change the captions only, and Restore Original undoes them.")
+                    }
+
+                    HStack(spacing: InspectorMetrics.rowSpacing) {
+                        InspectorActionButton("Discard", systemImage: "xmark") {
+                            model.discardCaptionCleanup()
+                        }
+
+                        InspectorActionButton("Apply (\(accepted))", systemImage: "checkmark") {
+                            model.applyCaptionCleanup()
+                        }
+                        .disabled(accepted == 0)
+                    }
+                }
+                .padding(StudioTranscriptPanel.horizontalPadding)
+            }
+        }
+    }
+
+    private var captionList: some View {
+        let captions = model.captionCleanupReviewCaptions
+        let fillers = Dictionary(uniqueKeysWithValues: model.fillerSuggestions.map { ($0.wordIndex, $0) })
+        let fixes = Dictionary(uniqueKeysWithValues: model.correctionSuggestions.map { ($0.firstWordIndex, $0) })
+        return ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(captions.enumerated()), id: \.element.cue.id) { position, caption in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Button {
+                            model.seekToSubtitle(caption.cue)
+                        } label: {
+                            Text(timestamp(for: caption.cue) ?? "–:––")
+                                .font(.system(size: 10.5, weight: .medium).monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Jump to this subtitle")
+
+                        TranscriptFlowLayout {
+                            ForEach(pieces(of: caption.wordIndices, fixes: fixes), id: \.self) { piece in
+                                switch piece {
+                                case .word(let index):
+                                    StudioFillerReviewWordView(
+                                        text: shownText(of: index),
+                                        suggestion: fillers[index]
+                                    ) {
+                                        model.toggleFillerSuggestion(wordIndex: index)
+                                    }
+                                case .fix(let first):
+                                    if let fix = fixes[first] {
+                                        StudioCorrectionReviewChip(
+                                            original: TranscriptCaptionText.text(
+                                                of: fix.wordIndices.map { model.transcriptWords[$0] }
+                                            ),
+                                            correction: fix
+                                        ) {
+                                            model.toggleCorrectionSuggestion(id: fix.id)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.horizontal, StudioTranscriptPanel.horizontalPadding)
+                    .padding(.vertical, 8)
+
+                    if position < captions.count - 1 {
+                        Divider().padding(.leading, StudioTranscriptPanel.horizontalPadding)
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private enum Piece: Hashable {
+        case word(Int)
+        /// A fix, keyed by its first word; it stands in for its whole span.
+        case fix(Int)
+    }
+
+    /// A caption's words with each fix's span folded into one piece.
+    /// Words hidden from the captions are left out.
+    private func pieces(of indices: [Int], fixes: [Int: CaptionCorrectionSuggestion]) -> [Piece] {
+        var result: [Piece] = []
+        var skipThrough = -1
+        for index in indices where index > skipThrough {
+            if let fix = fixes[index] {
+                result.append(.fix(index))
+                skipThrough = fix.lastWordIndex
+            } else if !shownText(of: index).isEmpty {
+                result.append(.word(index))
+            }
+        }
+        return result
+    }
+
+    private func shownText(of index: Int) -> String {
+        model.transcriptWords[index].captionText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func timestamp(for cue: RecordingSubtitleCue) -> String? {
+        guard let editorTime = model.editorTime(forSourceTime: cue.start)
+            ?? model.editorTime(forSourceTime: (cue.start + cue.end) / 2) else {
+            return nil
+        }
+        let total = max(0, Int(editorTime.rounded()))
+        return String(format: "%d:%02d", total / 60, total % 60)
+    }
+}
+
+/// One suggested fix in the review: the heard text struck through, then
+/// the correction. A skipped fix reads as the original with the correction
+/// dimmed, so it stays findable.
+private struct StudioCorrectionReviewChip: View {
+    let original: String
+    let correction: CaptionCorrectionSuggestion
+    let action: () -> Void
+
+    var body: some View {
+        let isAccepted = correction.isAccepted
+        HStack(spacing: 3) {
+            Text(original)
+                .foregroundStyle(isAccepted ? Color.secondary : Color.primary)
+                .strikethrough(isAccepted, color: .secondary)
+            Image(systemName: "arrow.right")
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Text(correction.replacement)
+                .foregroundStyle(isAccepted ? Color.primary : Color.secondary)
+                .strikethrough(!isAccepted, color: .secondary)
+        }
+        .font(.system(size: 13))
+        .padding(.horizontal, 3)
+        .padding(.vertical, 1)
+        .background(
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .fill(Color.accentColor.opacity(isAccepted ? 0.16 : 0.06))
+        )
+        .padding(.horizontal, 1.5)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: action)
+        .help(isAccepted ? "Click to keep the original" : "Click to use the fix")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: "\(original) to \(correction.replacement)"))
+        .accessibilityValue(isAccepted ? String(localized: "Will be fixed") : String(localized: "Skipped"))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { action() }
+    }
+}
+
+/// One word in the filler review. Suggested fillers are struck through
+/// while they will be removed and tinted either way, so a kept suggestion
+/// stays findable; other words are plain, untappable context.
+private struct StudioFillerReviewWordView: View {
+    let text: String
+    let suggestion: CaptionFillerSuggestion?
+    let action: () -> Void
+
+    var body: some View {
+        let isRemoved = suggestion?.isAccepted ?? false
+        Text(text)
+            .font(.system(size: 13))
+            .foregroundStyle(isRemoved ? Color.secondary : (suggestion == nil ? Color.secondary : Color.primary))
+            .strikethrough(isRemoved, color: .orange)
+            .padding(.horizontal, 1.5)
+            .padding(.vertical, 1)
+            .background(
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(suggestion == nil ? Color.clear : Color.orange.opacity(isRemoved ? 0.18 : 0.07))
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if suggestion != nil { action() }
+            }
+            .help(help)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(text)
+            .accessibilityValue(suggestion == nil ? "" : (isRemoved ? String(localized: "Will be removed") : String(localized: "Kept")))
+            .accessibilityAddTraits(suggestion == nil ? [] : .isButton)
+    }
+
+    private var help: String {
+        guard let suggestion else { return "" }
+        let source = suggestion.source == .rule
+            ? String(localized: "Hesitation sound")
+            : String(localized: "Filler in context (AI)")
+        return suggestion.isAccepted
+            ? String(localized: "\(source) - click to keep")
+            : String(localized: "\(source) - click to remove")
     }
 }
 

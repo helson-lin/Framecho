@@ -25,6 +25,26 @@ enum RecordingTranscriptionState: Equatable {
     }
 }
 
+enum CaptionCleanupKind: Equatable {
+    case fillers
+    case corrections
+}
+
+/// AI caption cleanup: finding fillers or fixes, then the review before
+/// applying.
+enum CaptionCleanupState: Equatable {
+    case idle
+    case running(completed: Int, total: Int)
+    /// Suggestions are waiting for review.
+    case reviewing
+    case failed(String)
+
+    var isRunning: Bool {
+        if case .running = self { return true }
+        return false
+    }
+}
+
 enum RecordingStudioExportState: Equatable {
     case idle
     case exporting(progress: Double)
@@ -153,6 +173,15 @@ final class RecordingStudioModel {
     /// transcript view isn't invalidated on every 20 ms playback tick.
     private(set) var activeTranscriptWordIndex: Int?
     var transcriptionState = RecordingTranscriptionState.idle
+    private(set) var captionCleanupState = CaptionCleanupState.idle
+    /// What the current cleanup looks for.
+    private(set) var captionCleanupKind = CaptionCleanupKind.fillers
+    /// Fillers found by the last cleanup, awaiting review.
+    private(set) var fillerSuggestions: [CaptionFillerSuggestion] = []
+    /// Fixes found by the last proofreading, awaiting review.
+    private(set) var correctionSuggestions: [CaptionCorrectionSuggestion] = []
+    /// Why the last cleanup fell back to rules alone, shown with the review.
+    private(set) var captionCleanupNotice: String?
     private(set) var zoomCues: [ZoomCue] = []
     private(set) var viewportTimeline = ViewportTimeline.identity
     /// 3D card pose and motion cues. Edited through the motion methods so
@@ -244,6 +273,7 @@ final class RecordingStudioModel {
     private var screenVideoTrack: AVAssetTrack?
     private var shareTask: Task<Void, Never>?
     private var transcriptionTask: Task<Void, Never>?
+    private var captionCleanupTask: Task<Void, Never>?
     private var projectSaveTask: Task<Void, Never>?
     private var screenAsset: AVURLAsset?
     private var isTornDown = false
@@ -518,6 +548,7 @@ final class RecordingStudioModel {
         audioWaveform = nil
         cancelShare()
         transcriptionTask?.cancel()
+        discardCaptionCleanup()
         projectSaveTask?.cancel()
         exportTask = nil
         audioExportTask = nil
@@ -1913,6 +1944,7 @@ final class RecordingStudioModel {
     }
 
     private func applyTranscription(_ transcript: RecordingTranscript) {
+        discardCaptionCleanup()
         subtitleCues = transcript.cues
         subtitleTimeline = SubtitleTimeline(cues: transcript.cues)
         transcriptWords = transcript.words
@@ -1924,6 +1956,7 @@ final class RecordingStudioModel {
     }
 
     func removeTranscription() {
+        discardCaptionCleanup()
         subtitleCues = []
         subtitleTimeline = .empty
         transcriptWords = []
@@ -2106,6 +2139,203 @@ final class RecordingStudioModel {
     }
 
     // MARK: - Caption revisions
+
+    /// Finds fillers to hide from the captions: pure hesitation sounds by
+    /// rule, words that are fillers only in context by the configured AI.
+    /// Nothing changes until the suggestions are reviewed and applied.
+    func suggestCaptionFillers() {
+        guard hasTranscriptWords, !captionCleanupState.isRunning else { return }
+        let words = transcriptWords
+        let candidates = captionCleanupCandidates()
+        let rules = CaptionCleanupPlanner.ruleSuggestions(in: words, candidates: candidates)
+
+        runCaptionCleanup(
+            .fillers,
+            candidates: candidates,
+            instructions: CaptionCleanupPlanner.fillerInstructions,
+            read: { reply, chunk in
+                guard let picked = CaptionCleanupPlanner.parseFillerResponse(reply) else {
+                    throw CaptionCleanupError.unreadable(reply)
+                }
+                return CaptionCleanupPlanner.validatedModelFillers(picked, chunk: chunk, words: words)
+            },
+            // Without AI the rules still find the hesitation sounds.
+            finish: { [weak self] modelIndices in
+                self?.fillerSuggestions = CaptionCleanupPlanner.merged(rules: rules, modelIndices: modelIndices)
+                return !rules.isEmpty || !modelIndices.isEmpty
+            }
+        )
+    }
+
+    /// Asks the configured AI to fix misheard words - homophones, names,
+    /// technical terms, punctuation - as small reviewed edits.
+    func suggestCaptionCorrections() {
+        guard hasTranscriptWords, !captionCleanupState.isRunning else { return }
+        let words = transcriptWords
+        runCaptionCleanup(
+            .corrections,
+            candidates: captionCleanupCandidates(),
+            instructions: CaptionCleanupPlanner.correctionInstructions,
+            read: { reply, chunk in
+                guard let fixes = CaptionCleanupPlanner.parseCorrectionResponse(reply) else {
+                    throw CaptionCleanupError.unreadable(reply)
+                }
+                return CaptionCleanupPlanner.validatedCorrections(fixes, chunk: chunk, words: words)
+            },
+            finish: { [weak self] corrections in
+                self?.correctionSuggestions = corrections
+                return !corrections.isEmpty
+            }
+        )
+    }
+
+    /// Words worth sending: still shown, still in the video, and not in a
+    /// caption the user retyped.
+    private func captionCleanupCandidates() -> [Int] {
+        let surviving = Set(transcriptWords.indices.filter(transcriptWordSurvives))
+        let handEdited = CaptionCleanupPlanner.wordsInHandEditedCaptions(
+            words: transcriptWords,
+            cues: subtitleCues,
+            isIncluded: surviving.contains
+        )
+        return CaptionCleanupPlanner.candidateIndices(in: transcriptWords) {
+            surviving.contains($0) && !handEdited.contains($0)
+        }
+    }
+
+    /// The shared cleanup loop: one model request per chunk, progress as it
+    /// goes, then review. A failed request keeps what earlier chunks found
+    /// and says why in the review. `finish` stores the results and reports
+    /// whether there is anything to review.
+    private func runCaptionCleanup<Result: Sendable>(
+        _ kind: CaptionCleanupKind,
+        candidates: [Int],
+        instructions: String,
+        read: @escaping (String, CaptionCleanupChunk) throws -> [Result],
+        finish: @escaping ([Result]) -> Bool
+    ) {
+        discardCaptionCleanup()
+        captionCleanupKind = kind
+        let words = transcriptWords
+
+        let engine: any CaptionCleanupEngine
+        do {
+            engine = try CaptionCleanupEngines.engine(for: CaptionAISettingsStore.shared.snapshot())
+        } catch {
+            captionCleanupNotice = error.localizedDescription
+            presentCaptionCleanup(hasResults: finish([]))
+            return
+        }
+
+        let chunks = CaptionCleanupPlanner.chunks(
+            candidates: candidates,
+            words: words,
+            cues: subtitleCues,
+            maximumWords: engine.maximumWordsPerRequest
+        )
+        captionCleanupState = .running(completed: 0, total: chunks.count)
+        captionCleanupTask = Task { [weak self] in
+            var results: [Result] = []
+            for (position, chunk) in chunks.enumerated() {
+                do {
+                    let reply = try await engine.respond(
+                        instructions: instructions,
+                        prompt: CaptionCleanupPlanner.prompt(for: chunk, words: words)
+                    )
+                    results += try read(reply, chunk)
+                } catch {
+                    guard !Task.isCancelled, !(error is CancellationError), let self else { return }
+                    self.captionCleanupNotice = error.localizedDescription
+                    break
+                }
+                guard !Task.isCancelled, let self else { return }
+                self.captionCleanupState = .running(completed: position + 1, total: chunks.count)
+            }
+            guard !Task.isCancelled, let self else { return }
+            // The transcript may have been replaced while the AI worked.
+            guard self.transcriptWords == words else {
+                self.discardCaptionCleanup()
+                return
+            }
+            self.presentCaptionCleanup(hasResults: finish(results))
+        }
+    }
+
+    private func presentCaptionCleanup(hasResults: Bool) {
+        captionCleanupTask = nil
+        if !hasResults, let notice = captionCleanupNotice {
+            captionCleanupState = .failed(notice)
+        } else {
+            captionCleanupState = .reviewing
+        }
+    }
+
+    func toggleFillerSuggestion(wordIndex: Int) {
+        guard let index = fillerSuggestions.firstIndex(where: { $0.wordIndex == wordIndex }) else { return }
+        fillerSuggestions[index].isAccepted.toggle()
+    }
+
+    func toggleCorrectionSuggestion(id: Int) {
+        guard let index = correctionSuggestions.firstIndex(where: { $0.id == id }) else { return }
+        correctionSuggestions[index].isAccepted.toggle()
+    }
+
+    func setAllCaptionCleanupSuggestions(accepted: Bool) {
+        for index in fillerSuggestions.indices {
+            fillerSuggestions[index].isAccepted = accepted
+        }
+        for index in correctionSuggestions.indices {
+            correctionSuggestions[index].isAccepted = accepted
+        }
+    }
+
+    var captionCleanupSuggestionCount: Int {
+        captionCleanupKind == .fillers ? fillerSuggestions.count : correctionSuggestions.count
+    }
+
+    var acceptedCaptionCleanupSuggestionCount: Int {
+        captionCleanupKind == .fillers
+            ? fillerSuggestions.count(where: \.isAccepted)
+            : correctionSuggestions.count(where: \.isAccepted)
+    }
+
+    /// Applies the accepted suggestions to the captions in one undoable step.
+    func applyCaptionCleanup() {
+        let kind = captionCleanupKind
+        let revisions = kind == .fillers
+            ? CaptionCleanupPlanner.revisions(for: fillerSuggestions, words: transcriptWords)
+            : CaptionCleanupPlanner.revisions(for: correctionSuggestions, words: transcriptWords)
+        discardCaptionCleanup()
+        applyCaptionRevisions(
+            revisions,
+            actionName: kind == .fillers
+                ? String(localized: "Remove Fillers from Captions")
+                : String(localized: "Correct Captions")
+        )
+    }
+
+    /// Stops a running cleanup or drops its suggestions unapplied.
+    func discardCaptionCleanup() {
+        captionCleanupTask?.cancel()
+        captionCleanupTask = nil
+        fillerSuggestions = []
+        correctionSuggestions = []
+        captionCleanupNotice = nil
+        captionCleanupState = .idle
+    }
+
+    /// The captions holding suggestions, each with its words, for review.
+    var captionCleanupReviewCaptions: [(cue: RecordingSubtitleCue, wordIndices: [Int])] {
+        let suggested: Set<Int> = captionCleanupKind == .fillers
+            ? Set(fillerSuggestions.map(\.wordIndex))
+            : Set(correctionSuggestions.flatMap(\.wordIndices))
+        guard !suggested.isEmpty else { return [] }
+        let groups = TranscriptCaptionText.wordIndices(for: subtitleCues, words: transcriptWords)
+        return zip(subtitleCues, groups)
+            .filter { $0.1.contains(where: suggested.contains) }
+            .sorted { $0.0.start < $1.0.start }
+            .map { (cue: $0.0, wordIndices: $0.1) }
+    }
 
     /// Words corrected or hidden in captions, for "Restore Original".
     var hasCaptionRevisions: Bool {
