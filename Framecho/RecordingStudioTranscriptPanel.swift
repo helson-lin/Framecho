@@ -40,7 +40,6 @@ struct StudioTranscriptPanel: View {
     @AppStorage(isPresentedKey) private var isPresented = false
     @AppStorage("studioTranscriptMode") private var mode = StudioTranscriptMode.captions
     @State private var searchText = ""
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 0) {
@@ -57,7 +56,6 @@ struct StudioTranscriptPanel: View {
             }
         }
         .frame(width: Self.width)
-        .background(InspectorControlPalette.panelBackground(for: colorScheme))
     }
 
     private var hasTranscript: Bool {

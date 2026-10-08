@@ -50,6 +50,38 @@ struct RecordingStudioWindow: View {
     }
 }
 
+enum StudioCardMetrics {
+    static let gap: CGFloat = 8
+    static let cornerRadius: CGFloat = 10
+
+    /// The ground the cards sit on: a step darker than the cards in both
+    /// appearances, so each area reads as its own surface.
+    static let ground = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(white: 0.1, alpha: 1)
+            : NSColor(white: 0.86, alpha: 1)
+    })
+}
+
+private struct StudioCard: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: StudioCardMetrics.cornerRadius, style: .continuous)
+        content
+            .background(InspectorControlPalette.panelBackground(for: colorScheme))
+            .clipShape(shape)
+            .overlay(shape.strokeBorder(Color(nsColor: .separatorColor).opacity(0.6), lineWidth: 0.5))
+    }
+}
+
+extension View {
+    /// One of the studio's areas, drawn as its own rounded surface.
+    func studioCard() -> some View {
+        modifier(StudioCard())
+    }
+}
+
 private struct RecordingStudioContent: View {
     @Bindable var model: RecordingStudioModel
     @State private var isInspectorPresented = true
@@ -67,33 +99,47 @@ private struct RecordingStudioContent: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                HStack(spacing: 0) {
-                    // Full height beside the canvas and timeline, like a
-                    // sidebar: long reading never shares the inspector.
+                // Each area is a card on a slightly darker ground: the
+                // transcript runs the full height on the leading edge, the
+                // canvas and inspector share a row, and the timeline spans
+                // both beneath them.
+                HStack(spacing: StudioCardMetrics.gap) {
                     if isTranscriptPresented {
                         StudioTranscriptPanel(model: model)
-                            .transition(.move(edge: .leading))
-                        Divider()
+                            .studioCard()
+                            .transition(.move(edge: .leading).combined(with: .opacity))
                     }
 
-                    VStack(spacing: 0) {
-                        VStack(spacing: 0) {
-                            StudioCanvasBar(model: model)
-                            StudioCanvas(model: model)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    VStack(spacing: StudioCardMetrics.gap) {
+                        HStack(spacing: StudioCardMetrics.gap) {
+                            VStack(spacing: 0) {
+                                StudioCanvasBar(model: model)
+                                StudioCanvas(model: model)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
+                            .background(AnnotationEditorWorkspaceBackground())
+                            .studioCard()
+
+                            if isInspectorPresented {
+                                StudioInspector(model: model)
+                                    .studioCard()
+                                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                            }
                         }
-                        .background(AnnotationEditorWorkspaceBackground())
 
                         StudioTimelineEditor(model: model)
+                            .studioCard()
                     }
                 }
+                .padding(StudioCardMetrics.gap)
+                .animation(.easeOut(duration: 0.2), value: isTranscriptPresented)
+                .animation(.easeOut(duration: 0.2), value: isInspectorPresented)
             }
         }
         .frame(minWidth: 980, minHeight: 720)
-        .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
-        .inspector(isPresented: $isInspectorPresented) {
-            StudioInspector(model: model)
-        }
+        // The toolbar sits on the same ground as the cards.
+        .background(StudioCardMetrics.ground.ignoresSafeArea())
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 Toggle(isOn: $isTranscriptPresented) {
@@ -2134,12 +2180,6 @@ private struct StudioTimelineEditor: View {
         .padding(.horizontal, 12)
         .padding(.top, 6)
         .padding(.bottom, 8)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Color(nsColor: .separatorColor).opacity(0.45))
-                .frame(height: 0.5)
-        }
     }
 
     private var lanes: some View {
@@ -4264,17 +4304,8 @@ private struct StudioInspector: View {
             tabRail
         }
         .background(sidebarBackground)
-        .inspectorColumnWidth(
-            min: InspectorMetrics.columnMinWidth + Self.railWidth,
-            ideal: InspectorMetrics.columnIdealWidth + Self.railWidth,
-            max: InspectorMetrics.columnMaxWidth + Self.railWidth
-        )
-        .frame(
-            minWidth: InspectorMetrics.columnMinWidth + Self.railWidth,
-            maxWidth: .infinity,
-            maxHeight: .infinity,
-            alignment: .topLeading
-        )
+        .frame(width: InspectorMetrics.columnIdealWidth + Self.railWidth)
+        .frame(maxHeight: .infinity, alignment: .topLeading)
         .task {
             await wallpaperStore.reload()
         }
