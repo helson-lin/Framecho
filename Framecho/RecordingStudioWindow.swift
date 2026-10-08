@@ -137,7 +137,10 @@ private struct RecordingStudioContent: View {
                 .animation(.easeOut(duration: 0.2), value: isInspectorPresented)
             }
         }
-        .frame(minWidth: 980, minHeight: 720)
+        .frame(
+            minWidth: WindowFrameDefaults.studioMinimum.width,
+            minHeight: WindowFrameDefaults.studioMinimum.height
+        )
         // The toolbar sits on the same ground as the cards.
         .background(StudioCardMetrics.ground.ignoresSafeArea())
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
@@ -217,6 +220,11 @@ private struct RecordingStudioContent: View {
                 closeGuard.detach()
                 return
             }
+            WindowFrameDefaults.adoptDefaultIfTooSmall(
+                window,
+                minimum: WindowFrameDefaults.studioMinimum,
+                defaultSize: WindowFrameDefaults.studioSize
+            )
             configureCloseGuard()
             closeGuard.attach(to: window)
             closeGuard.refreshDocumentEdited()

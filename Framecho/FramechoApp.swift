@@ -19,6 +19,8 @@ struct FramechoApp: App {
     init() {
         // Before any store reads History or the recordings folder.
         LegacyStorageMigration.run(in: ScreenshotHistoryStore.applicationSupportDirectory)
+        // Before any window restores a frame saved by an older layout.
+        WindowFrameDefaults.discardOutdatedFrames()
     }
 
     var body: some Scene {
@@ -55,7 +57,7 @@ struct FramechoApp: App {
             RecordingStudioWindow(url: value)
         }
         .windowResizability(.contentSize)
-        .defaultSize(width: 1360, height: 860)
+        .defaultSize(WindowFrameDefaults.studioSize)
     }
 
     @MainActor

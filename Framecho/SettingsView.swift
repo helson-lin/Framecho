@@ -95,7 +95,10 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .navigationSplitViewStyle(.balanced)
-        .frame(minWidth: 680, minHeight: 540)
+        .frame(
+            minWidth: WindowFrameDefaults.settingsMinimum.width,
+            minHeight: WindowFrameDefaults.settingsMinimum.height
+        )
     }
 }
 

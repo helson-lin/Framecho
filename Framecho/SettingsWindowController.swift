@@ -25,7 +25,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
     private init() {
         let window = NSWindow(
-            contentRect: NSRect(origin: .zero, size: CGSize(width: 760, height: 580)),
+            contentRect: NSRect(origin: .zero, size: WindowFrameDefaults.settingsSize),
             styleMask: [
                 .titled,
                 .closable,
@@ -63,7 +63,12 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         // swallows in-content drag gestures (e.g. the overlay card editor).
         window.isMovableByWindowBackground = false
         window.setFrameAutosaveName("SettingsWindow")
-        window.minSize = NSSize(width: 680, height: 540)
+        window.minSize = WindowFrameDefaults.settingsMinimum
+        WindowFrameDefaults.adoptDefaultIfTooSmall(
+            window,
+            minimum: WindowFrameDefaults.settingsMinimum,
+            defaultSize: WindowFrameDefaults.settingsSize
+        )
         window.center()
         window.delegate = self
 
