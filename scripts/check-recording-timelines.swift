@@ -32,6 +32,8 @@ struct RecordingTimelineChecks {
         checkViewport()
         checkViewportAcrossCuts()
         checkPointer()
+        checkCursorStyles()
+        checkClickEffects()
         print("Recording timeline checks passed (\(checks) assertions).")
     }
 
@@ -213,5 +215,71 @@ struct RecordingTimelineChecks {
                                         clipTimeline: RecordingClipTimeline(segments: [RecordingClipSegment(sourceStart: 10, sourceEnd: 20)]))
         expect((cut.frame(at: 1)?.location.x ?? 1) < 0.3, "Before the move, at its new time")
         expect((cut.frame(at: 6)?.location.x ?? 0) > 0.8, "After the move, at its new time")
+    }
+
+    // MARK: - Cursor and click styles
+
+    static func checkCursorStyles() {
+        let arrow = PointerArtwork(
+            artworkID: "arrow", imageData: Data([1]),
+            anchorPoint: .init(x: 0, y: 0), referenceSize: .init(width: 16, height: 24)
+        )
+        let beam = PointerArtwork(
+            artworkID: "beam", imageData: Data([2]),
+            anchorPoint: .init(x: 4, y: 8), referenceSize: .init(width: 8, height: 16)
+        )
+        let travel = [PointerTravelSample(time: 0, x: 0.5, y: 0.5, kind: .move, artworkID: "beam")]
+        var file = capture(travel: travel)
+        file.artwork = [beam]
+        let timeline = PointerTimeline.build(capture: file, duration: 2, fallbackArtwork: arrow)
+
+        expect(timeline.artwork(id: "beam", style: .recorded) == beam, "Original keeps the recorded artwork")
+        expect(timeline.artwork(id: "beam", style: .arrow) == arrow, "Arrow always uses the system arrow")
+        for style in [RecordingCursorStyle.highlight, .dot, .ring, .crosshair] {
+            guard let shape = timeline.artwork(id: "beam", style: style) else {
+                expect(false, "\(style) artwork renders")
+                continue
+            }
+            expect(shape.artworkID != beam.artworkID && !shape.imageData.isEmpty, "\(style) replaces the pointer")
+            expect(shape.normalizedAnchor == CGPoint(x: 0.5, y: 0.5), "\(style) is centered on the pointer")
+        }
+        let shapeIDs = [RecordingCursorStyle.highlight, .dot, .ring, .crosshair]
+            .compactMap { timeline.artwork(id: nil, style: $0)?.artworkID }
+        expect(Set(shapeIDs).count == 4, "Shapes cache under their own IDs")
+    }
+
+    static func checkClickEffects() {
+        func effect(_ kind: PointerPressEffectKind, _ progress: Double, scale: CGFloat = 1) -> PointerPressEffectGeometry {
+            var appearance = PointerPressEffectAppearance()
+            appearance.kind = kind
+            appearance.scale = scale
+            return PointerPressEffectStyle.geometry(
+                progress: progress, referenceHeight: 1_080, cursorScale: 1, appearance: appearance
+            )
+        }
+
+        let defaultRipple = PointerPressEffectStyle.geometry(progress: 0.5, referenceHeight: 1_080, cursorScale: 1)
+        near(Double(defaultRipple.rippleRadius), Double(effect(.ripple, 0.5).rippleRadius), 1e-9,
+             "The default appearance is the ripple")
+
+        let ring = effect(.ring, 0.2)
+        expect(ring.impactOpacity == 0 && ring.rippleOpacity > 0, "Ring draws only its ring")
+        let pulse = effect(.pulse, 0.2)
+        expect(pulse.rippleOpacity == 0 && pulse.impactOpacity > 0, "Pulse draws only its disc")
+
+        for kind in PointerPressEffectKind.allCases {
+            let early = effect(kind, 0.15)
+            let late = effect(kind, 0.9)
+            expect(max(late.impactRadius, late.rippleRadius) > max(early.impactRadius, early.rippleRadius),
+                   "\(kind) grows")
+            let end = effect(kind, 1)
+            expect(end.impactOpacity < 0.01 && end.rippleOpacity < 0.01, "\(kind) has faded by the end")
+        }
+
+        near(Double(effect(.ring, 0.5, scale: 2).rippleRadius), 2 * Double(effect(.ring, 0.5).rippleRadius), 1e-9,
+             "Size scales the effect")
+        near(Double(effect(.ring, 0.5, scale: 10).rippleRadius),
+             Double(effect(.ring, 0.5, scale: PointerPressEffectAppearance.scaleRange.upperBound).rippleRadius), 1e-9,
+             "Size is clamped")
     }
 }

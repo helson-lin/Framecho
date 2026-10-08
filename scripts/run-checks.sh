@@ -132,6 +132,7 @@ check recording-timelines "${strict[@]}" \
   Framecho/RecordingViewportTimeline.swift Framecho/RecordingPointerTimeline.swift \
   Framecho/RecordingPointerStream.swift Framecho/RecordingMotionSpring.swift \
   Framecho/RecordingClipTimeline.swift Framecho/PointerCaptureFile.swift \
-  Framecho/RecordingOverlayEffects.swift scripts/check-recording-timelines.swift
+  Framecho/RecordingOverlayEffects.swift Framecho/RecordingCursorStyle.swift \
+  scripts/check-recording-timelines.swift
 
 echo "All checks passed."

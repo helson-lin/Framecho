@@ -693,6 +693,8 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
     private let cardShadowStrength: CGFloat
     private var artworkImageCache: [String: CGImage] = [:]
     private let pointerScale: CGFloat
+    private let cursorStyle: RecordingCursorStyle
+    private let clickEffect: PointerPressEffectAppearance
     private let colorSpace: CGColorSpace
     private let backdrop: CGImage?
     private let timing: RecordingExportTiming
@@ -760,6 +762,8 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         self.cardShadowStrength = style.shadow > 0.01 && style.background != .none ? style.shadow : 0
         self.timing = timing
         self.pointerScale = style.cursorScale
+        self.cursorStyle = style.cursorStyle
+        self.clickEffect = style.clickEffect
         self.colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
         self.backdrop = Self.renderBackdrop(
             canvasSize: canvasSize,
@@ -1520,7 +1524,8 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
                 PointerPressEffectStyle.geometry(
                     progress: press.progress,
                     referenceHeight: layout.contentFillSize.height,
-                    cursorScale: pointerScale
+                    cursorScale: pointerScale,
+                    appearance: clickEffect
                 )
             )
         }
@@ -1577,33 +1582,39 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         }
         if let pressGeometry {
             let (pressTip, effect) = pressGeometry
-            let accent = PointerPressEffectStyle.color
+            let accent = clickEffect.color
             context.saveGState()
-            context.setFillColor(CGColor(
-                red: accent.red,
-                green: accent.green,
-                blue: accent.blue,
-                alpha: effect.impactOpacity
-            ))
-            context.fillEllipse(in: CGRect(
-                x: pressTip.x - effect.impactRadius,
-                y: pressTip.y - effect.impactRadius,
-                width: effect.impactRadius * 2,
-                height: effect.impactRadius * 2
-            ))
-            context.setStrokeColor(CGColor(
-                red: accent.red,
-                green: accent.green,
-                blue: accent.blue,
-                alpha: effect.rippleOpacity
-            ))
-            context.setLineWidth(effect.rippleLineWidth)
-            context.strokeEllipse(in: CGRect(
-                x: pressTip.x - effect.rippleRadius,
-                y: pressTip.y - effect.rippleRadius,
-                width: effect.rippleRadius * 2,
-                height: effect.rippleRadius * 2
-            ))
+            // Each click style uses only some of the parts; a zero line
+            // width would still stroke a hairline, so skip unused parts.
+            if effect.impactOpacity > 0 {
+                context.setFillColor(CGColor(
+                    red: accent.red,
+                    green: accent.green,
+                    blue: accent.blue,
+                    alpha: effect.impactOpacity
+                ))
+                context.fillEllipse(in: CGRect(
+                    x: pressTip.x - effect.impactRadius,
+                    y: pressTip.y - effect.impactRadius,
+                    width: effect.impactRadius * 2,
+                    height: effect.impactRadius * 2
+                ))
+            }
+            if effect.rippleOpacity > 0 {
+                context.setStrokeColor(CGColor(
+                    red: accent.red,
+                    green: accent.green,
+                    blue: accent.blue,
+                    alpha: effect.rippleOpacity
+                ))
+                context.setLineWidth(effect.rippleLineWidth)
+                context.strokeEllipse(in: CGRect(
+                    x: pressTip.x - effect.rippleRadius,
+                    y: pressTip.y - effect.rippleRadius,
+                    width: effect.rippleRadius * 2,
+                    height: effect.rippleRadius * 2
+                ))
+            }
             context.restoreGState()
         }
 
@@ -1821,7 +1832,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         for pointer: PointerFrame,
         in timeline: PointerTimeline
     ) -> (image: CGImage, anchor: CGPoint, aspectRatio: CGFloat, intrinsicScale: CGFloat)? {
-        if let resolved = timeline.artwork(id: pointer.artworkID),
+        if let resolved = timeline.artwork(id: pointer.artworkID, style: cursorStyle),
            let image = artworkImage(for: resolved) {
             return (
                 image,

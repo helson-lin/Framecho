@@ -2,7 +2,7 @@
 //  RecordingOverlayEffects.swift
 //  Framecho
 //
-//  Post-record input feedback drawn by Studio: the click pulse and the
+//  Post-record input feedback drawn by Studio: the click effect and the
 //  keystroke caption. Both are reconstructed from the input.json sidecar on
 //  the source timeline, so they can be toggled and styled in the editor and
 //  render pixel-identically in the live preview and the offline exporter.
@@ -21,12 +21,48 @@ nonisolated struct PointerPressEffectGeometry: Sendable {
     var rippleLineWidth: CGFloat
 }
 
-/// Shared preview/export math for a crisp impact followed by a quieter ripple.
-/// The effect stays anchored to the recorded press coordinate rather than the
-/// cursor spring, so the marked target is exact even during a fast movement.
+nonisolated enum PointerPressEffectKind: String, Codable, CaseIterable, Identifiable, Sendable {
+    /// A soft fill at the press followed by a quieter expanding ring.
+    case ripple
+    /// A single ring that expands from the press.
+    case ring
+    /// A filled disc that swells and fades.
+    case pulse
+
+    var id: String { rawValue }
+
+    var help: String {
+        switch self {
+        case .ripple: String(localized: "Ripple: a flash, then a ring spreading out")
+        case .ring: String(localized: "Ring: a single ring spreading out")
+        case .pulse: String(localized: "Pulse: a disc that swells and fades")
+        }
+    }
+}
+
+nonisolated struct PointerPressEffectColor: Codable, Equatable, Sendable {
+    var red: Double
+    var green: Double
+    var blue: Double
+
+    /// The inspector's blue swatch.
+    static let blue = PointerPressEffectColor(red: 0.18, green: 0.48, blue: 1)
+}
+
+/// How a click is marked: its shape, color and size.
+nonisolated struct PointerPressEffectAppearance: Equatable, Sendable {
+    static let scaleRange: ClosedRange<CGFloat> = 0.5...2.5
+
+    var kind = PointerPressEffectKind.ripple
+    var color = PointerPressEffectColor.blue
+    /// Multiplier on the effect's size, on top of the cursor size.
+    var scale: CGFloat = 1
+}
+
+/// Shared preview/export math for the click effect. The effect stays
+/// anchored to the recorded press coordinate rather than the cursor spring,
+/// so the marked target is exact even during a fast movement.
 nonisolated enum PointerPressEffectStyle {
-    /// macOS system blue.
-    static let color: (red: Double, green: Double, blue: Double) = (0, 122.0 / 255.0, 1)
     static let duration: TimeInterval = 0.4
     private static let impactDuration: TimeInterval = 0.12
     private static let rippleDelay: TimeInterval = 0.06
@@ -36,24 +72,51 @@ nonisolated enum PointerPressEffectStyle {
     static func geometry(
         progress: Double,
         referenceHeight: CGFloat,
-        cursorScale: CGFloat
+        cursorScale: CGFloat,
+        appearance: PointerPressEffectAppearance = PointerPressEffectAppearance()
     ) -> PointerPressEffectGeometry {
         let age = min(max(progress, 0), 1) * duration
-        let base = referenceHeight * CGFloat(21.0 / 1_080.0) * cursorScale
-        let impactProgress = min(max(age / impactDuration, 0), 1)
-        let impactEase = easeOutCubic(impactProgress)
-        let rippleProgress = min(max(
-            (age - rippleDelay) / (duration - rippleDelay),
-            0
-        ), 1)
-        let rippleEase = easeOutCubic(rippleProgress)
-        return PointerPressEffectGeometry(
-            impactRadius: base * CGFloat(0.38 + 0.34 * impactEase),
-            impactOpacity: age <= impactDuration ? 0.38 * (1 - impactEase) : 0,
-            rippleRadius: base * CGFloat(0.62 + 0.93 * rippleEase),
-            rippleOpacity: age >= rippleDelay ? 0.44 * (1 - rippleEase) : 0,
-            rippleLineWidth: max(1, base * CGFloat(0.14 - 0.07 * rippleEase))
+        let sizeScale = min(
+            max(appearance.scale, PointerPressEffectAppearance.scaleRange.lowerBound),
+            PointerPressEffectAppearance.scaleRange.upperBound
         )
+        let base = referenceHeight * CGFloat(21.0 / 1_080.0) * cursorScale * sizeScale
+        switch appearance.kind {
+        case .ripple:
+            // A crisp impact followed by a quieter ripple.
+            let impactProgress = min(max(age / impactDuration, 0), 1)
+            let impactEase = easeOutCubic(impactProgress)
+            let rippleProgress = min(max(
+                (age - rippleDelay) / (duration - rippleDelay),
+                0
+            ), 1)
+            let rippleEase = easeOutCubic(rippleProgress)
+            return PointerPressEffectGeometry(
+                impactRadius: base * CGFloat(0.38 + 0.34 * impactEase),
+                impactOpacity: age <= impactDuration ? 0.38 * (1 - impactEase) : 0,
+                rippleRadius: base * CGFloat(0.62 + 0.93 * rippleEase),
+                rippleOpacity: age >= rippleDelay ? 0.44 * (1 - rippleEase) : 0,
+                rippleLineWidth: max(1, base * CGFloat(0.14 - 0.07 * rippleEase))
+            )
+        case .ring:
+            let ease = easeOutCubic(age / duration)
+            return PointerPressEffectGeometry(
+                impactRadius: 0,
+                impactOpacity: 0,
+                rippleRadius: base * CGFloat(0.45 + 1.15 * ease),
+                rippleOpacity: 0.72 * (1 - ease),
+                rippleLineWidth: max(1, base * CGFloat(0.2 - 0.1 * ease))
+            )
+        case .pulse:
+            let ease = easeOutCubic(age / duration)
+            return PointerPressEffectGeometry(
+                impactRadius: base * CGFloat(0.4 + 0.9 * ease),
+                impactOpacity: 0.42 * (1 - ease),
+                rippleRadius: 0,
+                rippleOpacity: 0,
+                rippleLineWidth: 0
+            )
+        }
     }
 
     private static func easeOutCubic(_ progress: Double) -> Double {

@@ -844,6 +844,7 @@ private struct StudioCanvasComposition: View {
                                 cardSize: layout.cardRect.size,
                                 contentSize: layout.contentFillSize,
                                 cursorScale: model.style.cursorScale,
+                                clickEffect: model.style.clickEffect,
                                 showsClickEffect: model.showsPressEffects
                             )
                         }
@@ -1473,6 +1474,7 @@ private struct StudioCursorOverlay: View {
     /// normally, larger when a reframe aspect-fills it.
     var contentSize: CGSize?
     let cursorScale: CGFloat
+    let clickEffect: PointerPressEffectAppearance
     let showsClickEffect: Bool
 
     var body: some View {
@@ -1493,19 +1495,20 @@ private struct StudioCursorOverlay: View {
                 let effect = PointerPressEffectStyle.geometry(
                     progress: press.progress,
                     referenceHeight: content.height,
-                    cursorScale: cursorScale
+                    cursorScale: cursorScale,
+                    appearance: clickEffect
                 )
-                let accent = PointerPressEffectStyle.color
+                let accent = clickEffect.color
                 Circle()
                     .fill(
-                        Color(red: accent.red, green: accent.green, blue: accent.blue)
+                        Color(.sRGB, red: accent.red, green: accent.green, blue: accent.blue)
                             .opacity(effect.impactOpacity)
                     )
                     .frame(width: effect.impactRadius * 2, height: effect.impactRadius * 2)
                     .position(x: pressTip.x, y: pressTip.y)
                 Circle()
                     .stroke(
-                        Color(red: accent.red, green: accent.green, blue: accent.blue)
+                        Color(.sRGB, red: accent.red, green: accent.green, blue: accent.blue)
                             .opacity(effect.rippleOpacity),
                         lineWidth: effect.rippleLineWidth
                     )
@@ -1545,6 +1548,170 @@ private struct StudioCursorOverlay: View {
         }
         .frame(width: cardSize.width, height: cardSize.height)
         .allowsHitTesting(false)
+    }
+}
+
+/// Three picker tiles per row, for options recognized by sight.
+private struct StudioPreviewTileGrid<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3),
+            spacing: 6
+        ) {
+            content()
+        }
+    }
+}
+
+/// A picker tile that shows its option rather than naming it. The selected
+/// tile also takes an accent tint so the choice reads at a glance.
+private struct StudioPreviewTile<Content: View>: View {
+    let help: String
+    /// A name under the tile, for options a picture alone can't tell apart.
+    var caption: String?
+    let isSelected: Bool
+    let action: () -> Void
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(spacing: 3) {
+            // The tile uses its title for the tooltip and VoiceOver; the
+            // longer description serves both better than the bare name.
+            InspectorTile(title: help, aspectRatio: 1.55, isSelected: isSelected, action: action) {
+                content()
+                    .background(isSelected ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.05))
+            }
+            if let caption {
+                Text(caption)
+                    .font(.inspectorLabel)
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+}
+
+/// The pointer images a cursor style draws, at a size that fits a tile.
+private struct StudioCursorStylePreview: View {
+    let artwork: [PointerArtwork]
+
+    var body: some View {
+        ZStack {
+            Color.clear
+            HStack(spacing: 5) {
+                ForEach(artwork, id: \.artworkID) { artwork in
+                    if let image = StudioCursorImageCache.image(for: artwork) {
+                        Image(nsImage: image)
+                            .resizable()
+                            .aspectRatio(artwork.aspectRatio, contentMode: .fit)
+                            .frame(height: min(24, 13 * artwork.intrinsicScale))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// A click effect drawn by the same geometry as the video, with the current
+/// cursor on top. Hovering plays it on a loop; at rest (and with Reduce
+/// Motion) it shows a still frame with the parts made legible at tile size.
+private struct StudioClickEffectPreview: View {
+    let kind: PointerPressEffectKind
+    let color: PointerPressEffectColor
+    let cursor: PointerArtwork?
+
+    /// The effect, then a pause before it repeats.
+    private static let loopDuration: TimeInterval = 1.1
+    private static let stillOpacityBoost = 2.2
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
+
+    var body: some View {
+        let animates = isHovering && !reduceMotion
+        ZStack {
+            TimelineView(.animation(paused: !animates)) { context in
+                Canvas { graphics, size in
+                    let effect = animates
+                        ? geometry(
+                            progress: context.date.timeIntervalSinceReferenceDate
+                                .truncatingRemainder(dividingBy: Self.loopDuration)
+                                / PointerPressEffectStyle.duration,
+                            height: size.height
+                        )
+                        : stillGeometry(height: size.height)
+                    draw(effect, in: &graphics, size: size)
+                }
+            }
+
+            if let cursor, let image = StudioCursorImageCache.image(for: cursor) {
+                let height = min(22, 12 * cursor.intrinsicScale)
+                let width = height * cursor.aspectRatio
+                let anchor = cursor.normalizedAnchor
+                Image(nsImage: image)
+                    .resizable()
+                    .frame(width: width, height: height)
+                    .offset(x: (0.5 - anchor.x) * width, y: (0.5 - anchor.y) * height)
+            }
+        }
+        .onHover { isHovering = $0 }
+    }
+
+    private func geometry(progress: Double, height: CGFloat) -> PointerPressEffectGeometry {
+        var appearance = PointerPressEffectAppearance()
+        appearance.kind = kind
+        // Sized so the widest frame stays inside the tile.
+        return PointerPressEffectStyle.geometry(
+            progress: progress,
+            referenceHeight: height * 12,
+            cursorScale: 1,
+            appearance: appearance
+        )
+    }
+
+    /// The impact early and the ring partway out, so one frame shows every
+    /// part of the effect.
+    private func stillGeometry(height: CGFloat) -> PointerPressEffectGeometry {
+        let impact = geometry(progress: 0.08, height: height)
+        let ring = geometry(progress: 0.25, height: height)
+        let pulse = geometry(progress: 0.25, height: height)
+        let boost = Self.stillOpacityBoost
+        return PointerPressEffectGeometry(
+            impactRadius: kind == .pulse ? pulse.impactRadius : impact.impactRadius,
+            impactOpacity: min(1, (kind == .pulse ? pulse.impactOpacity : impact.impactOpacity) * boost),
+            rippleRadius: ring.rippleRadius,
+            rippleOpacity: min(1, ring.rippleOpacity * boost),
+            rippleLineWidth: ring.rippleLineWidth
+        )
+    }
+
+    private func draw(
+        _ effect: PointerPressEffectGeometry,
+        in graphics: inout GraphicsContext,
+        size: CGSize
+    ) {
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let accent = Color(.sRGB, red: color.red, green: color.green, blue: color.blue)
+        func circle(_ radius: CGFloat) -> Path {
+            Path(ellipseIn: CGRect(
+                x: center.x - radius, y: center.y - radius,
+                width: radius * 2, height: radius * 2
+            ))
+        }
+        if effect.impactOpacity > 0 {
+            graphics.fill(circle(effect.impactRadius), with: .color(accent.opacity(effect.impactOpacity)))
+        }
+        if effect.rippleOpacity > 0 {
+            graphics.stroke(
+                circle(effect.rippleRadius),
+                with: .color(accent.opacity(effect.rippleOpacity)),
+                lineWidth: effect.rippleLineWidth
+            )
+        }
     }
 }
 
@@ -4266,6 +4433,8 @@ private struct StudioInspector: View {
     @State private var wallpaperStore = AnnotationWallpaperStore.shared
     @State private var selectedTab: StudioInspectorTab = .canvas
     @State private var showsBasePoseControls = true
+    /// Which transition of the selected motion the curve grid edits.
+    @State private var editedMotionTransition = MotionTransition.entrance
     @State private var isAudioExportOptionsPresented = false
     @State private var scrollPosition = ScrollPosition(edge: .top)
 
@@ -4555,9 +4724,11 @@ private struct StudioInspector: View {
                 title: "Cursor",
                 accessory: {
                     HStack(spacing: 5) {
-                        if model.style.cursorScale != RecordingStudioStyle.defaultCursorScale {
-                            InspectorResetButton(help: "Reset cursor size") {
-                                model.style.cursorScale = RecordingStudioStyle.defaultCursorScale
+                        if !usesDefaultCursor {
+                            InspectorResetButton(help: "Reset cursor") {
+                                let defaults = RecordingStudioStyle()
+                                model.style.cursorScale = defaults.cursorScale
+                                model.style.cursorStyle = defaults.cursorStyle
                             }
                         }
                         InspectorToggle(
@@ -4572,6 +4743,28 @@ private struct StudioInspector: View {
             ) {
                 if !model.style.hidesCursor {
                     cursorControls
+                }
+            }
+
+            if !model.style.hidesCursor, model.canShowPressEffects {
+                InspectorSectionDivider()
+
+                InspectorSection(
+                    title: "Clicks",
+                    accessory: {
+                        HStack(spacing: 5) {
+                            if model.style.clickEffect != PointerPressEffectAppearance() {
+                                InspectorResetButton(help: "Reset click effect") {
+                                    model.style.clickEffect = PointerPressEffectAppearance()
+                                }
+                            }
+                            InspectorToggle("Show click effects", isOn: $model.showsClickEffects)
+                        }
+                    }
+                ) {
+                    if model.showsClickEffects {
+                        clickEffectControls
+                    }
                 }
             }
         } else {
@@ -5010,21 +5203,7 @@ private struct StudioInspector: View {
                 } trailing: {
                     motionTimingSlider("Out", cue: cue, keyPath: \.exitDuration)
                 }
-                InspectorFieldPair {
-                    motionEasingMenu(
-                        cue: cue,
-                        keyPath: \.enterEasing,
-                        accessibilityLabel: "Entrance curve",
-                        isEnabled: cue.enterDuration > 0
-                    )
-                } trailing: {
-                    motionEasingMenu(
-                        cue: cue,
-                        keyPath: \.exitEasing,
-                        accessibilityLabel: "Exit curve",
-                        isEnabled: cue.exitDuration > 0
-                    )
-                }
+                motionEasingPicker(cue: cue)
                 if let segment {
                     Text(motionTimingSummary(cue: cue, segment: segment))
                         .font(.inspectorLabel)
@@ -5086,59 +5265,49 @@ private struct StudioInspector: View {
         return String(localized: "Shortened to fit: in \(inText), out \(outText)")
     }
 
-    /// The curve of one transition, chosen from a menu that draws each
-    /// curve beside its name. Dimmed when that transition has no length.
-    private func motionEasingMenu(
-        cue: RecordingMotionCue,
-        keyPath: WritableKeyPath<RecordingMotionCue, RecordingMotionEasing>,
-        accessibilityLabel: LocalizedStringResource,
-        isEnabled: Bool
-    ) -> some View {
-        let easing = cue[keyPath: keyPath]
-        return Menu {
-            Picker(selection: Binding(
-                get: { cue[keyPath: keyPath] },
-                set: { newValue in
-                    guard var updated = currentMotionCue(id: cue.id) else { return }
-                    updated[keyPath: keyPath] = newValue
-                    model.updateMotionCue(updated)
+    /// The curves of the selected motion's entrance and exit: a switch for
+    /// which transition, then every curve drawn in a tile. Dimmed when that
+    /// transition has no length.
+    private func motionEasingPicker(cue: RecordingMotionCue) -> some View {
+        let transition = editedMotionTransition
+        let keyPath = transition.easingKeyPath
+        let isEnabled = cue[keyPath: transition.durationKeyPath] > 0
+        return VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+            InspectorSegmented(
+                options: MotionTransition.allCases,
+                isSelected: { $0 == transition },
+                onTap: { editedMotionTransition = $0 },
+                label: { option in
+                    Text(option.title(easing: cue[keyPath: option.easingKeyPath]))
+                        .font(.inspectorSegment)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
-            )) {
-                ForEach(RecordingMotionEasing.allCases) { option in
-                    Text(option.title).tag(option)
+            )
+
+            StudioPreviewTileGrid {
+                ForEach(RecordingMotionEasing.allCases) { easing in
+                    StudioPreviewTile(
+                        help: easing.title,
+                        caption: easing.title,
+                        isSelected: cue[keyPath: keyPath] == easing,
+                        action: {
+                            guard var updated = currentMotionCue(id: cue.id) else { return }
+                            updated[keyPath: keyPath] = easing
+                            model.updateMotionCue(updated)
+                        }
+                    ) {
+                        StudioEasingCurvePreview(
+                            easing: easing,
+                            isSelected: cue[keyPath: keyPath] == easing
+                        )
+                    }
                 }
-            } label: {
-                Text(accessibilityLabel)
             }
-            .pickerStyle(.inline)
-        } label: {
-            HStack(spacing: 6) {
-                RecordingMotionEasingCurve(easing: easing)
-                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-                    .frame(width: 18, height: 12)
-                    .accessibilityHidden(true)
-                Text(easing.title)
-                    .font(.inspectorLabel)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .inspectorField()
-            .contentShape(Rectangle())
+            .disabled(!isEnabled)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(Text(transition.accessibilityLabel))
         }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
-        .menuIndicator(.hidden)
-        .disabled(!isEnabled)
-        .opacity(isEnabled ? 1 : 0.48)
-        .help(Text(accessibilityLabel))
-        .accessibilityLabel(Text(accessibilityLabel))
-        .accessibilityValue(Text(easing.title))
     }
 
     private func motionTimingSlider(
@@ -5325,19 +5494,84 @@ private struct StudioInspector: View {
 
     // MARK: Cursor
 
+    private var usesDefaultCursor: Bool {
+        let defaults = RecordingStudioStyle()
+        return model.style.cursorScale == defaults.cursorScale
+            && model.style.cursorStyle == defaults.cursorStyle
+    }
+
     private var cursorControls: some View {
         VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+            StudioPreviewTileGrid {
+                ForEach(RecordingCursorStyle.allCases) { cursorStyle in
+                    StudioPreviewTile(
+                        help: cursorStyle.help,
+                        isSelected: model.style.cursorStyle == cursorStyle,
+                        action: { model.style.cursorStyle = cursorStyle }
+                    ) {
+                        StudioCursorStylePreview(artwork: model.previewArtwork(for: cursorStyle))
+                    }
+                }
+            }
+
             InspectorSlider(
                 "Size",
                 value: $model.style.cursorScale,
                 range: 1...4,
                 format: .magnification(fractionDigits: 1)
             )
-
-            if model.canShowPressEffects {
-                InspectorToggleRow("Click highlights", isOn: $model.showsClickEffects)
-            }
         }
+    }
+
+    private var clickEffectControls: some View {
+        VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+            StudioPreviewTileGrid {
+                ForEach(PointerPressEffectKind.allCases) { kind in
+                    StudioPreviewTile(
+                        help: kind.help,
+                        isSelected: model.style.clickEffect.kind == kind,
+                        action: { model.style.clickEffect.kind = kind }
+                    ) {
+                        StudioClickEffectPreview(
+                            kind: kind,
+                            color: model.style.clickEffect.color,
+                            cursor: model.previewArtwork(for: model.style.cursorStyle).first
+                        )
+                    }
+                }
+            }
+
+            InspectorRow("Color") {
+                AnnotationSwatchStrip(selectedSwatch: clickEffectSwatch) { swatch in
+                    model.style.clickEffect.color = PointerPressEffectColor(
+                        red: Double(swatch.red),
+                        green: Double(swatch.green),
+                        blue: Double(swatch.blue)
+                    )
+                }
+            }
+
+            InspectorSlider(
+                "Size",
+                value: $model.style.clickEffect.scale,
+                range: PointerPressEffectAppearance.scaleRange,
+                format: .magnification(fractionDigits: 1)
+            )
+        }
+        .help("Marks each click in the video")
+    }
+
+    /// The strip's swatch for the click color; colors picked from the color
+    /// panel show as the custom well.
+    private var clickEffectSwatch: AnnotationSwatch {
+        let color = model.style.clickEffect.color
+        let matches: (AnnotationSwatch) -> Bool = { swatch in
+            abs(Double(swatch.red) - color.red) < 0.002
+                && abs(Double(swatch.green) - color.green) < 0.002
+                && abs(Double(swatch.blue) - color.blue) < 0.002
+        }
+        return AnnotationSwatch.allCases.first(where: matches)
+            ?? .custom(from: NSColor(srgbRed: color.red, green: color.green, blue: color.blue, alpha: 1))
     }
 
     // MARK: Keystrokes
@@ -5818,6 +6052,104 @@ private extension RecordingStudioModel {
 
 /// A small plot of an easing curve from the lower left to the upper right,
 /// leaving headroom so the overshooting curves show their swing.
+/// The motion transition whose curve the inspector is editing.
+private enum MotionTransition: CaseIterable, Hashable {
+    case entrance
+    case exit
+
+    var easingKeyPath: WritableKeyPath<RecordingMotionCue, RecordingMotionEasing> {
+        switch self {
+        case .entrance: \.enterEasing
+        case .exit: \.exitEasing
+        }
+    }
+
+    var durationKeyPath: KeyPath<RecordingMotionCue, TimeInterval> {
+        switch self {
+        case .entrance: \.enterDuration
+        case .exit: \.exitDuration
+        }
+    }
+
+    /// The switch names the transition and its current curve, so both are
+    /// visible without flipping between them.
+    func title(easing: RecordingMotionEasing) -> String {
+        switch self {
+        case .entrance: String(localized: "In · \(easing.title)")
+        case .exit: String(localized: "Out · \(easing.title)")
+        }
+    }
+
+    var accessibilityLabel: String {
+        switch self {
+        case .entrance: String(localized: "Entrance curve")
+        case .exit: String(localized: "Exit curve")
+        }
+    }
+}
+
+/// One easing curve in a picker tile, with its start and end marked.
+/// Hovering sends a dot along the curve at the curve's own pace; with
+/// Reduce Motion the curve stays still.
+private struct StudioEasingCurvePreview: View {
+    let easing: RecordingMotionEasing
+    let isSelected: Bool
+
+    /// The transition, then a short rest at the end before it repeats.
+    private static let travelDuration: TimeInterval = 0.9
+    private static let loopDuration: TimeInterval = 1.3
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovering = false
+
+    var body: some View {
+        let animates = isHovering && isEnabled && !reduceMotion
+        let tint = isSelected ? Color.accentColor : Color.primary.opacity(0.7)
+        GeometryReader { proxy in
+            let plot = proxy.frame(in: .local).insetBy(
+                dx: proxy.size.width * 0.2,
+                dy: proxy.size.height * 0.18
+            )
+            ZStack(alignment: .topLeading) {
+                RecordingMotionEasingCurve(easing: easing)
+                    .stroke(tint, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                    .frame(width: plot.width, height: plot.height)
+                    .offset(x: plot.minX, y: plot.minY)
+
+                ForEach([0.0, 1.0], id: \.self) { progress in
+                    Circle()
+                        .fill(tint)
+                        .frame(width: 4, height: 4)
+                        .position(point(at: progress, in: plot))
+                }
+
+                if animates {
+                    TimelineView(.animation) { context in
+                        let elapsed = context.date.timeIntervalSinceReferenceDate
+                            .truncatingRemainder(dividingBy: Self.loopDuration)
+                        Circle()
+                            .fill(Color.accentColor)
+                            .frame(width: 7, height: 7)
+                            .position(point(at: min(elapsed / Self.travelDuration, 1), in: plot))
+                    }
+                }
+            }
+        }
+        .onHover { isHovering = $0 }
+    }
+
+    /// Matches RecordingMotionEasingCurve's layout, which keeps headroom
+    /// above the end for curves that overshoot.
+    private func point(at progress: Double, in plot: CGRect) -> CGPoint {
+        let plotHeight = plot.height * 0.8
+        return CGPoint(
+            x: plot.minX + plot.width * CGFloat(progress),
+            y: plot.maxY - plotHeight * CGFloat(easing.value(at: progress))
+        )
+    }
+}
+
 private struct RecordingMotionEasingCurve: Shape {
     let easing: RecordingMotionEasing
 

@@ -1833,7 +1833,17 @@ final class RecordingStudioModel {
     }
 
     func artwork(id: String?) -> PointerArtwork? {
-        pointerTimeline.artwork(id: id)
+        pointerTimeline.artwork(id: id, style: style.cursorStyle)
+    }
+
+    /// What the cursor style picker shows for `cursorStyle`: for Original,
+    /// up to two of the pointers recorded with this video.
+    func previewArtwork(for cursorStyle: RecordingCursorStyle) -> [PointerArtwork] {
+        if cursorStyle == .recorded {
+            let recorded = Array(pointerTimeline.recordedArtwork.prefix(2))
+            if !recorded.isEmpty { return recorded }
+        }
+        return pointerTimeline.artwork(id: nil, style: cursorStyle).map { [$0] } ?? []
     }
 
     /// Legacy sessions may already contain baked-in press feedback; only
