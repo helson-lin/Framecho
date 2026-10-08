@@ -35,6 +35,8 @@ extension AnnoEditor {
             }
         case .line, .arrow:
             beginArrow(pointer)
+        case .measure:
+            beginMeasure(pointer)
         }
         notifyChanged()
     }
@@ -110,7 +112,7 @@ extension AnnoEditor {
         if selectedIds.isEmpty { return false }
         if selectedIds.count > 1 { return true }
         guard let shape = selectedShapes.first else { return false }
-        return !shape.isArrow
+        return !shape.isArrow && !shape.isMeasure
     }
 
     // MARK: - Creation
@@ -140,6 +142,7 @@ extension AnnoEditor {
             props.strokeWidth = pageStrokeWidth(currentStrokeWidth)
             props.w = 1
             props.h = 1
+            props.sizeLabel = currentShowsSize ? newMeasureLabel() : nil
             kind = .geo(props)
         case .highlight:
             kind = .highlight(HighlightProps(w: 1, h: 1))
@@ -257,6 +260,124 @@ extension AnnoEditor {
         }
     }
 
+    // MARK: - Measure
+
+    private func beginMeasure(_ pointer: PointerInfo) {
+        markUndo()
+        let origin = Self.pixelEdge(pointer.pagePoint)
+        var props = MeasureProps()
+        props.swatch = currentSwatch
+        props.label = newMeasureLabel()
+        props.end = Vec(0, 0)
+        let shape = AnnoShape(x: origin.x, y: origin.y, kind: .measure(props))
+        document.add(shape)
+        setInteraction(.creatingMeasure(id: shape.id, origin: pointer.pagePoint))
+    }
+
+    /// Ruler ends sit on pixel edges, so a measurement counts whole pixels.
+    static func pixelEdge(_ point: Vec) -> Vec {
+        Vec(point.x.rounded(), point.y.rounded())
+    }
+
+    /// Move a ruler end to the pointer, in the shape's space. Shift keeps it to 15° steps from the
+    /// other end, which is how a ruler gets locked level or upright.
+    private func moveMeasureEnd(id: AnnoShapeID, handle: AnnoSelectionHandle, pointer: PointerInfo) {
+        guard let shape = document.shape(id), let props = shape.measureProps else { return }
+        let fixed = handle == .arrowStart ? props.end : props.start
+        var local = document.pointInShapeSpace(shape, Self.pixelEdge(pointer.pagePoint))
+        if pointer.shift, !props.isArea {
+            local = axisSnapped(from: fixed, to: local)
+            local = Vec(local.x.rounded(), local.y.rounded())
+        }
+        document.update(id) { shape in
+            guard case var .measure(p) = shape.kind else { return }
+            if handle == .arrowStart { p.start = local } else { p.end = local }
+            p.labelOffset = nil
+            shape.kind = .measure(p)
+        }
+    }
+
+    /// Measure what's under a pixel: the block it's in, or on the background, one ruler across the
+    /// gap on its row and one down its column.
+    func createMeasureSpans(at pagePoint: Vec) {
+        let created = measureTarget?(pagePoint).map(measureShapes(for:)) ?? []
+        guard !created.isEmpty else { return }
+        markUndo()
+        for shape in created { document.add(shape) }
+        selectedIds = Set(created.map(\.id))
+        // The new rulers sit exactly where the preview was; it comes back once the pointer moves on.
+        measurePreview = []
+        measurePreviewPixel = nil
+        suppressedPreviewPixel = Self.pixel(at: pagePoint)
+    }
+
+    /// Show what a click at `pagePoint` would measure, or clear the preview with nil, reading
+    /// `measureTarget` straight away. Cheap to call on every pointer move: the scan only reruns
+    /// when the pointer reaches another pixel.
+    func updateMeasurePreview(at pagePoint: Vec?) {
+        let wanted = measurePreviewPixel(for: pagePoint)
+        guard wanted != measurePreviewPixel else { return }
+        showMeasurePreview(pagePoint.flatMap { point in wanted.flatMap { _ in measureTarget?(point) } }, at: wanted)
+    }
+
+    /// The pixel a preview should be shown for with the pointer at `pagePoint`: nil off the image,
+    /// and on the pixel just measured, until the pointer leaves it.
+    func measurePreviewPixel(for pagePoint: Vec?) -> MeasurePixel? {
+        let pixel = pagePoint.map(Self.pixel(at:))
+        if pixel != suppressedPreviewPixel { suppressedPreviewPixel = nil }
+        return pixel == suppressedPreviewPixel ? nil : pixel
+    }
+
+    /// Show `target` as the preview for `pixel`, or clear it with nil, for a caller that finds
+    /// targets on its own schedule.
+    func showMeasurePreview(_ target: MeasureTarget?, at pixel: MeasurePixel?) {
+        let shapes = target.map(measureShapes(for:)) ?? []
+        guard pixel != measurePreviewPixel || shapes.map(\.kind) != measurePreview.map(\.kind) else { return }
+        measurePreviewPixel = shapes.isEmpty ? nil : pixel
+        measurePreview = shapes
+        notifyChanged()
+    }
+
+    private static func pixel(at pagePoint: Vec) -> MeasurePixel {
+        MeasurePixel(x: Int(pagePoint.x.rounded(.down)), y: Int(pagePoint.y.rounded(.down)))
+    }
+
+    /// The rulers, or the box, a click makes for `target`, not yet in the document.
+    private func measureShapes(for target: MeasureTarget) -> [AnnoShape] {
+        let spans: MeasureSpans
+        switch target {
+        case let .block(left, top, right, bottom):
+            var props = MeasureProps()
+            props.kind = .area
+            props.swatch = currentSwatch
+            props.label = newMeasureLabel()
+            props.end = Vec(right - left, bottom - top)
+            return [AnnoShape(x: left, y: top, kind: .measure(props))]
+        case let .spans(found):
+            spans = found
+        }
+        var created: [AnnoShape] = []
+        let runs = [
+            (Vec(spans.left, spans.y), Vec(spans.right, spans.y)),
+            (Vec(spans.x, spans.top), Vec(spans.x, spans.bottom)),
+        ]
+        for (start, end) in runs where Vec.dist(start, end) >= 1 {
+            var props = MeasureProps()
+            props.swatch = currentSwatch
+            props.label = newMeasureLabel()
+            props.end = Vec.sub(end, start)
+            created.append(AnnoShape(x: start.x, y: start.y, kind: .measure(props)))
+        }
+        // Both rulers cross at the pressed pixel, so their labels tend to land on top of each
+        // other; the second one steps aside.
+        if created.count == 2, let first = created[0].measureProps, case var .measure(second) = created[1].kind {
+            let firstLabel = MeasureLayout(first).labelRect.offsetBy(dx: created[0].x, dy: created[0].y)
+            second.labelOffset = second.labelOffset(clearing: firstLabel, origin: Vec(created[1].x, created[1].y))
+            created[1].kind = .measure(second)
+        }
+        return created
+    }
+
     var nextNumberedValue: Int {
         (document.shapes.compactMap { $0.numberedProps?.value }.max() ?? 0) + 1
     }
@@ -287,6 +408,8 @@ extension AnnoEditor {
             placeColorTagLabel(id: id, origin: origin, pointer: pointer)
         case let .draggingColorTagAnchor(id):
             dragColorTagAnchor(id: id, pointer: pointer)
+        case let .creatingMeasure(id, _):
+            moveMeasureEnd(id: id, handle: .arrowEnd, pointer: pointer)
         }
         notifyChanged()
     }
@@ -329,6 +452,21 @@ extension AnnoEditor {
             } else {
                 selectedIds = [id]
                 tool = .select
+            }
+
+        case let .creatingMeasure(id, origin):
+            // A click rather than a drag measures what's around the pressed pixel. The tool stays
+            // on, since measuring tends to come in runs.
+            if Vec.dist(pageToScreen(origin), pointer.screenPoint) < 4 {
+                document.delete([id])
+                // The ruler and its spans are one step to undo, not two.
+                popUndo()
+                createMeasureSpans(at: origin)
+            } else if let props = document.shape(id)?.measureProps, props.length < 1 {
+                document.delete([id])
+                popUndo()
+            } else {
+                selectedIds = [id]
             }
 
         case let .brushing(origin):
@@ -466,7 +604,8 @@ extension AnnoEditor {
     private func bindTerminal(arrowId: AnnoShapeID, terminal: ArrowTerminal, at pagePoint: Vec, precise: Bool) {
         // Arrows don't bind to arrows, to themselves, or to the tools that aren't really objects.
         let target = document.shapes.reversed().first { shape in
-            guard shape.id != arrowId, !shape.isArrow, !shape.isHighlight, !shape.isRedaction else { return false }
+            guard shape.id != arrowId, !shape.isArrow, !shape.isMeasure, !shape.isHighlight, !shape.isRedaction
+            else { return false }
             let local = document.pointInShapeSpace(shape, pagePoint)
             return document.geometry(shape).hitTestPoint(
                 local,
@@ -617,6 +756,12 @@ extension AnnoEditor {
                 // A label can't stretch, so it scales uniformly like a callout.
                 props.fontSize = Swift.max(4, props.fontSize * (abs(sx) + abs(sy)) / 2)
                 shape.kind = .colorTag(props)
+            case var .measure(props):
+                // The ends move with the selection; the label keeps its size and reads the new
+                // length.
+                props.start = Vec(props.start.x * sx, props.start.y * sy)
+                props.end = Vec(props.end.x * sx, props.end.y * sy)
+                shape.kind = .measure(props)
             case var .draw(props):
                 props.points = props.points.map { Vec($0.x * sx, $0.y * sy, $0.z) }
                 shape.kind = .draw(props)
@@ -667,6 +812,10 @@ extension AnnoEditor {
 
     private func dragArrowHandle(id: AnnoShapeID, handle: AnnoSelectionHandle, pointer: PointerInfo) {
         guard let shape = document.shape(id) else { return }
+        if shape.isMeasure {
+            moveMeasureEnd(id: id, handle: handle, pointer: pointer)
+            return
+        }
         let local = document.pointInShapeSpace(shape, pointer.pagePoint)
 
         switch handle {

@@ -40,6 +40,9 @@ final class AnnotationEditorModel {
     var selectedSwatch: AnnotationSwatch = .red
     var strokeWidth: CGFloat = 4
     var redactionDensity: CGFloat = 0.55
+    var measureUnit: MeasureUnit = .pixels
+    /// Whether rectangles and ellipses write their size under themselves.
+    var showsSize = false
     var backgroundSettings = AnnotationBackgroundSettings()
     var appliedBackgroundPresetID: AnnotationBackgroundPreset.ID?
     var errorMessage: String?
@@ -93,6 +96,12 @@ final class AnnotationEditorModel {
     /// Full-resolution pixels for color tags when the preview is downscaled,
     /// decoded on the first tag rather than with every editor.
     @ObservationIgnored private var colorSampleImage: (url: URL, image: CGImage)?
+    /// The pixels click-to-measure fills through, decoded on its first use for each image.
+    @ObservationIgnored private var measureImageCache: AnnotationMeasureImage?
+    /// Where the measure tool is hovering, in page space, while it shows a preview.
+    @ObservationIgnored private var measureHoverPoint: Vec?
+    /// The background fill a hover is waiting on.
+    @ObservationIgnored private var measureFillTask: Task<Void, Never>?
     @ObservationIgnored private var smartRedactionTask: Task<Void, Never>?
     private var smartRedactionGeneration = UUID()
 
@@ -103,6 +112,10 @@ final class AnnotationEditorModel {
         engine.sampleColor = { [weak self] point in
             guard let self, let image = colorSampleSource() else { return nil }
             return AnnotationColorSampler.color(in: image, pageSize: imageSize, at: point)
+        }
+        engine.measureTarget = { [weak self] point in
+            guard let self, let image = measureImage() else { return nil }
+            return image.target(at: point, pageSize: imageSize)
         }
     }
 
@@ -132,7 +145,59 @@ final class AnnotationEditorModel {
         )
     }
 
-    /// The pixels a color tag reads: the preview's own when it is full size,
+    /// Preview what a click with the measure tool would measure under the pointer; nil, or any
+    /// other tool or state, clears it.
+    func updateMeasurePreview(at location: CGPoint?, imageFrame: CGRect) {
+        guard let location, selectedTool == .measure, !isCropping, case .idle = engine.interaction,
+              imageFrame.contains(location) else {
+            measureHoverPoint = nil
+            measureFillTask?.cancel()
+            measureFillTask = nil
+            engine.showMeasurePreview(nil, at: nil)
+            return
+        }
+        updateViewport(imageFrame: imageFrame)
+        measureHoverPoint = engine.screenToPage(Vec(location))
+        refreshMeasurePreview()
+    }
+
+    /// Show the preview for wherever the pointer is now. What earlier fills found shows at once;
+    /// anything else waits for one fill in the background, so a big panel never stalls the
+    /// pointer. While that runs, the pointer can keep moving: when it finishes, this looks again
+    /// at wherever the pointer has got to, which is usually inside what it just filled.
+    private func refreshMeasurePreview() {
+        guard let point = measureHoverPoint, let image = measureImage() else { return }
+        guard let pixel = engine.measurePreviewPixel(for: point) else {
+            engine.showMeasurePreview(nil, at: nil)
+            return
+        }
+        guard pixel != engine.measurePreviewPixel else { return }
+        if let target = image.cachedTarget(at: point, pageSize: imageSize) {
+            engine.showMeasurePreview(target, at: pixel)
+            return
+        }
+        // Rather than leave the last region's preview up over a new one.
+        engine.showMeasurePreview(nil, at: nil)
+        guard measureFillTask == nil else { return }
+        let pageSize = imageSize
+        measureFillTask = Task { [weak self] in
+            _ = await image.computeTarget(at: point, pageSize: pageSize)
+            guard !Task.isCancelled, let self else { return }
+            measureFillTask = nil
+            refreshMeasurePreview()
+        }
+    }
+
+    /// The screenshot's pixels for click-to-measure, rebuilt whenever the image under the editor
+    /// changes.
+    private func measureImage() -> AnnotationMeasureImage? {
+        guard let source = colorSampleSource() else { return nil }
+        if let cached = measureImageCache, cached.image === source { return cached }
+        measureImageCache = AnnotationMeasureImage(image: source)
+        return measureImageCache
+    }
+
+    /// The pixels a color tag or a click-to-measure reads: the preview's own when it is full size,
     /// otherwise the image decoded at full resolution.
     private func colorSampleSource() -> CGImage? {
         guard isPreviewDownscaled, let url = baseImageURL ?? sourceURL else { return previewCGImage }
@@ -171,9 +236,20 @@ final class AnnotationEditorModel {
     var isColorStyleAvailable: Bool { isStyleAvailable { $0.supportsColorStyle } }
     var isStrokeStyleAvailable: Bool { isStyleAvailable { $0.supportsStrokeStyle } }
     var isRedactionStyleAvailable: Bool { isStyleAvailable { $0.supportsRedactionDensityStyle } }
+    var isSizeLabelStyleAvailable: Bool { isStyleAvailable { $0.supportsSizeLabel } }
+    var isMeasureUnitStyleAvailable: Bool {
+        // A rectangle only shows a measurement while its size is on.
+        let selected = engine.selectedShapes
+        if selected.isEmpty {
+            guard let tool = inspectedTool else { return false }
+            return tool == .measure || (tool.supportsSizeLabel && showsSize)
+        }
+        return selected.contains { $0.isMeasure || $0.geoProps?.sizeLabel != nil }
+    }
 
     var hasInspectorStyleControls: Bool {
         isTextStyleAvailable || isColorStyleAvailable || isStrokeStyleAvailable || isRedactionStyleAvailable
+            || isSizeLabelStyleAvailable || isMeasureUnitStyleAvailable
     }
 
     private func isStyleAvailable(_ supportsStyle: (AnnotationTool) -> Bool) -> Bool {
@@ -229,6 +305,7 @@ final class AnnotationEditorModel {
         previewImage = makePreviewImage(from: renderSourceURL)
         previewCGImage = previewImage?.cgImage(forProposedRect: nil, context: nil, hints: nil)
         colorSampleImage = nil
+        engine.currentPixelsPerPoint = ImageDensityMetadata.pixelsPerPoint(of: renderSourceURL)
 
         engine.viewport = AnnoViewport(imageFrame: .zero, imageSize: imageSize)
         engine.replaceDocument(
@@ -274,6 +351,9 @@ final class AnnotationEditorModel {
         previewImage = nil
         previewCGImage = nil
         colorSampleImage = nil
+        measureFillTask?.cancel()
+        measureFillTask = nil
+        measureImageCache = nil
         imageSize = .zero
         isPreviewDownscaled = false
         isCropping = false
@@ -475,6 +555,7 @@ final class AnnotationEditorModel {
             case var .arrow(p): p.swatch = swatch; shape.kind = .arrow(p)
             case var .text(p): p.swatch = swatch; shape.kind = .text(p)
             case var .numbered(p): p.swatch = swatch; shape.kind = .numbered(p)
+            case var .measure(p): p.swatch = swatch; shape.kind = .measure(p)
             case .redaction, .highlight, .colorTag: break
             }
         }
@@ -509,6 +590,39 @@ final class AnnotationEditorModel {
         }
     }
 
+    func setShowsSize(_ showsSize: Bool) {
+        self.showsSize = showsSize
+        engine.currentShowsSize = showsSize
+        saveAnnotationPreset()
+
+        let label = engine.newMeasureLabel()
+        engine.applyStyleToSelection { shape in
+            guard case var .geo(p) = shape.kind else { return }
+            p.sizeLabel = showsSize ? (p.sizeLabel ?? label) : nil
+            shape.kind = .geo(p)
+        }
+    }
+
+    func setMeasureUnit(_ unit: MeasureUnit) {
+        measureUnit = unit
+        engine.currentMeasureUnit = unit
+        saveAnnotationPreset()
+
+        engine.applyStyleToSelection { shape in
+            switch shape.kind {
+            case var .measure(p):
+                p.label.unit = unit
+                shape.kind = .measure(p)
+            case var .geo(p):
+                guard p.sizeLabel != nil else { return }
+                p.sizeLabel?.unit = unit
+                shape.kind = .geo(p)
+            default:
+                break
+            }
+        }
+    }
+
     /// Pull the inspector's values from whatever is selected, so selecting a shape shows its style.
     private func syncStyleFromSelection() {
         guard let shape = selectedShape else { return }
@@ -523,6 +637,14 @@ final class AnnotationEditorModel {
         if let props = shape.redactionProps {
             redactionDensity = CGFloat(props.density)
             engine.currentRedactionDensity = props.density
+        }
+        if let label = shape.measureProps?.label ?? shape.geoProps?.sizeLabel {
+            measureUnit = label.unit
+            engine.currentMeasureUnit = label.unit
+        }
+        if let props = shape.geoProps {
+            showsSize = props.sizeLabel != nil
+            engine.currentShowsSize = showsSize
         }
         if let props = shape.textProps {
             textFontFamily = props.fontFamily
@@ -683,6 +805,8 @@ final class AnnotationEditorModel {
         textIsItalic = preset.textIsItalic
         textIsUnderline = preset.textIsUnderline
         textAlignment = preset.textAlignment
+        measureUnit = preset.measureUnit
+        showsSize = preset.showsSize ?? false
 
         engine.tool = selectedTool
         engine.currentSwatch = selectedSwatch
@@ -694,6 +818,8 @@ final class AnnotationEditorModel {
         engine.currentTextIsItalic = textIsItalic
         engine.currentTextIsUnderline = textIsUnderline
         engine.currentTextAlign = TextAlign(textAlignment)
+        engine.currentMeasureUnit = measureUnit
+        engine.currentShowsSize = showsSize
     }
 
     func saveAnnotationPreset() {
@@ -709,7 +835,9 @@ final class AnnotationEditorModel {
             textIsBold: textIsBold,
             textIsItalic: textIsItalic,
             textIsUnderline: textIsUnderline,
-            textAlignmentRawValue: textAlignment.rawValue
+            textAlignmentRawValue: textAlignment.rawValue,
+            measureUnitRawValue: measureUnit.rawValue,
+            showsSize: showsSize
         )
         AnnotationPresetStore.save(preset)
     }
@@ -873,6 +1001,7 @@ extension AnnotationEditorModel {
             p.w *= sx; p.h *= sy
             p.strokeWidth *= uniform
             p.cornerRadius *= uniform
+            p.sizeLabel?.fontSize *= uniform
             shape.kind = .geo(p)
         case var .redaction(p):
             p.w *= sx; p.h *= sy
@@ -886,6 +1015,11 @@ extension AnnotationEditorModel {
         case var .colorTag(p):
             p.fontSize *= uniform
             shape.kind = .colorTag(p)
+        case var .measure(p):
+            p.start = Vec(p.start.x * sx, p.start.y * sy)
+            p.end = Vec(p.end.x * sx, p.end.y * sy)
+            p.label.fontSize *= uniform
+            shape.kind = .measure(p)
         case var .draw(p):
             p.points = p.points.map { Vec($0.x * sx, $0.y * sy, $0.z) }
             p.strokeWidth *= uniform

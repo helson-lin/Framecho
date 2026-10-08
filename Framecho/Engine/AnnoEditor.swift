@@ -13,7 +13,7 @@ import Foundation
 enum AnnoSelectionHandle: Equatable {
     case topLeft, top, topRight, right, bottomRight, bottom, bottomLeft, left
     case rotate(corner: Int)
-    /// An arrow's own handles.
+    /// An arrow's own handles. A ruler uses the two end ones.
     case arrowStart, arrowMiddle, arrowEnd
 
     var isCorner: Bool {
@@ -90,6 +90,15 @@ enum AnnoInteraction {
     case placingColorTag(id: AnnoShapeID, origin: Vec)
     /// A color tag's marker, re-targeting the pixel it labels.
     case draggingColorTagAnchor(id: AnnoShapeID)
+    /// A new ruler, its end following the pointer. A release close to `origin` measures the area
+    /// around it instead.
+    case creatingMeasure(id: AnnoShapeID, origin: Vec)
+}
+
+/// One screenshot pixel, by its column and row.
+struct MeasurePixel: Equatable {
+    var x: Int
+    var y: Int
 }
 
 /// What the canvas view knows about a pointer event.
@@ -144,9 +153,17 @@ final class AnnoEditor {
     var currentTextAlign: TextAlign = .start
     var currentArrowheadStart: Arrowhead = .none
     var currentArrowheadEnd: Arrowhead = .arrow
+    var currentMeasureUnit: MeasureUnit = .pixels
+    /// Whether new rectangles and ellipses write their size under themselves.
+    var currentShowsSize = false
+    /// Image pixels per point for the loaded screenshot: 2 for a Retina capture.
+    var currentPixelsPerPoint: Double = 1
 
     /// The screenshot's sRGB color at a page point, for color tags. Nil while no image is loaded.
     var sampleColor: ((Vec) -> ColorTagProps?)?
+    /// What a click-to-measure at a page point measures: the block under it, or the gaps around
+    /// it. Nil while no image is loaded.
+    var measureTarget: ((Vec) -> MeasureTarget?)?
 
     /// The text shape currently being typed into. The canvas puts a text view over it and skips
     /// drawing it, so the two don't double up.
@@ -158,6 +175,12 @@ final class AnnoEditor {
     private(set) var brush: Box?
     /// The shape an arrow terminal would bind to if the pointer were released now.
     private(set) var hintedBindingId: AnnoShapeID?
+    /// The rulers a click would make where the measure tool is hovering. Drawn, never stored.
+    var measurePreview: [AnnoShape] = []
+    /// The pixel `measurePreview` was scanned at, so hovering within one pixel doesn't rescan.
+    var measurePreviewPixel: MeasurePixel?
+    /// The pixel just measured, whose preview stays hidden until the pointer leaves it.
+    var suppressedPreviewPixel: MeasurePixel?
 
     private var undoStack: [AnnoDocument.Snapshot] = []
     private var redoStack: [AnnoDocument.Snapshot] = []
@@ -217,6 +240,11 @@ final class AnnoEditor {
         undoStack.append(document.snapshot())
         if undoStack.count > 200 { undoStack.removeFirst() }
         redoStack.removeAll()
+    }
+
+    /// Drop the step `markUndo` just pushed, for an interaction that ended up changing nothing.
+    func popUndo() {
+        _ = undoStack.popLast()
     }
 
     var canUndo: Bool { !undoStack.isEmpty }
@@ -340,6 +368,16 @@ final class AnnoEditor {
             return nil
         }
 
+        // A lone ruler is edited by its ends, a measured box by two opposite corners.
+        if selectedIds.count == 1, let shape = selectedShapes.first, let props = shape.measureProps {
+            let transform = shape.pageTransform
+            for (handle, localPoint) in [(AnnoSelectionHandle.arrowStart, props.start), (.arrowEnd, props.end)] {
+                let screen = pageToScreen(transform.applyToPoint(localPoint))
+                if Vec.dist(screen, screenPoint) <= hitRadius { return handle }
+            }
+            return nil
+        }
+
         let handles: [(AnnoSelectionHandle, Vec)] = [
             (.topLeft, Vec(0, 0)), (.top, Vec(0.5, 0)), (.topRight, Vec(1, 0)),
             (.right, Vec(1, 0.5)), (.bottomRight, Vec(1, 1)), (.bottom, Vec(0.5, 1)),
@@ -370,6 +408,15 @@ final class AnnoEditor {
         let edge = Swift.max(Double(viewport.imageSize.width), Double(viewport.imageSize.height))
         guard edge > 0 else { return sliderValue }
         return Swift.max(1, sliderValue * edge / 900)
+    }
+
+    /// The label a new measurement gets on this image.
+    func newMeasureLabel() -> MeasureLabel {
+        MeasureLabel(
+            unit: currentMeasureUnit,
+            pixelsPerPoint: currentPixelsPerPoint,
+            fontSize: measureDefaultFontSize(forImageSize: viewport.imageSize)
+        )
     }
 
     func sliderStrokeWidth(_ pageWidth: Double) -> Double {

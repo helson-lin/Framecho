@@ -25,6 +25,26 @@ enum RecordingTranscriptionState: Equatable {
     }
 }
 
+enum CaptionCleanupKind: Equatable {
+    case fillers
+    case corrections
+}
+
+/// AI caption cleanup: finding fillers or fixes, then the review before
+/// applying.
+enum CaptionCleanupState: Equatable {
+    case idle
+    case running(completed: Int, total: Int)
+    /// Suggestions are waiting for review.
+    case reviewing
+    case failed(String)
+
+    var isRunning: Bool {
+        if case .running = self { return true }
+        return false
+    }
+}
+
 enum RecordingStudioExportState: Equatable {
     case idle
     case exporting(progress: Double)
@@ -153,6 +173,15 @@ final class RecordingStudioModel {
     /// transcript view isn't invalidated on every 20 ms playback tick.
     private(set) var activeTranscriptWordIndex: Int?
     var transcriptionState = RecordingTranscriptionState.idle
+    private(set) var captionCleanupState = CaptionCleanupState.idle
+    /// What the current cleanup looks for.
+    private(set) var captionCleanupKind = CaptionCleanupKind.fillers
+    /// Fillers found by the last cleanup, awaiting review.
+    private(set) var fillerSuggestions: [CaptionFillerSuggestion] = []
+    /// Fixes found by the last proofreading, awaiting review.
+    private(set) var correctionSuggestions: [CaptionCorrectionSuggestion] = []
+    /// Why the last cleanup fell back to rules alone, shown with the review.
+    private(set) var captionCleanupNotice: String?
     private(set) var zoomCues: [ZoomCue] = []
     private(set) var viewportTimeline = ViewportTimeline.identity
     /// 3D card pose and motion cues. Edited through the motion methods so
@@ -168,6 +197,7 @@ final class RecordingStudioModel {
         didSet {
             guard selectedCueID != nil else { return }
             selectedMotionCueID = nil
+            selectedSubtitleCueID = nil
             // Zoom editing works on the flat picture; a pose adjustment left
             // open would hide its canvas target.
             endPoseAdjustment()
@@ -178,7 +208,18 @@ final class RecordingStudioModel {
         didSet {
             guard selectedClipID != nil else { return }
             selectedMotionCueID = nil
+            selectedSubtitleCueID = nil
             endPoseAdjustment()
+        }
+    }
+    /// The caption picked on the timeline, for moving, trimming and
+    /// deleting it.
+    var selectedSubtitleCueID: UUID? {
+        didSet {
+            guard selectedSubtitleCueID != nil else { return }
+            selectedCueID = nil
+            selectedClipID = nil
+            selectedMotionCueID = nil
         }
     }
     var timelineHoverTime: TimeInterval?
@@ -216,10 +257,65 @@ final class RecordingStudioModel {
         }
     }
 
+    var normalizesAudioLoudness = false {
+        didSet {
+            guard normalizesAudioLoudness != oldValue else { return }
+            if !isApplyingDocument { refreshAudioNormalization() }
+            scheduleProjectSave()
+        }
+    }
+    private(set) var isAnalyzingAudioLoudness = false
+    private(set) var audioNormalizationError: String?
+    private var audioNormalization: RecordingAudioNormalization.Measurement?
+    private var audioNormalizationTask: Task<Void, Never>?
+
+    private func refreshAudioNormalization() {
+        audioNormalizationTask?.cancel()
+        audioNormalizationTask = nil
+        audioNormalization = nil
+        audioNormalizationError = nil
+        isAnalyzingAudioLoudness = false
+        updatePlaybackVolume()
+        guard normalizesAudioLoudness, hasAudio,
+              let item = screenPlayer.currentItem else { return }
+        let tracks = item.asset.tracks(withMediaType: .audio)
+            .filter { !playbackMusicTrackIDs.contains($0.trackID) }
+        guard !tracks.isEmpty else { return }
+        let musicIDs = playbackMusicTrackIDs
+        let range = CMTimeRange(start: .zero, duration: CMTime(seconds: duration, preferredTimescale: 600))
+        isAnalyzingAudioLoudness = true
+        audioNormalizationTask = Task { [weak self] in
+            do {
+                let measurement = try await RecordingAudioNormalization.measure(
+                    asset: item.asset, excludingTrackIDs: musicIDs, timeRange: range
+                )
+                guard let self, !Task.isCancelled, !self.isTornDown,
+                      self.screenPlayer.currentItem === item else { return }
+                self.audioNormalization = measurement
+                self.isAnalyzingAudioLoudness = false
+                self.audioNormalizationTask = nil
+                self.updatePlaybackVolume()
+            } catch {
+                guard let self, !Task.isCancelled, !self.isTornDown,
+                      self.screenPlayer.currentItem === item else { return }
+                self.audioNormalizationError = error.localizedDescription
+                self.isAnalyzingAudioLoudness = false
+                self.audioNormalizationTask = nil
+            }
+        }
+    }
+
     private func updatePlaybackVolume() {
         guard let item = screenPlayer.currentItem else { return }
-        item.audioMix = RecordingAudioGain.makeMix(
-            tracks: item.asset.tracks(withMediaType: .audio), volume: Double(audioVolume)
+        let tracks = item.asset.tracks(withMediaType: .audio)
+        let musicIDs = playbackMusicTrackIDs
+        let musicTracks = musicIDs.compactMap { id in tracks.first { $0.trackID == id } }
+        item.audioMix = BackgroundMusicMixer.makeMix(
+            narrationTracks: tracks.filter { !musicIDs.contains($0.trackID) },
+            narrationVolume: Double(audioVolume),
+            musicTracks: musicTracks,
+            plan: loadedBackgroundMusic.flatMap(backgroundMusicPlan(for:)),
+            normalization: normalizesAudioLoudness ? audioNormalization : nil
         )
     }
 
@@ -232,6 +328,16 @@ final class RecordingStudioModel {
     private(set) var replacementAudio: RecordingReplacementAudio?
     /// Why the last import was rejected, shown next to the Replace control.
     private(set) var replacementAudioError: String?
+    /// Library music laid under the soundtrack; nil when none is chosen.
+    private(set) var backgroundMusic: RecordingBackgroundMusic?
+    /// The chosen track, once its file is on disk and readable.
+    private(set) var loadedBackgroundMusic: LoadedBackgroundMusic?
+    private(set) var isLoadingBackgroundMusic = false
+    private(set) var backgroundMusicError: String?
+    private var backgroundMusicTask: Task<Void, Never>?
+    /// The music's tracks in the current player item, one per lane, kept
+    /// apart from the narration so each gets its own level.
+    private var playbackMusicTrackIDs: [CMPersistentTrackID] = []
 
     private var timeObserver: Any?
     private var endObserver: NSObjectProtocol?
@@ -244,6 +350,7 @@ final class RecordingStudioModel {
     private var screenVideoTrack: AVAssetTrack?
     private var shareTask: Task<Void, Never>?
     private var transcriptionTask: Task<Void, Never>?
+    private var captionCleanupTask: Task<Void, Never>?
     private var projectSaveTask: Task<Void, Never>?
     private var screenAsset: AVURLAsset?
     private var isTornDown = false
@@ -253,6 +360,8 @@ final class RecordingStudioModel {
     private(set) var undoRevision = 0
     private var zoomEditSnapshot: [ZoomCue]?
     private var motionEditSnapshot: RecordingMotionSettings?
+    /// The captions before a timeline drag, so the whole drag undoes as one.
+    private var subtitleEditSnapshot: [RecordingSubtitleCue]?
     private var motionEditCommitTask: Task<Void, Never>?
     /// The document as of the last explicit save. Everything the user does
     /// after that lives in memory and in the autosaved draft until they save
@@ -385,18 +494,12 @@ final class RecordingStudioModel {
                 style = defaultPreset.value
                 appliedStylePresetID = defaultPreset.id
             }
+            if let appearance = manifest?.cameraAppearance {
+                style.camera.appearance = appearance
+            }
         }
 
-        if let storedClips = document?.clips, !storedClips.isEmpty {
-            clipTimeline = RecordingClipTimeline(segments: storedClips)
-                .normalized(to: sourceDuration)
-        } else {
-            clipTimeline = .legacyTrim(
-                start: document?.trimStart,
-                end: document?.trimEnd,
-                sourceDuration: sourceDuration
-            )
-        }
+        clipTimeline = Self.clipTimeline(for: document, sourceDuration: sourceDuration)
         duration = clipTimeline.duration
         // Nothing is selected until the user picks a clip; an unsplit
         // recording would otherwise open wrapped in selection chrome.
@@ -415,6 +518,8 @@ final class RecordingStudioModel {
                 replacementAudio = loadedAudio
             }
         }
+        await loadCachedBackgroundMusic()
+        guard !isTornDown, !Task.isCancelled else { return }
 
         do {
             try rebuildScreenPlayerItem(preserving: 0)
@@ -429,6 +534,11 @@ final class RecordingStudioModel {
         isLoaded = true
         rebuildPreviewReframe()
         loadTimelineThumbnails()
+        // A track that isn't cached yet downloads in the background and
+        // joins playback when it arrives.
+        if backgroundMusic != nil, loadedBackgroundMusic == nil {
+            resolveBackgroundMusic()
+        }
 
         if let session {
             if session.hasUnsavedDraft {
@@ -454,11 +564,28 @@ final class RecordingStudioModel {
 
     /// Copies a stored project onto the model. Shared by the initial load and
     /// by discarding changes, so both routes can never drift apart.
+    /// The stored cuts, or the trim of projects saved before cuts shipped.
+    private static func clipTimeline(
+        for document: RecordingEditDocument?,
+        sourceDuration: TimeInterval
+    ) -> RecordingClipTimeline {
+        if let storedClips = document?.clips, !storedClips.isEmpty {
+            return RecordingClipTimeline(segments: storedClips)
+                .normalized(to: sourceDuration)
+        }
+        return .legacyTrim(
+            start: document?.trimStart,
+            end: document?.trimEnd,
+            sourceDuration: sourceDuration
+        )
+    }
+
     private func applyDocumentSettings(_ document: RecordingEditDocument) {
         isApplyingDocument = true
         defer { isApplyingDocument = false }
 
         style = document.style.value
+        backgroundMusic = document.backgroundMusic
         zoomEnabled = document.zoomEnabled
         zoomCues = document.zoomCues
         motion = Self.editableMotion(document.motion)
@@ -476,9 +603,17 @@ final class RecordingStudioModel {
         showsKeystrokes = document.showsKeystrokes ?? true
         keystrokePlacement = document.keystrokePlacement ?? .bottomCenter
         showsSubtitles = document.showsSubtitles ?? true
-        subtitleCues = document.subtitleCues ?? []
-        subtitleTimeline = SubtitleTimeline(cues: subtitleCues)
         transcriptWords = document.subtitleWords ?? []
+        // Captions saved with punctuation left dangling by a hidden filler
+        // ("，包括…") read tidy again; typed captions are untouched.
+        subtitleCues = TranscriptCaptionText.tidied(
+            document.subtitleCues ?? [],
+            words: transcriptWords,
+            isIncluded: { [words = transcriptWords, timeline = Self.clipTimeline(for: document, sourceDuration: sourceDuration)] in
+                timeline.editorTime(forSourceTime: words[$0].midpoint) != nil
+            }
+        )
+        subtitleTimeline = SubtitleTimeline(cues: subtitleCues)
         karaokeTimeline = KaraokeTimeline(cues: subtitleCues, words: transcriptWords)
         subtitleStyle = document.subtitleStyle
         exportAspect = document.exportAspectPreset
@@ -486,6 +621,7 @@ final class RecordingStudioModel {
         videoCropRect = document.normalizedVideoCropRect
         audioExportFormat = document.audioExportFormatValue
         audioVolume = CGFloat(RecordingAudioGain.normalized(document.audioVolume ?? 1))
+        normalizesAudioLoudness = document.normalizesAudioLoudness ?? false
     }
 
     func teardown() {
@@ -499,10 +635,16 @@ final class RecordingStudioModel {
         audioExportTask?.cancel()
         replacementAudioTask?.cancel()
         audioWaveformTask?.cancel()
+        audioNormalizationTask?.cancel()
+        audioNormalizationTask = nil
         audioWaveformTask = nil
         audioWaveform = nil
         cancelShare()
         transcriptionTask?.cancel()
+        discardCaptionCleanup()
+        backgroundMusicTask?.cancel()
+        backgroundMusicTask = nil
+        BackgroundMusicStore.shared.stopPreview()
         projectSaveTask?.cancel()
         exportTask = nil
         audioExportTask = nil
@@ -720,6 +862,7 @@ final class RecordingStudioModel {
         selectedMotionCueID = id
         selectedCueID = nil
         selectedClipID = nil
+        selectedSubtitleCueID = nil
     }
 
     func undo() {
@@ -860,6 +1003,9 @@ final class RecordingStudioModel {
 
     private func rebuildScreenPlayerItem(preserving editorTime: TimeInterval) throws {
         guard let screenAsset else { return }
+        let musicMix = loadedBackgroundMusic.flatMap { music in
+            backgroundMusicPlan(for: music).map { (music: music, plan: $0) }
+        }
         let playbackAsset: AVAsset
         if let replacementAudio, let screenVideoTrack {
             playbackAsset = try RecordingCompositionBuilder.makeAsset(
@@ -872,12 +1018,29 @@ final class RecordingStudioModel {
             playbackAsset = try RecordingCompositionBuilder.makeAsset(
                 from: screenAsset,
                 timeline: clipTimeline,
-                sourceDuration: sourceDuration
+                sourceDuration: sourceDuration,
+                forcesComposition: musicMix != nil
             )
         }
 
+        // Music that can't be laid in never costs the recording its
+        // playback: the item plays without it and the inspector says why.
+        playbackMusicTrackIDs = []
+        if let musicMix, let composition = playbackAsset as? AVMutableComposition {
+            do {
+                playbackMusicTrackIDs = try BackgroundMusicMixer.addingMusic(
+                    from: musicMix.music.track,
+                    sourceRange: musicMix.music.timeRange,
+                    plan: musicMix.plan,
+                    to: composition
+                ).map(\.trackID)
+            } catch {
+                backgroundMusicError = String(localized: "The music couldn't be added: \(error.localizedDescription)")
+            }
+        }
+
         screenPlayer.replaceCurrentItem(with: AVPlayerItem(asset: playbackAsset))
-        updatePlaybackVolume()
+        refreshAudioNormalization()
         screenPlayer.actionAtItemEnd = .pause
         currentTime = min(max(editorTime, 0), duration)
         movePlayers(to: currentTime)
@@ -1663,7 +1826,9 @@ final class RecordingStudioModel {
             replacementAudioDisplayName: replacementAudio?.displayName,
             audioExportFormat: audioExportFormat,
             audioVolume: Double(audioVolume),
-            motion: motion == .disabled ? nil : motion
+            normalizesAudioLoudness: normalizesAudioLoudness,
+            motion: motion == .disabled ? nil : motion,
+            backgroundMusic: backgroundMusic
         )
     }
 
@@ -1768,16 +1933,7 @@ final class RecordingStudioModel {
         isApplyingDocument = true
         defer { isApplyingDocument = false }
 
-        if let storedClips = document.clips, !storedClips.isEmpty {
-            clipTimeline = RecordingClipTimeline(segments: storedClips)
-                .normalized(to: sourceDuration)
-        } else {
-            clipTimeline = .legacyTrim(
-                start: document.trimStart,
-                end: document.trimEnd,
-                sourceDuration: sourceDuration
-            )
-        }
+        clipTimeline = Self.clipTimeline(for: document, sourceDuration: sourceDuration)
         duration = clipTimeline.duration
         // Nothing is selected until the user picks a clip; an unsplit
         // recording would otherwise open wrapped in selection chrome.
@@ -1796,10 +1952,13 @@ final class RecordingStudioModel {
         } else {
             replacementAudio = nil
         }
+        await loadCachedBackgroundMusic()
+        guard !isTornDown, !Task.isCancelled else { return }
 
         isApplyingDocument = false
 
         try? rebuildScreenPlayerItem(preserving: currentTime)
+        resolveBackgroundMusic()
         rebuildPointerTimeline()
         rebuildViewportTimeline()
         rebuildMotionTimeline()
@@ -1907,6 +2066,8 @@ final class RecordingStudioModel {
     }
 
     private func applyTranscription(_ transcript: RecordingTranscript) {
+        discardCaptionCleanup()
+        selectedSubtitleCueID = nil
         subtitleCues = transcript.cues
         subtitleTimeline = SubtitleTimeline(cues: transcript.cues)
         transcriptWords = transcript.words
@@ -1914,16 +2075,20 @@ final class RecordingStudioModel {
         showsSubtitles = true
         transcriptionState = .idle
         updateActiveTranscriptWord()
+        updatePlaybackVolume()
         scheduleProjectSave()
     }
 
     func removeTranscription() {
+        discardCaptionCleanup()
+        selectedSubtitleCueID = nil
         subtitleCues = []
         subtitleTimeline = .empty
         transcriptWords = []
         karaokeTimeline = .empty
         activeTranscriptWordIndex = nil
         transcriptionState = .idle
+        updatePlaybackVolume()
         scheduleProjectSave()
     }
 
@@ -1946,6 +2111,72 @@ final class RecordingStudioModel {
         guard let target else { return }
         pause()
         seek(to: target)
+    }
+
+    // MARK: - Caption timing
+
+    /// Starts a timeline drag on a caption; `endSubtitleEdit` makes the
+    /// whole drag one undo step.
+    func beginSubtitleEdit() {
+        if subtitleEditSnapshot == nil {
+            subtitleEditSnapshot = subtitleCues
+        }
+    }
+
+    func endSubtitleEdit(actionName: String) {
+        guard let previous = subtitleEditSnapshot else { return }
+        subtitleEditSnapshot = nil
+        guard previous != subtitleCues else { return }
+        registerUndo(actionName) { target in
+            target.applySubtitleCues(previous, actionName: actionName)
+        }
+    }
+
+    /// Slides a caption to a new source start, keeping its length; it stops
+    /// at its neighbours.
+    func moveSubtitle(id: UUID, toStart start: TimeInterval) {
+        replaceSubtitleCues(SubtitleCueTiming.moving(
+            subtitleCues, id: id, toStart: start, sourceDuration: sourceDuration
+        ))
+    }
+
+    /// Drags one edge of a caption to a source time.
+    func resizeSubtitle(id: UUID, edge: SubtitleCueTiming.Edge, to time: TimeInterval) {
+        replaceSubtitleCues(SubtitleCueTiming.resizing(
+            subtitleCues, id: id, edge: edge, to: time, sourceDuration: sourceDuration
+        ))
+    }
+
+    /// Removes one caption. Its words stay in the transcript, so cutting by
+    /// text still sees them; they just no longer show on screen.
+    func deleteSubtitle(id: UUID) {
+        guard subtitleCues.contains(where: { $0.id == id }) else { return }
+        if selectedSubtitleCueID == id {
+            selectedSubtitleCueID = nil
+        }
+        applySubtitleCues(subtitleCues.filter { $0.id != id }, actionName: String(localized: "Delete Caption"))
+    }
+
+    /// Folds a caption into the one before it. Returns the merged caption
+    /// and where the joined text starts, for placing the caret; nil for the
+    /// first caption.
+    @discardableResult
+    func mergeSubtitleIntoPrevious(id: UUID) -> (id: UUID, joinOffset: Int)? {
+        guard let result = SubtitleCueMerging.mergingIntoPrevious(subtitleCues, id: id) else { return nil }
+        if selectedSubtitleCueID == id {
+            selectedSubtitleCueID = result.mergedID
+        }
+        applySubtitleCues(result.cues, actionName: String(localized: "Merge Captions"))
+        return (result.mergedID, result.joinOffset)
+    }
+
+    /// A live edit mid-drag: no undo step of its own.
+    private func replaceSubtitleCues(_ cues: [RecordingSubtitleCue]) {
+        guard cues != subtitleCues else { return }
+        subtitleCues = cues
+        subtitleTimeline = SubtitleTimeline(cues: cues)
+        karaokeTimeline = KaraokeTimeline(cues: cues, words: transcriptWords)
+        scheduleProjectSave()
     }
 
     /// Cue under the playhead right now, for highlighting the list row.
@@ -2068,8 +2299,8 @@ final class RecordingStudioModel {
 
     /// Rewrites the text of cues touched by a cut so captions stop showing
     /// words whose audio is gone. Only touched cues are rebuilt, so manual
-    /// caption edits elsewhere survive. A word belongs to the last cue that
-    /// starts at or before it.
+    /// caption edits elsewhere survive. Words map to cues as
+    /// TranscriptCaptionText.wordIndices maps them.
     private static func rebuildingCueTexts(
         _ cues: [RecordingSubtitleCue],
         words: [RecordingTranscriptWord],
@@ -2078,29 +2309,264 @@ final class RecordingStudioModel {
     ) -> [RecordingSubtitleCue] {
         guard !words.isEmpty, !cues.isEmpty else { return cues }
         var result = cues
-        let byStart = result.indices.sorted { result[$0].start < result[$1].start }
+        let groups = TranscriptCaptionText.wordIndices(for: cues, words: words)
 
-        for (position, index) in byStart.enumerated() {
-            let cue = result[index]
+        for (index, cue) in cues.enumerated() {
             let overlapsCut = cutRanges.contains {
                 $0.lowerBound < cue.end && $0.upperBound > cue.start
             }
             guard overlapsCut else { continue }
-
-            let nextCueStart = position < byStart.count - 1
-                ? result[byStart[position + 1]].start
-                : .infinity
-            result[index].text = words
-                .filter { word in
-                    word.start >= cue.start - 0.001
-                        && word.start < nextCueStart - 0.001
-                        && timeline.editorTime(forSourceTime: word.midpoint) != nil
-                }
-                .map(\.text)
-                .joined()
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+            result[index].text = TranscriptCaptionText.text(of: groups[index]
+                .map { words[$0] }
+                .filter { timeline.editorTime(forSourceTime: $0.midpoint) != nil })
         }
         return result
+    }
+
+    // MARK: - Caption revisions
+
+    /// Finds fillers to hide from the captions: pure hesitation sounds by
+    /// rule, words that are fillers only in context by the configured AI.
+    /// Nothing changes until the suggestions are reviewed and applied.
+    func suggestCaptionFillers() {
+        guard hasTranscriptWords, !captionCleanupState.isRunning else { return }
+        let words = transcriptWords
+        let candidates = captionCleanupCandidates()
+        let rules = CaptionCleanupPlanner.ruleSuggestions(in: words, candidates: candidates)
+
+        runCaptionCleanup(
+            .fillers,
+            candidates: candidates,
+            instructions: CaptionCleanupPlanner.fillerInstructions,
+            read: { reply, chunk in
+                guard let picked = CaptionCleanupPlanner.parseFillerResponse(reply) else {
+                    throw CaptionCleanupError.unreadable(reply)
+                }
+                return CaptionCleanupPlanner.validatedModelFillers(picked, chunk: chunk, words: words)
+            },
+            // Without AI the rules still find the hesitation sounds.
+            finish: { [weak self] modelIndices in
+                self?.fillerSuggestions = CaptionCleanupPlanner.merged(rules: rules, modelIndices: modelIndices)
+                return !rules.isEmpty || !modelIndices.isEmpty
+            }
+        )
+    }
+
+    /// Asks the configured AI to fix misheard words - homophones, names,
+    /// technical terms, punctuation - as small reviewed edits.
+    func suggestCaptionCorrections() {
+        guard hasTranscriptWords, !captionCleanupState.isRunning else { return }
+        let words = transcriptWords
+        runCaptionCleanup(
+            .corrections,
+            candidates: captionCleanupCandidates(),
+            instructions: CaptionCleanupPlanner.correctionInstructions,
+            read: { reply, chunk in
+                guard let fixes = CaptionCleanupPlanner.parseCorrectionResponse(reply) else {
+                    throw CaptionCleanupError.unreadable(reply)
+                }
+                return CaptionCleanupPlanner.validatedCorrections(fixes, chunk: chunk, words: words)
+            },
+            finish: { [weak self] corrections in
+                self?.correctionSuggestions = corrections
+                return !corrections.isEmpty
+            }
+        )
+    }
+
+    /// Words worth sending: still shown, still in the video, and not in a
+    /// caption the user retyped.
+    private func captionCleanupCandidates() -> [Int] {
+        let surviving = Set(transcriptWords.indices.filter(transcriptWordSurvives))
+        let handEdited = CaptionCleanupPlanner.wordsInHandEditedCaptions(
+            words: transcriptWords,
+            cues: subtitleCues,
+            isIncluded: surviving.contains
+        )
+        return CaptionCleanupPlanner.candidateIndices(in: transcriptWords) {
+            surviving.contains($0) && !handEdited.contains($0)
+        }
+    }
+
+    /// The shared cleanup loop: one model request per chunk, progress as it
+    /// goes, then review. A failed request keeps what earlier chunks found
+    /// and says why in the review. `finish` stores the results and reports
+    /// whether there is anything to review.
+    private func runCaptionCleanup<Result: Sendable>(
+        _ kind: CaptionCleanupKind,
+        candidates: [Int],
+        instructions: String,
+        read: @escaping (String, CaptionCleanupChunk) throws -> [Result],
+        finish: @escaping ([Result]) -> Bool
+    ) {
+        discardCaptionCleanup()
+        captionCleanupKind = kind
+        let words = transcriptWords
+
+        let engine: any CaptionCleanupEngine
+        do {
+            engine = try CaptionCleanupEngines.engine(for: CaptionAISettingsStore.shared.snapshot())
+        } catch {
+            captionCleanupNotice = error.localizedDescription
+            presentCaptionCleanup(hasResults: finish([]))
+            return
+        }
+
+        let chunks = CaptionCleanupPlanner.chunks(
+            candidates: candidates,
+            words: words,
+            cues: subtitleCues,
+            maximumWords: engine.maximumWordsPerRequest
+        )
+        captionCleanupState = .running(completed: 0, total: chunks.count)
+        captionCleanupTask = Task { [weak self] in
+            var results: [Result] = []
+            for (position, chunk) in chunks.enumerated() {
+                do {
+                    let reply = try await engine.respond(
+                        instructions: instructions,
+                        prompt: CaptionCleanupPlanner.prompt(for: chunk, words: words)
+                    )
+                    results += try read(reply, chunk)
+                } catch {
+                    guard !Task.isCancelled, !(error is CancellationError), let self else { return }
+                    self.captionCleanupNotice = error.localizedDescription
+                    break
+                }
+                guard !Task.isCancelled, let self else { return }
+                self.captionCleanupState = .running(completed: position + 1, total: chunks.count)
+            }
+            guard !Task.isCancelled, let self else { return }
+            // The transcript may have been replaced while the AI worked.
+            guard self.transcriptWords == words else {
+                self.discardCaptionCleanup()
+                return
+            }
+            self.presentCaptionCleanup(hasResults: finish(results))
+        }
+    }
+
+    private func presentCaptionCleanup(hasResults: Bool) {
+        captionCleanupTask = nil
+        if !hasResults, let notice = captionCleanupNotice {
+            captionCleanupState = .failed(notice)
+        } else {
+            captionCleanupState = .reviewing
+        }
+    }
+
+    func toggleFillerSuggestion(wordIndex: Int) {
+        guard let index = fillerSuggestions.firstIndex(where: { $0.wordIndex == wordIndex }) else { return }
+        fillerSuggestions[index].isAccepted.toggle()
+    }
+
+    func toggleCorrectionSuggestion(id: Int) {
+        guard let index = correctionSuggestions.firstIndex(where: { $0.id == id }) else { return }
+        correctionSuggestions[index].isAccepted.toggle()
+    }
+
+    func setAllCaptionCleanupSuggestions(accepted: Bool) {
+        for index in fillerSuggestions.indices {
+            fillerSuggestions[index].isAccepted = accepted
+        }
+        for index in correctionSuggestions.indices {
+            correctionSuggestions[index].isAccepted = accepted
+        }
+    }
+
+    var captionCleanupSuggestionCount: Int {
+        captionCleanupKind == .fillers ? fillerSuggestions.count : correctionSuggestions.count
+    }
+
+    var acceptedCaptionCleanupSuggestionCount: Int {
+        captionCleanupKind == .fillers
+            ? fillerSuggestions.count(where: \.isAccepted)
+            : correctionSuggestions.count(where: \.isAccepted)
+    }
+
+    /// Applies the accepted suggestions to the captions in one undoable step.
+    func applyCaptionCleanup() {
+        let kind = captionCleanupKind
+        let revisions = kind == .fillers
+            ? CaptionCleanupPlanner.revisions(for: fillerSuggestions, words: transcriptWords)
+            : CaptionCleanupPlanner.revisions(for: correctionSuggestions, words: transcriptWords)
+        discardCaptionCleanup()
+        applyCaptionRevisions(
+            revisions,
+            actionName: kind == .fillers
+                ? String(localized: "Remove Fillers from Captions")
+                : String(localized: "Correct Captions")
+        )
+    }
+
+    /// Stops a running cleanup or drops its suggestions unapplied.
+    func discardCaptionCleanup() {
+        captionCleanupTask?.cancel()
+        captionCleanupTask = nil
+        fillerSuggestions = []
+        correctionSuggestions = []
+        captionCleanupNotice = nil
+        captionCleanupState = .idle
+    }
+
+    /// The captions holding suggestions, each with its words, for review.
+    var captionCleanupReviewCaptions: [(cue: RecordingSubtitleCue, wordIndices: [Int])] {
+        let suggested: Set<Int> = captionCleanupKind == .fillers
+            ? Set(fillerSuggestions.map(\.wordIndex))
+            : Set(correctionSuggestions.flatMap(\.wordIndices))
+        guard !suggested.isEmpty else { return [] }
+        let groups = TranscriptCaptionText.wordIndices(for: subtitleCues, words: transcriptWords)
+        return zip(subtitleCues, groups)
+            .filter { $0.1.contains(where: suggested.contains) }
+            .sorted { $0.0.start < $1.0.start }
+            .map { (cue: $0.0, wordIndices: $0.1) }
+    }
+
+    /// Words corrected or hidden in captions, for "Restore Original".
+    var hasCaptionRevisions: Bool {
+        transcriptWords.contains(where: \.hasCaptionRevision)
+    }
+
+    /// Applies reviewed caption revisions - corrections and hidden fillers -
+    /// as one undoable step. The words keep their audio and timing; only
+    /// the captions they produce change.
+    func applyCaptionRevisions(_ revisions: [Int: TranscriptWordRevision], actionName: String) {
+        let revised = TranscriptCaptionText.applying(
+            revisions,
+            to: transcriptWords,
+            cues: subtitleCues,
+            isIncluded: transcriptWordSurvives
+        )
+        applyTranscript(words: revised.words, cues: revised.cues, actionName: actionName)
+    }
+
+    /// Clears every correction and hidden filler, back to what the
+    /// recognizer heard. Captions edited by hand keep their text.
+    func restoreOriginalCaptions() {
+        let revisions = Dictionary(
+            uniqueKeysWithValues: transcriptWords.indices
+                .filter { transcriptWords[$0].hasCaptionRevision }
+                .map { ($0, TranscriptWordRevision.original) }
+        )
+        applyCaptionRevisions(revisions, actionName: String(localized: "Restore Original Captions"))
+    }
+
+    private func applyTranscript(
+        words: [RecordingTranscriptWord],
+        cues: [RecordingSubtitleCue],
+        actionName: String
+    ) {
+        guard words != transcriptWords || cues != subtitleCues else { return }
+        let previousWords = transcriptWords
+        let previousCues = subtitleCues
+        registerUndo(actionName) { target in
+            target.applyTranscript(words: previousWords, cues: previousCues, actionName: actionName)
+        }
+        transcriptWords = words
+        subtitleCues = cues
+        subtitleTimeline = SubtitleTimeline(cues: cues)
+        karaokeTimeline = KaraokeTimeline(cues: cues, words: words)
+        scheduleProjectSave()
     }
 
     /// Recomputes which word the playhead is on; assigns only on change so
@@ -2291,6 +2757,10 @@ final class RecordingStudioModel {
             exportSettings: exportSettings,
             audioReplacementURL: replacementAudio?.url,
             audioVolume: Double(audioVolume),
+            normalizesAudioLoudness: normalizesAudioLoudness,
+            backgroundMusic: loadedBackgroundMusic.flatMap { music in
+                backgroundMusicPlan(for: music).map { BackgroundMusicExport(url: music.url, plan: $0) }
+            },
             reframe: reframe,
             fitContentAspect: fitContentAspect,
             usesUniformPadding: exportAspect == .original,
@@ -2496,6 +2966,164 @@ final class RecordingStudioModel {
         }
     }
 
+    // MARK: - Background music
+
+    /// The music's level over the cut, for the timeline's music lane.
+    var backgroundMusicTimelinePlan: BackgroundMusicGainPlan? {
+        loadedBackgroundMusic.flatMap(backgroundMusicPlan(for:))
+    }
+
+    /// Ducking needs the narration's words; without a transcript the music
+    /// simply plays at its level.
+    var canDuckBackgroundMusic: Bool {
+        hasTranscriptWords
+    }
+
+    func chooseBackgroundMusic(_ track: BackgroundMusicTrack) {
+        var next = backgroundMusic ?? RecordingBackgroundMusic(trackID: track.id)
+        next.trackID = track.id
+        applyBackgroundMusic(next, actionName: String(localized: "Choose Music"))
+    }
+
+    func removeBackgroundMusic() {
+        applyBackgroundMusic(nil, actionName: String(localized: "Remove Music"))
+    }
+
+    var backgroundMusicVolume: Double {
+        get { backgroundMusic?.clampedVolume ?? RecordingBackgroundMusic.defaultVolume }
+        set {
+            guard var music = backgroundMusic, music.volume != newValue else { return }
+            music.volume = newValue
+            backgroundMusic = music
+            updatePlaybackVolume()
+            scheduleProjectSave()
+        }
+    }
+
+    /// Looping changes how many passes the composition holds, so it
+    /// rebuilds playback rather than just the mix.
+    var backgroundMusicLoops: Bool {
+        get { backgroundMusic?.loops ?? true }
+        set {
+            guard var music = backgroundMusic, music.loops != newValue else { return }
+            music.loops = newValue
+            backgroundMusic = music
+            try? rebuildScreenPlayerItem(preserving: currentTime)
+            scheduleProjectSave()
+        }
+    }
+
+    var backgroundMusicDucksUnderSpeech: Bool {
+        get { backgroundMusic?.ducksUnderSpeech ?? true }
+        set {
+            guard var music = backgroundMusic, music.ducksUnderSpeech != newValue else { return }
+            music.ducksUnderSpeech = newValue
+            backgroundMusic = music
+            updatePlaybackVolume()
+            scheduleProjectSave()
+        }
+    }
+
+    /// Picking or removing a track is undoable; level and ducking are
+    /// continuous settings, like the soundtrack's volume.
+    private func applyBackgroundMusic(_ music: RecordingBackgroundMusic?, actionName: String) {
+        guard music != backgroundMusic else { return }
+        let previous = backgroundMusic
+        registerUndo(actionName) { target in
+            target.applyBackgroundMusic(previous, actionName: actionName)
+        }
+        backgroundMusic = music
+        resolveBackgroundMusic()
+        scheduleProjectSave()
+    }
+
+    /// How the loaded track sits under this cut: its level, fades, and dips
+    /// under the narration's words.
+    private func backgroundMusicPlan(for music: LoadedBackgroundMusic) -> BackgroundMusicGainPlan? {
+        guard let settings = backgroundMusic, settings.trackID == music.trackID else { return nil }
+        let timeline = clipTimeline
+        let speech = settings.ducksUnderSpeech
+            ? BackgroundMusicGainPlan.speechRanges(words: transcriptWords) { timeline.editorTime(forSourceTime: $0) }
+            : []
+        return BackgroundMusicGainPlan(
+            musicDuration: music.duration,
+            videoDuration: duration,
+            volume: settings.clampedVolume,
+            speech: speech,
+            loops: settings.loops,
+            isSeamlessLoop: settings.track?.isSeamlessLoop ?? false,
+            loopRegion: music.loopRegion
+        )
+    }
+
+    /// Loads the chosen track from the cache without downloading, so a
+    /// project opens already playing its music when it can.
+    private func loadCachedBackgroundMusic() async {
+        guard let music = backgroundMusic else {
+            loadedBackgroundMusic = nil
+            return
+        }
+        guard loadedBackgroundMusic?.trackID != music.trackID,
+              let track = music.track,
+              let url = BackgroundMusicCatalog.cachedFileIfPresent(for: track) else {
+            return
+        }
+        let loaded = await LoadedBackgroundMusic.load(trackID: music.trackID, url: url)
+        guard !isTornDown, backgroundMusic?.trackID == music.trackID else { return }
+        loadedBackgroundMusic = loaded
+    }
+
+    /// Brings playback in line with the chosen track: drops music that is
+    /// no longer chosen, and downloads and loads a new choice before
+    /// rebuilding the player item with it.
+    private func resolveBackgroundMusic() {
+        backgroundMusicTask?.cancel()
+        backgroundMusicTask = nil
+        isLoadingBackgroundMusic = false
+        backgroundMusicError = nil
+
+        if loadedBackgroundMusic != nil, loadedBackgroundMusic?.trackID != backgroundMusic?.trackID {
+            loadedBackgroundMusic = nil
+            try? rebuildScreenPlayerItem(preserving: currentTime)
+        }
+        guard let music = backgroundMusic else { return }
+        if loadedBackgroundMusic != nil {
+            if playbackMusicTrackIDs.isEmpty {
+                try? rebuildScreenPlayerItem(preserving: currentTime)
+            } else {
+                updatePlaybackVolume()
+            }
+            return
+        }
+        guard let track = music.track else {
+            backgroundMusicError = String(localized: "This track is no longer in the music library.")
+            return
+        }
+
+        isLoadingBackgroundMusic = true
+        backgroundMusicTask = Task { [weak self] in
+            do {
+                let url = try await BackgroundMusicStore.shared.localURL(for: track)
+                let loaded = await LoadedBackgroundMusic.load(trackID: track.id, url: url)
+                guard let self, !Task.isCancelled, !self.isTornDown,
+                      self.backgroundMusic?.trackID == track.id else { return }
+                self.isLoadingBackgroundMusic = false
+                self.backgroundMusicTask = nil
+                guard let loaded else {
+                    self.backgroundMusicError = String(localized: "The music file couldn't be read.")
+                    return
+                }
+                self.loadedBackgroundMusic = loaded
+                try? self.rebuildScreenPlayerItem(preserving: self.currentTime)
+            } catch {
+                guard let self, !Task.isCancelled, !(error is CancellationError) else { return }
+                self.isLoadingBackgroundMusic = false
+                self.backgroundMusicTask = nil
+                self.backgroundMusicError = error.localizedDescription
+            }
+        }
+    }
+
     // MARK: - Audio only
 
     /// True once there is a soundtrack to export or swap - the recording's
@@ -2533,7 +3161,8 @@ final class RecordingStudioModel {
             clipTimeline: clipTimeline,
             replacementURL: replacementAudio?.url,
             format: audioExportFormat,
-            volume: Double(audioVolume)
+            volume: Double(audioVolume),
+            normalizesAudioLoudness: normalizesAudioLoudness
         )
         let suggestedFileName = audioExportSuggestedFileName
         let dockProgressID = DockExportProgressCoordinator.shared.start()

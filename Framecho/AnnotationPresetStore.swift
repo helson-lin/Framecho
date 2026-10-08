@@ -42,6 +42,9 @@ struct AnnotationStylePreset: Codable, Equatable {
     var textIsItalic = false
     var textIsUnderline = false
     var textAlignmentRawValue = NSTextAlignment.left.rawValue
+    /// Optional so presets saved before measurements still decode.
+    var measureUnitRawValue: String?
+    var showsSize: Bool?
 
     var selectedTool: AnnotationTool {
         AnnotationTool(rawValue: selectedToolRawValue) ?? .rectangle
@@ -57,6 +60,10 @@ struct AnnotationStylePreset: Codable, Equatable {
 
     var textAlignment: NSTextAlignment {
         NSTextAlignment(rawValue: textAlignmentRawValue) ?? .left
+    }
+
+    var measureUnit: MeasureUnit {
+        measureUnitRawValue.flatMap(MeasureUnit.init(rawValue:)) ?? .pixels
     }
 }
 

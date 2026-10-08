@@ -287,7 +287,8 @@ nonisolated enum CloudSidecarUploader {
               let cues = document.subtitleCues, !cues.isEmpty else {
             return nil
         }
-        let words = document.subtitleWords
+        // Words as the captions read them: corrected, fillers hidden.
+        let words = document.subtitleWords?.filter { !$0.captionText.isEmpty }
 
         // The raw screen movie shares the transcript's source timeline;
         // only the exported cut needs its times remapped through the
@@ -297,7 +298,7 @@ nonisolated enum CloudSidecarUploader {
         guard uploadedFinalCut else {
             return CloudTranscriptPayload(
                 cues: cues.map { .init(start: $0.start, end: $0.end, text: $0.text) },
-                words: words?.map { .init(text: $0.text, start: $0.start, end: $0.end) }
+                words: words?.map { .init(text: $0.captionText, start: $0.start, end: $0.end) }
             )
         }
 
@@ -316,7 +317,7 @@ nonisolated enum CloudSidecarUploader {
             guard let range = mapRange(word.start, word.end, through: timeline) else {
                 return nil
             }
-            return .init(text: word.text, start: range.0, end: range.1)
+            return .init(text: word.captionText, start: range.0, end: range.1)
         }
 
         return CloudTranscriptPayload(cues: mappedCues, words: mappedWords)

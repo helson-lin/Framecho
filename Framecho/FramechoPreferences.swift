@@ -31,6 +31,8 @@ enum FramechoPreferences {
     static let lowResolutionEditorPreviewKey = "lowResolutionEditorPreview"
     static let trimFullscreenMenuBarKey = "trimFullscreenMenuBar"
     static let recordingCameraDeviceIDKey = "recordingCameraDeviceID"
+    static let recordingCameraRoundnessKey = "recordingCameraRoundness"
+    static let recordingCameraIsFlippedKey = "recordingCameraIsFlipped"
     static let recordingMicrophoneDeviceIDKey = "recordingMicrophoneDeviceID"
     static let recordingSystemAudioKey = "recordingSystemAudio"
     static let recordingStartDelaySecondsKey = "recordingStartDelaySeconds"

@@ -74,6 +74,9 @@ check editor-resources "${strict[@]}" \
 check recording-pause "${strict[@]}" \
   Framecho/RecordingPauseTimeline.swift scripts/check-recording-pause.swift
 
+check camera-appearance "${strict[@]}" \
+  Framecho/RecordingCameraAppearance.swift scripts/check-camera-appearance.swift
+
 check library-date-sections "${strict[@]}" \
   Framecho/CaptureLibraryDateSections.swift scripts/check-library-date-sections.swift
 
@@ -99,7 +102,7 @@ engine=(
   Framecho/Engine/ArrowShared.swift Framecho/Engine/ArrowTypes.swift Framecho/Engine/Arrowheads.swift
   Framecho/Engine/Box.swift Framecho/Engine/ColorTag.swift Framecho/Engine/CurvedArrow.swift Framecho/Engine/Document.swift
   Framecho/Engine/GeoPaths.swift Framecho/Engine/Geometry2d.swift Framecho/Engine/InkPath.swift
-  Framecho/Engine/Intersect.swift Framecho/Engine/Mat.swift Framecho/Engine/MathUtils.swift
+  Framecho/Engine/Intersect.swift Framecho/Engine/Measure.swift Framecho/Engine/Mat.swift Framecho/Engine/MathUtils.swift
   Framecho/Engine/PathBuilder.swift Framecho/Engine/PerfectDash.swift Framecho/Engine/Shape.swift
   Framecho/Engine/ShapeRenderer.swift Framecho/Engine/Shapes2d.swift Framecho/Engine/StraightArrow.swift
   Framecho/Engine/StrokeOptions.swift Framecho/Engine/StrokeOutline.swift Framecho/Engine/StrokePipeline.swift
@@ -108,7 +111,8 @@ engine=(
 )
 
 check annotation-engine -default-isolation MainActor -parse-as-library \
-  "${engine[@]}" Framecho/AnnotationColorSampler.swift scripts/check-annotation-engine.swift
+  "${engine[@]}" Framecho/AnnotationColorSampler.swift Framecho/AnnotationMeasureScanner.swift \
+  scripts/check-annotation-engine.swift
 
 check annotation-document -default-isolation MainActor -parse-as-library \
   "${engine[@]}" Framecho/AnnotationDocument.swift Framecho/AnnotationBackground.swift \
@@ -134,5 +138,21 @@ check recording-timelines "${strict[@]}" \
   Framecho/RecordingClipTimeline.swift Framecho/PointerCaptureFile.swift \
   Framecho/RecordingOverlayEffects.swift Framecho/RecordingCursorStyle.swift \
   scripts/check-recording-timelines.swift
+
+check transcript-captions "${strict[@]}" \
+  Framecho/RecordingTranscription.swift scripts/check-transcript-captions.swift
+
+check caption-cleanup "${strict[@]}" \
+  Framecho/RecordingTranscription.swift Framecho/CaptionCleanup.swift \
+  scripts/check-caption-cleanup.swift
+
+check background-music "${strict[@]}" \
+  Framecho/BackgroundMusic.swift Framecho/RecordingAudioGain.swift \
+  Framecho/RecordingAudioNormalization.swift \
+  Framecho/RecordingTranscription.swift scripts/check-background-music.swift
+
+check audio-normalization "${strict[@]}" \
+  Framecho/RecordingAudioGain.swift Framecho/RecordingAudioNormalization.swift \
+  scripts/check-audio-normalization.swift
 
 echo "All checks passed."

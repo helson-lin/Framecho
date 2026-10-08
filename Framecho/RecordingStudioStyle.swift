@@ -19,6 +19,15 @@ struct RecordingCameraBubbleSettings: Equatable {
     var size: CGFloat = 0.26
     /// 0.5 = circle, smaller values square the bubble off.
     var roundness: CGFloat = 0.25
+    var isFlipped = false
+
+    var appearance: RecordingCameraAppearance {
+        get { RecordingCameraAppearance(roundness: Double(roundness), isFlipped: isFlipped) }
+        set {
+            roundness = CGFloat(newValue.roundness)
+            isFlipped = newValue.isFlipped
+        }
+    }
 }
 
 struct RecordingEditDocument: Codable, Equatable {
@@ -63,9 +72,13 @@ struct RecordingEditDocument: Codable, Equatable {
     /// Raw RecordingAudioFormat value for the audio-only export.
     var audioExportFormat: String?
     var audioVolume: Double?
+    var normalizesAudioLoudness: Bool?
     /// 3D card pose and motion cues. Optional so projects saved before
     /// format 6 decode with motion off and a flat card.
     var motion: RecordingMotionSettings?
+    /// Library music under the soundtrack; optional so older projects
+    /// decode without any.
+    var backgroundMusic: RecordingBackgroundMusic?
 
     private enum CodingKeys: String, CodingKey {
         case formatVersion
@@ -95,7 +108,9 @@ struct RecordingEditDocument: Codable, Equatable {
         case replacementAudioDisplayName
         case audioExportFormat
         case audioVolume
+        case normalizesAudioLoudness
         case motion
+        case backgroundMusic
     }
 
     init(
@@ -119,7 +134,9 @@ struct RecordingEditDocument: Codable, Equatable {
         replacementAudioDisplayName: String? = nil,
         audioExportFormat: RecordingAudioFormat? = nil,
         audioVolume: Double? = nil,
-        motion: RecordingMotionSettings? = nil
+        normalizesAudioLoudness: Bool? = nil,
+        motion: RecordingMotionSettings? = nil,
+        backgroundMusic: RecordingBackgroundMusic? = nil
     ) {
         self.style = StoredRecordingStudioStyle(style)
         self.zoomEnabled = zoomEnabled
@@ -150,7 +167,9 @@ struct RecordingEditDocument: Codable, Equatable {
         self.replacementAudioDisplayName = replacementAudioDisplayName
         self.audioExportFormat = audioExportFormat.map(\.rawValue)
         self.audioVolume = audioVolume
+        self.normalizesAudioLoudness = normalizesAudioLoudness
         self.motion = motion
+        self.backgroundMusic = backgroundMusic
     }
 
     var audioExportFormatValue: RecordingAudioFormat {
@@ -236,7 +255,9 @@ struct RecordingEditDocument: Codable, Equatable {
         )
         audioExportFormat = try container.decodeIfPresent(String.self, forKey: .audioExportFormat)
         audioVolume = try container.decodeIfPresent(Double.self, forKey: .audioVolume)
+        normalizesAudioLoudness = try container.decodeIfPresent(Bool.self, forKey: .normalizesAudioLoudness)
         motion = try container.decodeIfPresent(RecordingMotionSettings.self, forKey: .motion)
+        backgroundMusic = try container.decodeIfPresent(RecordingBackgroundMusic.self, forKey: .backgroundMusic)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -268,7 +289,9 @@ struct RecordingEditDocument: Codable, Equatable {
         )
         try container.encodeIfPresent(audioExportFormat, forKey: .audioExportFormat)
         try container.encodeIfPresent(audioVolume, forKey: .audioVolume)
+        try container.encodeIfPresent(normalizesAudioLoudness, forKey: .normalizesAudioLoudness)
         try container.encodeIfPresent(motion, forKey: .motion)
+        try container.encodeIfPresent(backgroundMusic, forKey: .backgroundMusic)
     }
 }
 
@@ -300,6 +323,8 @@ struct StoredRecordingStudioStyle: Codable, Equatable {
     var cameraCenterY: Double
     var cameraSize: Double
     var cameraRoundness: Double
+    /// Nil preserves the orientation of camera masters from older versions.
+    var cameraIsFlipped: Bool?
 
     init(_ style: RecordingStudioStyle) {
         switch style.background {
@@ -328,6 +353,7 @@ struct StoredRecordingStudioStyle: Codable, Equatable {
         cameraCenterY = Double(style.camera.center.y)
         cameraSize = Double(style.camera.size)
         cameraRoundness = Double(style.camera.roundness)
+        cameraIsFlipped = style.camera.isFlipped ? true : nil
     }
 
     var value: RecordingStudioStyle {
@@ -356,7 +382,8 @@ struct StoredRecordingStudioStyle: Codable, Equatable {
                 isVisible: cameraIsVisible,
                 center: CGPoint(x: cameraCenterX, y: cameraCenterY),
                 size: CGFloat(cameraSize),
-                roundness: CGFloat(cameraRoundness)
+                roundness: CGFloat(cameraRoundness),
+                isFlipped: cameraIsFlipped ?? false
             )
         )
     }

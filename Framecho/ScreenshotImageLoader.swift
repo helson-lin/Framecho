@@ -96,4 +96,10 @@ nonisolated enum ImageDensityMetadata {
         density[kCGImagePropertyDPIHeight] = properties[kCGImagePropertyDPIHeight]
         return density
     }
+
+    /// Image pixels per point: 2 for a Retina capture's 144 DPI, 1 when the file records none.
+    static func pixelsPerPoint(of url: URL) -> Double {
+        let dpi = properties(of: url)[kCGImagePropertyDPIWidth] as? Double ?? 72
+        return max(1, dpi / 72)
+    }
 }

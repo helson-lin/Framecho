@@ -16,6 +16,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
     case numberedCircle
     case text
     case colorPicker
+    case measure
     case highlight
     case pixelate
     case blur
@@ -50,6 +51,8 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
             String(localized: "Highlight")
         case .colorPicker:
             String(localized: "Color value")
+        case .measure:
+            String(localized: "Measure")
         }
     }
 
@@ -81,6 +84,8 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
             "rectangle.center.inset.filled"
         case .colorPicker:
             "eyedropper"
+        case .measure:
+            "ruler"
         }
     }
 
@@ -98,6 +103,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
         case .numberedCircle: AnnotationToolShortcut(key: "n", alternateKey: "1")
         case .text: AnnotationToolShortcut(key: "t")
         case .colorPicker: AnnotationToolShortcut(key: "i")
+        case .measure: AnnotationToolShortcut(key: "m")
         case .highlight: AnnotationToolShortcut(key: "s")
         case .pixelate: AnnotationToolShortcut(key: "p")
         case .blur: AnnotationToolShortcut(key: "b")
@@ -110,6 +116,9 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
         }
         if self == .colorPicker {
             return String(localized: "Click a pixel to label its color value")
+        }
+        if self == .measure {
+            return String(localized: "Drag to measure a distance, or click to measure the block or gap under the pointer")
         }
         return title
     }
@@ -144,7 +153,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
 
     var supportsColorStyle: Bool {
         switch self {
-        case .rectangle, .filledRectangle, .ellipse, .line, .arrow, .freehand, .numberedCircle, .text:
+        case .rectangle, .filledRectangle, .ellipse, .line, .arrow, .freehand, .numberedCircle, .text, .measure:
             true
         case .select, .pixelate, .blur, .highlight, .colorPicker:
             false
@@ -155,9 +164,22 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .rectangle, .ellipse, .line, .arrow, .freehand:
             true
-        case .select, .filledRectangle, .numberedCircle, .pixelate, .blur, .text, .highlight, .colorPicker:
+        case .select, .filledRectangle, .numberedCircle, .pixelate, .blur, .text, .highlight, .colorPicker, .measure:
             false
         }
+    }
+
+    /// Rectangles and ellipses can write their size under themselves.
+    var supportsSizeLabel: Bool {
+        switch self {
+        case .rectangle, .filledRectangle, .ellipse: true
+        default: false
+        }
+    }
+
+    /// Whether the tool's annotations show a measurement, in pixels or points.
+    var supportsMeasureUnit: Bool {
+        self == .measure || supportsSizeLabel
     }
 
     var supportsRedactionDensityStyle: Bool {
@@ -168,7 +190,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .rectangle, .filledRectangle, .ellipse, .highlight:
             true
-        case .select, .line, .arrow, .freehand, .numberedCircle, .pixelate, .blur, .text, .colorPicker:
+        case .select, .line, .arrow, .freehand, .numberedCircle, .pixelate, .blur, .text, .colorPicker, .measure:
             false
         }
     }

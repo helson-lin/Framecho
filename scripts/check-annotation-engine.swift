@@ -40,6 +40,12 @@ struct AnnotationEngineChecks {
         checkNumberedCircles()
         checkColorTags()
         checkColorSampler()
+        checkMeasureLabels()
+        checkRulers()
+        checkClickToMeasure()
+        checkSizeLabels()
+        checkMeasuredBlocks()
+        checkMeasureScanner()
         print("Annotation engine checks passed (\(checks) assertions).")
     }
 
@@ -408,5 +414,279 @@ struct AnnotationEngineChecks {
         expect(loupeHex(1, 1) == "#FF0000" && loupeHex(2, 1) == "#00FF00" && loupeHex(1, 2) == "#0000FF"
                && loupeHex(2, 2) == "#FFFFFF", "Loupe pixels stay upright")
         expect(loupeHex(0, 0) == "#000000", "Off the edge is empty")
+    }
+
+    // MARK: - Measurements
+
+    static func checkMeasureLabels() {
+        let pixels = MeasureLabel(unit: .pixels, pixelsPerPoint: 2, fontSize: 20)
+        expect(pixels.distance(320) == "320 px", "Whole pixels")
+        expect(pixels.distance(-320) == "320 px", "A length has no sign")
+        expect(pixels.distance(100.004) == "100 px", "Float noise rounds away")
+        expect(pixels.distance(Vec(30, 40).len * 3) == "150 px", "A diagonal is its length")
+        let points = MeasureLabel(unit: .points, pixelsPerPoint: 2, fontSize: 20)
+        expect(points.distance(320) == "160 pt", "Points halve Retina pixels")
+        expect(points.distance(321) == "160.5 pt", "Half a point shows")
+        expect(points.size(width: 640, height: 480) == "320 × 240 pt", "A size")
+        let flat = MeasureLabel(unit: .points, pixelsPerPoint: 0.5, fontSize: 20)
+        expect(flat.distance(100) == "100 pt", "Density never goes below one pixel per point")
+    }
+
+    static func checkRulers() {
+        let editor = makeEditor()
+        editor.tool = .measure
+        editor.currentSwatch = .blue
+        editor.currentPixelsPerPoint = 2
+
+        drag(editor, from: Vec(100.4, 200.6), to: Vec(420.2, 200.3))
+        guard let ruler = editor.shapes.first, let props = ruler.measureProps else {
+            return expect(false, "A drag makes a ruler")
+        }
+        expect(ruler.tool == .measure && editor.tool == .measure, "The measure tool stays on")
+        expect(editor.selectedIds == [ruler.id], "The new ruler is selected")
+        near(Vec(ruler.x, ruler.y), Vec(100, 201), "Its start snaps to a pixel edge")
+        near(props.end, Vec(320, -1), "So does its end")
+        expect(props.swatch == .blue && props.label.pixelsPerPoint == 2, "It takes the current style and density")
+        let size = Double(max(editor.viewport.imageSize.width, editor.viewport.imageSize.height))
+        near(props.label.fontSize, ColorTagProps.defaultFontSize(forImageSize: CGSize(width: size, height: size)),
+             "Its label matches a color tag's")
+
+        // Shift keeps it level.
+        drag(editor, from: Vec(100, 400), to: Vec(500, 412), shift: true)
+        near(editor.shapes[1].measureProps?.end, Vec(400, 0), "Shift levels a ruler")
+
+        // The line and the label are what you can grab; the empty space around them isn't.
+        let level = editor.shapes[1]
+        expect(editor.hitShape(at: Vec(150, 400))?.id == level.id, "The line is clickable")
+        let labelRect = MeasureLayout(level.measureProps!).labelRect
+        let labelCenter = Vec(level.x + Double(labelRect.midX), level.y + Double(labelRect.midY))
+        expect(editor.hitShape(at: labelCenter)?.id == level.id, "So is its label")
+        expect(editor.hitShape(at: Vec(150, 460)) == nil, "Beside it isn't")
+
+        // A selected ruler is edited by its ends.
+        editor.tool = .select
+        editor.selectedIds = [level.id]
+        expect(editor.handle(at: editor.pageToScreen(Vec(100, 400))) == .arrowStart, "Its start is a handle")
+        expect(editor.handle(at: editor.pageToScreen(Vec(500, 400))) == .arrowEnd, "So is its end")
+        drag(editor, from: Vec(500, 400), to: Vec(600.3, 500.2))
+        near(editor.shapes[1].measureProps?.end, Vec(500, 100), "Dragging an end moves just that end")
+        near(Vec(editor.shapes[1].x, editor.shapes[1].y), Vec(100, 400), "And leaves the other where it was")
+
+        // Arrows never bind to a ruler.
+        editor.tool = .arrow
+        drag(editor, from: Vec(150, 400), to: Vec(900, 900))
+        let arrow = editor.shapes.last!
+        expect(arrow.isArrow && editor.document.bindings(from: arrow.id).isEmpty, "An arrow from a ruler stays free")
+
+        // A press with no movement and no image to scan leaves nothing behind, not even an undo step.
+        let undoable = editor.canUndo
+        let count = editor.shapes.count
+        editor.tool = .measure
+        click(editor, at: Vec(1500, 800))
+        expect(editor.shapes.count == count, "A click with nothing to scan adds nothing")
+        expect(editor.canUndo == undoable, "Nor anything to undo")
+    }
+
+    static func checkClickToMeasure() {
+        let editor = makeEditor()
+        editor.tool = .measure
+        var scanned: Vec?
+        editor.measureTarget = { point in
+            scanned = point
+            return .spans(MeasureSpans(left: 40, right: 360, top: 100, bottom: 148, x: 200.5, y: 120.5))
+        }
+
+        click(editor, at: Vec(200.7, 120.2))
+        near(scanned, Vec(200.7, 120.2), "Scans where the click landed")
+        expect(editor.shapes.count == 2 && editor.selectedIds.count == 2, "One ruler across, one down, both selected")
+        let across = editor.shapes[0]
+        let down = editor.shapes[1]
+        near(Vec(across.x, across.y), Vec(40, 120.5), "The ruler across starts at the left edge, through the pixel")
+        near(across.measureProps?.end, Vec(320, 0), "And spans the run")
+        expect(across.measureProps?.label.distance(across.measureProps!.length) == "320 px", "Reading 320 px")
+        near(Vec(down.x, down.y), Vec(200.5, 100), "The ruler down starts at the top edge")
+        near(down.measureProps?.end, Vec(0, 48), "And spans the column")
+        func labelRect(_ shape: AnnoShape) -> CGRect {
+            MeasureLayout(shape.measureProps!).labelRect.offsetBy(dx: shape.x, dy: shape.y)
+        }
+        expect(!labelRect(across).intersects(labelRect(down)), "Crossing rulers keep their labels apart")
+        expect(down.measureProps?.labelOffset?.x == 0, "The label down moves along its own ruler")
+
+        // Moving an end puts the label back on its own.
+        editor.tool = .select
+        editor.selectedIds = [down.id]
+        drag(editor, from: Vec(200.5, 148), to: Vec(200.5, 400))
+        expect(editor.shapes[1].measureProps?.labelOffset == nil, "A moved end clears the offset")
+        editor.undo()
+        editor.tool = .measure
+
+        editor.undo()
+        expect(editor.shapes.isEmpty, "Both rulers undo as one step")
+
+        // Hovering previews exactly what a click makes, without touching the document.
+        var scans = 0
+        editor.measureTarget = { _ in
+            scans += 1
+            return .spans(MeasureSpans(left: 40, right: 360, top: 100, bottom: 148, x: 200.5, y: 120.5))
+        }
+        editor.updateMeasurePreview(at: Vec(210.2, 125.7))
+        expect(editor.measurePreview.count == 2 && editor.shapes.isEmpty, "A hover previews both rulers")
+        editor.updateMeasurePreview(at: Vec(210.9, 125.1))
+        expect(scans == 1, "Moving within one pixel doesn't rescan")
+        click(editor, at: Vec(210.9, 125.1))
+        expect(editor.shapes.count == 2, "The click makes the rulers")
+        expect(editor.measurePreview.isEmpty, "And the preview steps aside for them")
+        editor.updateMeasurePreview(at: Vec(210.5, 125.5))
+        expect(editor.measurePreview.isEmpty, "Until the pointer leaves that pixel")
+        editor.updateMeasurePreview(at: Vec(260, 130))
+        expect(editor.measurePreview.count == 2, "Then it's back")
+        editor.updateMeasurePreview(at: nil)
+        expect(editor.measurePreview.isEmpty, "Leaving the canvas clears it")
+        editor.undo()
+        editor.measureTarget = { _ in .spans(MeasureSpans(left: 40, right: 360, top: 100, bottom: 148, x: 200.5, y: 120.5)) }
+
+        // A run only one way still gets its ruler.
+        editor.measureTarget = { _ in .spans(MeasureSpans(left: 10, right: 90, top: 50, bottom: 50, x: 50.5, y: 50.5)) }
+        click(editor, at: Vec(50, 50))
+        expect(editor.shapes.count == 1 && editor.shapes[0].measureProps?.end == Vec(80, 0), "An empty span is skipped")
+    }
+
+    static func checkSizeLabels() {
+        let editor = makeEditor()
+        editor.tool = .rectangle
+        editor.currentStrokeWidth = 4
+        drag(editor, from: Vec(100, 100), to: Vec(400, 300))
+        expect(editor.shapes[0].geoProps?.sizeLabel == nil, "Rectangles show no size by default")
+
+        editor.currentShowsSize = true
+        editor.currentMeasureUnit = .points
+        editor.currentPixelsPerPoint = 2
+        editor.tool = .rectangle
+        drag(editor, from: Vec(500, 100), to: Vec(1140, 580))
+        guard let geo = editor.shapes[1].geoProps, let label = geo.sizeLabel,
+              let placed = geo.sizeLabelLayout() else {
+            return expect(false, "A rectangle with its size")
+        }
+        expect(label.unit == .points && label.size(width: geo.w, height: geo.h) == "320 × 240 pt", "Labelled in points")
+        expect(placed.origin.y > CGFloat(geo.h), "The label sits under the shape")
+        near(Double(placed.origin.x) + Double(placed.layout.size.width) / 2, geo.w / 2, "Centred on it")
+
+        let before = editor.document.renderElements(editor.shapes[0].id).count
+        let after = editor.document.renderElements(editor.shapes[1].id).count
+        expect(after == before + 2, "The label draws as a pill and its text")
+
+        // Resizing reads the new size, without stretching the label.
+        editor.tool = .select
+        editor.selectedIds = [editor.shapes[1].id]
+        drag(editor, from: Vec(1140, 580), to: Vec(1300, 580))
+        let resized = editor.shapes[1].geoProps!
+        expect(resized.sizeLabel?.size(width: resized.w, height: resized.h) == "400 × 240 pt", "Resizing updates the size")
+        expect(resized.sizeLabel?.fontSize == label.fontSize, "The label keeps its size")
+    }
+
+    static func checkMeasuredBlocks() {
+        let editor = makeEditor()
+        editor.tool = .measure
+        editor.measureTarget = { _ in .block(left: 100, top: 100, right: 700, bottom: 400) }
+        click(editor, at: Vec(300, 200))
+        guard editor.shapes.count == 1, let box = editor.shapes[0].measureProps else {
+            return expect(false, "A click inside a block measures it with one box")
+        }
+        let shape = editor.shapes[0]
+        expect(box.isArea && box.text == "600 × 300 px", "The block's size")
+        near(Vec(shape.x, shape.y), Vec(100, 100), "Its outline sits on the block's edges")
+        let label = MeasureLayout(box).labelRect.offsetBy(dx: shape.x, dy: shape.y)
+        expect(CGRect(x: 100, y: 100, width: 600, height: 300).contains(label), "A roomy block holds its label")
+        expect(editor.hitShape(at: Vec(150, 150)) == nil, "The box is hollow: what it measures stays clickable")
+        expect(editor.hitShape(at: Vec(100, 250))?.id == shape.id, "Its outline is grabbable")
+
+        // Its corners are its handles; dragging one resizes the box.
+        editor.tool = .select
+        editor.selectedIds = [shape.id]
+        expect(editor.handle(at: editor.pageToScreen(Vec(700, 400))) == .arrowEnd, "A corner is a handle")
+        drag(editor, from: Vec(700, 400), to: Vec(800, 450), shift: true)
+        expect(editor.shapes[0].measureProps?.text == "700 × 350 px", "Shift doesn't snap a box's corner to an angle")
+
+        // A small block puts its label underneath.
+        editor.tool = .measure
+        editor.measureTarget = { _ in .block(left: 1000, top: 500, right: 1040, bottom: 520) }
+        click(editor, at: Vec(1010, 510))
+        let small = editor.shapes.last!
+        let smallLabel = MeasureLayout(small.measureProps!).labelRect.offsetBy(dx: small.x, dy: small.y)
+        expect(smallLabel.minY > 520, "A small block's label goes under it")
+
+        // Hovering previews the box.
+        editor.measureTarget = { _ in .block(left: 10, top: 10, right: 50, bottom: 30) }
+        editor.updateMeasurePreview(at: Vec(20, 20))
+        expect(editor.measurePreview.count == 1 && editor.measurePreview[0].measureProps?.isArea == true,
+               "The preview is the box a click would make")
+    }
+
+    /// An RGBA image from rows of pixels, top row first.
+    static func makeImage(_ rows: [[[UInt8]]]) -> CGImage? {
+        let width = rows[0].count
+        let bytes = rows.flatMap { $0.flatMap { $0 } }
+        guard let provider = CGDataProvider(data: Data(bytes) as CFData) else { return nil }
+        return CGImage(
+            width: width, height: rows.count, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+            provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent
+        )
+    }
+
+    static func checkMeasureScanner() {
+        let white: [UInt8] = [255, 255, 255, 255]
+        let dithered: [UInt8] = [253, 254, 255, 255]
+        let gray: [UInt8] = [230, 230, 230, 255]
+        let ink: [UInt8] = [30, 30, 30, 255]
+
+        // 12 wide, 8 tall, y-down: a gray card at x 2...8, y 1...5, with a little glyph of ink
+        // inside it, on a white page with one dithered pixel.
+        let rows: [[[UInt8]]] = (0..<8).map { y in
+            (0..<12).map { x in
+                if [(4, 3), (5, 3), (4, 4)].contains(where: { $0 == (x, y) }) { return ink }
+                if (2...8).contains(x) && (1...5).contains(y) { return gray }
+                return x == 10 && y == 7 ? dithered : white
+            }
+        }
+        guard let image = makeImage(rows), let scanner = AnnotationMeasureImage(image: image) else {
+            return expect(false, "Test image")
+        }
+        let page = CGSize(width: 12, height: 8)
+        let card = MeasureTarget.block(left: 2, top: 1, right: 9, bottom: 6)
+        // A hover reads only what earlier fills found; a click fills.
+        expect(scanner.cachedTarget(at: Vec(2.5, 1.5), pageSize: page) == nil, "Nothing is known before a fill")
+        expect(scanner.target(at: Vec(2.5, 1.5), pageSize: page) == card, "Inside a card: the whole card")
+        expect(scanner.cachedTarget(at: Vec(7.5, 5.5), pageSize: page) == card,
+               "The rest of the card is known from that fill, text and all")
+        expect(scanner.target(at: Vec(7.5, 5.5), pageSize: page) == card, "Text inside it doesn't cut it short")
+        expect(scanner.target(at: Vec(4.5, 3.5), pageSize: page) == .block(left: 4, top: 3, right: 6, bottom: 5),
+               "On the text itself: the glyph")
+        expect(scanner.target(at: Vec(0.5, 0.5), pageSize: page)
+            == .spans(MeasureSpans(left: 0, right: 12, top: 0, bottom: 8, x: 0.5, y: 0.5)),
+               "The page around it is background, measured as gaps")
+        // That fill stopped on its first row, which already spans the image.
+        expect(scanner.cachedTarget(at: Vec(11.5, 0.5), pageSize: page)
+            == .spans(MeasureSpans(left: 0, right: 12, top: 0, bottom: 8, x: 11.5, y: 0.5)),
+               "Background, once found, is known wherever the fill reached")
+        expect(scanner.target(at: Vec(10.5, 3.5), pageSize: page)
+            == .spans(MeasureSpans(left: 9, right: 12, top: 0, bottom: 8, x: 10.5, y: 3.5)),
+               "The gap right of the card, riding out the dithered pixel")
+        expect(scanner.target(at: Vec(5.5, 0.5), pageSize: page)
+            == .spans(MeasureSpans(left: 0, right: 12, top: 0, bottom: 1, x: 5.5, y: 0.5)),
+               "The gap above the card: rows run top down")
+        expect(scanner.target(at: Vec(12, 1), pageSize: page) == nil, "Nothing off the image")
+        // A half-size preview of a 24x16 page reports page pixels.
+        expect(scanner.target(at: Vec(6, 4), pageSize: CGSize(width: 24, height: 16))
+            == .block(left: 4, top: 2, right: 18, bottom: 12), "A scaled preview maps back to the page")
+
+        // A white card on a #F5F5F5 page is an edge.
+        let pageGray: [UInt8] = [245, 245, 245, 255]
+        guard let light = makeImage([[pageGray, pageGray, white, white, pageGray]]),
+              let lightScanner = AnnotationMeasureImage(image: light) else { return expect(false, "Light image") }
+        expect(lightScanner.run(x: 2, y: 0, horizontal: true) == 2...3, "A light card's edge stops the scan")
+        expect(AnnotationMeasureImage(image: light, tolerance: 20)?.run(x: 2, y: 0, horizontal: true) == 0...4,
+               "A looser tolerance runs past it")
     }
 }

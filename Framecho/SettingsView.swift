@@ -13,6 +13,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     case video
     case overlay
     case cloud
+    case ai
     case about
 
     var id: Self { self }
@@ -25,6 +26,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .video: String(localized: "Screen Recordings")
         case .overlay: String(localized: "Overlay")
         case .cloud: String(localized: "Cloud")
+        case .ai: String(localized: "AI")
         case .about: String(localized: "About")
         }
     }
@@ -37,6 +39,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .video: "video"
         case .overlay: "square.on.square"
         case .cloud: "icloud.and.arrow.up"
+        case .ai: "sparkles"
         case .about: "info.circle"
         }
     }
@@ -50,6 +53,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .video: .red
         case .overlay: .teal
         case .cloud: .cyan
+        case .ai: .purple
         }
     }
 
@@ -57,7 +61,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     static let sidebarGroups: [[SettingsTab]] = [
         [.general, .shortcuts],
         [.screenshots, .video, .overlay],
-        [.cloud],
+        [.cloud, .ai],
         [.about],
     ]
 }
@@ -91,7 +95,10 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .navigationSplitViewStyle(.balanced)
-        .frame(minWidth: 680, minHeight: 540)
+        .frame(
+            minWidth: WindowFrameDefaults.settingsMinimum.width,
+            minHeight: WindowFrameDefaults.settingsMinimum.height
+        )
     }
 }
 
@@ -151,6 +158,8 @@ private struct SettingsDetailView: View {
                 OverlaySettingsPane()
             case .cloud:
                 CloudSettingsPane()
+            case .ai:
+                CaptionAISettingsPane()
             case .about:
                 SettingsAboutPane()
             }

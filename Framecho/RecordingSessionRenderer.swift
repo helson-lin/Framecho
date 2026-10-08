@@ -158,6 +158,9 @@ enum RecordingSessionRenderer {
         ).sanitizedCapture
         let document = editDocument
         var style = document?.style.value ?? RecordingStudioStyle()
+        if document == nil, let appearance = manifest?.cameraAppearance {
+            style.camera.appearance = appearance
+        }
         // Selecting a camera means the default delivered recording includes
         // it; a saved Studio project that explicitly hid the bubble wins.
         style.camera.isVisible = session.hasCamera && (document?.style.value.camera.isVisible ?? true)
@@ -198,6 +201,30 @@ enum RecordingSessionRenderer {
         let showsSubtitles = document?.showsSubtitles ?? true
         let cues = document?.subtitleCues ?? []
         let words = document?.subtitleWords ?? []
+
+        // Music joins the render only when its file is already cached; a
+        // background render never waits on a download.
+        var backgroundMusic: BackgroundMusicExport?
+        if let music = document?.backgroundMusic,
+           let track = music.track,
+           let url = BackgroundMusicCatalog.cachedFileIfPresent(for: track),
+           let loaded = await LoadedBackgroundMusic.load(trackID: track.id, url: url) {
+            let speech = music.ducksUnderSpeech
+                ? BackgroundMusicGainPlan.speechRanges(words: words) { clipTimeline.editorTime(forSourceTime: $0) }
+                : []
+            backgroundMusic = BackgroundMusicExport(
+                url: url,
+                plan: BackgroundMusicGainPlan(
+                    musicDuration: loaded.duration,
+                    videoDuration: clipTimeline.duration,
+                    volume: music.clampedVolume,
+                    speech: speech,
+                    loops: music.loops,
+                    isSeamlessLoop: track.isSeamlessLoop,
+                    loopRegion: loaded.loopRegion
+                )
+            )
+        }
 
         let aspect = document?.exportAspectPreset ?? .original
         let aspectMode = document?.exportAspectContentMode ?? .fill
@@ -247,6 +274,8 @@ enum RecordingSessionRenderer {
             clipTimeline: clipTimeline,
             exportSettings: document?.exportSettings ?? VideoCompressionSettings(),
             audioVolume: document?.audioVolume ?? 1,
+            normalizesAudioLoudness: document?.normalizesAudioLoudness ?? false,
+            backgroundMusic: backgroundMusic,
             reframe: reframe,
             fitContentAspect: fitContentAspect,
             usesUniformPadding: aspect == .original,

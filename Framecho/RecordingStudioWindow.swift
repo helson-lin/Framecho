@@ -50,9 +50,42 @@ struct RecordingStudioWindow: View {
     }
 }
 
+enum StudioCardMetrics {
+    static let gap: CGFloat = 8
+    static let cornerRadius: CGFloat = 10
+
+    /// The ground the cards sit on: a step darker than the cards in both
+    /// appearances, so each area reads as its own surface.
+    static let ground = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(white: 0.1, alpha: 1)
+            : NSColor(white: 0.86, alpha: 1)
+    })
+}
+
+private struct StudioCard: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: StudioCardMetrics.cornerRadius, style: .continuous)
+        content
+            .background(InspectorControlPalette.panelBackground(for: colorScheme))
+            .clipShape(shape)
+            .overlay(shape.strokeBorder(Color(nsColor: .separatorColor).opacity(0.6), lineWidth: 0.5))
+    }
+}
+
+extension View {
+    /// One of the studio's areas, drawn as its own rounded surface.
+    func studioCard() -> some View {
+        modifier(StudioCard())
+    }
+}
+
 private struct RecordingStudioContent: View {
     @Bindable var model: RecordingStudioModel
     @State private var isInspectorPresented = true
+    @AppStorage(StudioTranscriptPanel.isPresentedKey) private var isTranscriptPresented = false
     @State private var closeGuard = EditorCloseGuard()
     @State private var stylePresetStore = RecordingStudioStylePresetStore.shared
 
@@ -66,22 +99,62 @@ private struct RecordingStudioContent: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                VStack(spacing: 0) {
-                    StudioCanvasBar(model: model)
-                    StudioCanvas(model: model)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                .background(AnnotationEditorWorkspaceBackground())
+                // Each area is a card on a slightly darker ground: the
+                // transcript runs the full height on the leading edge, the
+                // canvas and inspector share a row, and the timeline spans
+                // both beneath them.
+                HStack(spacing: StudioCardMetrics.gap) {
+                    if isTranscriptPresented {
+                        StudioTranscriptPanel(model: model)
+                            .studioCard()
+                            .transition(.move(edge: .leading).combined(with: .opacity))
+                    }
 
-                StudioTimelineEditor(model: model)
+                    VStack(spacing: StudioCardMetrics.gap) {
+                        HStack(spacing: StudioCardMetrics.gap) {
+                            VStack(spacing: 0) {
+                                StudioCanvasBar(model: model)
+                                StudioCanvas(model: model)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                StudioPlaybackBar(model: model)
+                            }
+                            .background(AnnotationEditorWorkspaceBackground())
+                            .studioCard()
+
+                            if isInspectorPresented {
+                                StudioInspector(model: model)
+                                    .studioCard()
+                                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                            }
+                        }
+
+                        StudioTimelineEditor(model: model)
+                            .studioCard()
+                    }
+                }
+                .padding(StudioCardMetrics.gap)
+                .animation(.easeOut(duration: 0.2), value: isTranscriptPresented)
+                .animation(.easeOut(duration: 0.2), value: isInspectorPresented)
             }
         }
-        .frame(minWidth: 980, minHeight: 720)
-        .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
-        .inspector(isPresented: $isInspectorPresented) {
-            StudioInspector(model: model)
-        }
+        .frame(
+            minWidth: WindowFrameDefaults.studioMinimum.width,
+            minHeight: WindowFrameDefaults.studioMinimum.height
+        )
+        // The toolbar sits on the same ground as the cards.
+        .background(StudioCardMetrics.ground.ignoresSafeArea())
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Toggle(isOn: $isTranscriptPresented) {
+                    Label("Transcript", systemImage: "text.quote")
+                }
+                .toggleStyle(.button)
+                .keyboardShortcut("t", modifiers: [.command, .option])
+                .help(isTranscriptPresented ? "Hide Transcript (⌥⌘T)" : "Show Transcript (⌥⌘T)")
+                .disabled(!model.isLoaded)
+            }
+
             ToolbarItem(placement: .navigation) {
                 Button {
                     NSWorkspace.shared.activateFileViewerSelecting([model.sessionURL])
@@ -147,6 +220,11 @@ private struct RecordingStudioContent: View {
                 closeGuard.detach()
                 return
             }
+            WindowFrameDefaults.adoptDefaultIfTooSmall(
+                window,
+                minimum: WindowFrameDefaults.studioMinimum,
+                defaultSize: WindowFrameDefaults.studioSize
+            )
             configureCloseGuard()
             closeGuard.attach(to: window)
             closeGuard.refreshDocumentEdited()
@@ -155,7 +233,9 @@ private struct RecordingStudioContent: View {
             closeGuard.refreshDocumentEdited()
         }
         .onDeleteCommand {
-            if let selectedCueID = model.selectedCueID {
+            if let subtitleID = model.selectedSubtitleCueID {
+                model.deleteSubtitle(id: subtitleID)
+            } else if let selectedCueID = model.selectedCueID {
                 model.removeZoomCue(id: selectedCueID)
             } else if let selectedMotionCueID = model.selectedMotionCueID {
                 model.removeMotionCue(id: selectedMotionCueID)
@@ -1527,6 +1607,12 @@ private struct StudioCursorOverlay: View {
                     width: height * artwork.aspectRatio,
                     height: height
                 )
+                // Blur and fade the pointer itself, before it is positioned:
+                // after `.position` the view spans the whole card, and a
+                // card-sized filter layer that comes and goes with every
+                // move flashes the video under it. Sub-pixel blur is
+                // invisible, so it never switches the filter on.
+                let blurRadius = pointer.blurRadius >= 0.3 ? CGFloat(pointer.blurRadius) : 0
                 Image(nsImage: image)
                     .resizable()
                     .frame(width: size.width, height: size.height)
@@ -1538,12 +1624,12 @@ private struct StudioCursorOverlay: View {
                         .degrees(pointer.tiltDegrees),
                         anchor: UnitPoint(x: anchor.x, y: anchor.y)
                     )
+                    .blur(radius: blurRadius)
+                    .opacity(pointer.opacity)
                     .position(
                         x: tip.x + (0.5 - anchor.x) * size.width,
                         y: tip.y + (0.5 - anchor.y) * size.height
                     )
-                    .opacity(pointer.opacity)
-                    .blur(radius: CGFloat(pointer.blurRadius))
             }
         }
         .frame(width: cardSize.width, height: cardSize.height)
@@ -1806,271 +1892,11 @@ private struct StudioSubtitleBarView: View {
             } else {
                 color = .white.opacity(SubtitleBarMetrics.karaokeUpcomingAlpha)
             }
-            let piece = Text(verbatim: index > 0 ? " \(word)" : word)
+            let piece = Text(verbatim: word)
                 .foregroundStyle(color)
             combined = combined + piece
         }
         return combined
-    }
-}
-
-/// One editable subtitle line: a timestamp plus the cue text as a free-form
-/// field. Hovering a row skims the preview to that cue, clicking or editing
-/// commits the playhead there (paused), and the row under the playhead is
-/// highlighted so the list follows the video.
-private struct StudioSubtitleRow: View {
-    @Bindable var model: RecordingStudioModel
-    let cue: RecordingSubtitleCue
-    let isActive: Bool
-
-    @FocusState private var isEditing: Bool
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Button {
-                model.seekToSubtitle(cue)
-            } label: {
-                Text(timestamp ?? "–:––")
-                    .font(.system(size: 10.5, weight: .medium).monospacedDigit())
-                    .foregroundStyle(isActive ? Color.accentColor : .secondary)
-            }
-            .buttonStyle(.plain)
-            .disabled(editorTime == nil)
-            .help(editorTime == nil ? "This subtitle's audio was cut out" : "Jump to this subtitle")
-
-            TextField(
-                "Subtitle",
-                text: Binding(
-                    get: { cue.text },
-                    set: { model.updateSubtitleText(id: cue.id, text: $0) }
-                ),
-                axis: .vertical
-            )
-            .textFieldStyle(.plain)
-            .font(.inspectorValue)
-            .focused($isEditing)
-            .onChange(of: isEditing) { _, editing in
-                // Starting to edit parks the paused preview on this cue so
-                // the correction is visible in context while typing.
-                if editing {
-                    model.seekToSubtitle(cue)
-                }
-            }
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(isActive ? Color.accentColor.opacity(0.14) : .clear)
-        .contentShape(Rectangle())
-        .opacity(editorTime == nil ? 0.5 : 1)
-        .onTapGesture {
-            model.seekToSubtitle(cue)
-        }
-        .onHover { hovering in
-            // Hover skims the paused preview like the timeline strip does;
-            // leaving hands the frame back to the real playhead.
-            guard !model.isPlaying, let editorTime else { return }
-            if hovering {
-                model.hoverPreviewTime = editorTime
-            } else if model.hoverPreviewTime == editorTime {
-                model.hoverPreviewTime = nil
-            }
-        }
-    }
-
-    /// Where this cue lands on the edited timeline; nil when its audio was
-    /// cut out entirely.
-    private var editorTime: TimeInterval? {
-        model.editorTime(forSourceTime: cue.start)
-            ?? model.editorTime(forSourceTime: (cue.start + cue.end) / 2)
-    }
-
-    private var timestamp: String? {
-        guard let editorTime else { return nil }
-        let total = max(0, Int(editorTime.rounded()))
-        return String(format: "%d:%02d", total / 60, total % 60)
-    }
-}
-
-/// Descript-style transcript editing: the narration as flowing words.
-/// Clicking a word jumps the playhead there, shift-clicking selects a
-/// passage, and cutting the selection removes that stretch of the video.
-/// Words whose footage is already cut render struck-through; filler words
-/// carry a dotted underline so the bulk action's targets are visible.
-private struct StudioTranscriptEditPanel: View {
-    @Bindable var model: RecordingStudioModel
-
-    @State private var selection: ClosedRange<Int>?
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
-            ScrollViewReader { proxy in
-                ScrollView(.vertical) {
-                    transcriptFlow
-                        .padding(8)
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                }
-                .frame(maxHeight: 260)
-                .background(
-                    RoundedRectangle(cornerRadius: InspectorMetrics.listRadius, style: .continuous)
-                        .fill(InspectorControlPalette.trackFill(for: colorScheme))
-                )
-                .clipShape(RoundedRectangle(cornerRadius: InspectorMetrics.listRadius, style: .continuous))
-                .onChange(of: model.activeTranscriptWordIndex) { _, activeIndex in
-                    // Follow playback through the transcript, but never yank
-                    // it around while the user is selecting a passage.
-                    guard let activeIndex, model.isPlaying, selection == nil else { return }
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        proxy.scrollTo(activeIndex, anchor: .center)
-                    }
-                }
-            }
-
-            if let selection {
-                cutSelectionRow(selection)
-            }
-        }
-        .onDeleteCommand(perform: cutSelection)
-        .onExitCommand { selection = nil }
-    }
-
-    private var transcriptFlow: some View {
-        let activeIndex = model.activeTranscriptWordIndex
-        return TranscriptFlowLayout() {
-            ForEach(model.transcriptWords.indices, id: \.self) { index in
-                StudioTranscriptWordView(
-                    text: model.transcriptWords[index].displayText,
-                    isSelected: selection?.contains(index) ?? false,
-                    isActive: index == activeIndex,
-                    isCut: !model.transcriptWordSurvives(index),
-                    isFiller: model.isFillerWord(index)
-                ) {
-                    handleTap(on: index)
-                }
-                .id(index)
-            }
-        }
-    }
-
-    private func cutSelectionRow(_ selection: ClosedRange<Int>) -> some View {
-        HStack(spacing: 6) {
-            InspectorActionButton(
-                selection.count == 1 ? "Cut Word" : "Cut \(selection.count) Words",
-                systemImage: "scissors",
-                role: .destructive,
-                action: cutSelection
-            )
-
-            InspectorClearButton(help: "Clear selection") {
-                self.selection = nil
-            }
-        }
-    }
-
-    private func handleTap(on index: Int) {
-        let shiftHeld = NSApp.currentEvent?.modifierFlags.contains(.shift) ?? false
-        if shiftHeld, let selection {
-            self.selection = min(selection.lowerBound, index)...max(selection.upperBound, index)
-        } else {
-            selection = index...index
-            model.seekToTranscriptWord(at: index)
-        }
-    }
-
-    private func cutSelection() {
-        guard let selection else { return }
-        model.cutTranscriptWords(in: selection)
-        self.selection = nil
-    }
-}
-
-/// One word in the transcript editor, drawn so the flow reads as a plain
-/// paragraph: the chip's side padding doubles as the inter-word space
-/// (layout spacing is zero), which also makes a multi-word selection's
-/// highlight contiguous like real text selection. The font weight never
-/// changes with state - a width change would reflow the whole paragraph
-/// on every playback tick. Kept to plain stored values so ticks only
-/// re-render the words whose state actually changed.
-private struct StudioTranscriptWordView: View {
-    let text: String
-    let isSelected: Bool
-    let isActive: Bool
-    let isCut: Bool
-    let isFiller: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Text(text)
-            .font(.system(size: 11.5))
-            .foregroundStyle(foreground)
-            .strikethrough(isCut, color: .secondary.opacity(0.6))
-            .padding(.horizontal, 1.5)
-            .padding(.vertical, 1)
-            .background(
-                RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(background)
-            )
-            .contentShape(Rectangle())
-            .onTapGesture(perform: action)
-    }
-
-    private var foreground: Color {
-        isCut ? Color.secondary.opacity(0.45) : Color.primary
-    }
-
-    private var background: Color {
-        if isSelected {
-            Color.accentColor.opacity(isCut ? 0.12 : 0.24)
-        } else if isActive, !isCut {
-            Color.accentColor.opacity(0.2)
-        } else if isFiller, !isCut {
-            Color.orange.opacity(0.16)
-        } else {
-            Color.clear
-        }
-    }
-}
-
-/// Minimal left-aligned wrapping layout for the transcript's word chips.
-/// Horizontal spacing lives inside the chips (see StudioTranscriptWordView),
-/// so the layout only separates lines.
-private struct TranscriptFlowLayout: Layout {
-    var spacingX: CGFloat = 0
-    var spacingY: CGFloat = 3
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width ?? 240
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var rowHeight: CGFloat = 0
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x > 0, x + size.width > width {
-                x = 0
-                y += rowHeight + spacingY
-                rowHeight = 0
-            }
-            x += size.width + spacingX
-            rowHeight = max(rowHeight, size.height)
-        }
-        return CGSize(width: width, height: y + rowHeight)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var x = bounds.minX
-        var y = bounds.minY
-        var rowHeight: CGFloat = 0
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x > bounds.minX, x + size.width > bounds.maxX {
-                x = bounds.minX
-                y += rowHeight + spacingY
-                rowHeight = 0
-            }
-            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
-            x += size.width + spacingX
-            rowHeight = max(rowHeight, size.height)
-        }
     }
 }
 
@@ -2132,6 +1958,7 @@ private struct StudioCameraBubble: View {
 
             StudioPlayerLayerView(player: model.cameraPlayer, gravity: .resizeAspectFill)
                 .frame(width: rect.width, height: rect.height)
+                .scaleEffect(x: model.style.camera.isFlipped ? -1 : 1, y: 1)
                 .clipShape(RoundedRectangle(cornerRadius: layout.bubbleCornerRadius, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: layout.bubbleCornerRadius, style: .continuous)
@@ -2371,12 +2198,6 @@ private struct StudioTimelineEditor: View {
         .padding(.horizontal, 12)
         .padding(.top, 6)
         .padding(.bottom, 8)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Color(nsColor: .separatorColor).opacity(0.45))
-                .frame(height: 0.5)
-        }
     }
 
     private var lanes: some View {
@@ -2430,6 +2251,10 @@ private struct StudioTimelineEditor: View {
     private func scrollingLanes(scale: StudioTimelineScale) -> some View {
         ZStack(alignment: .topLeading) {
             VStack(spacing: StudioTimelineMetrics.rowSpacing) {
+                if showsCaptionLane {
+                    StudioCaptionLaneBackground(isEmpty: !model.hasSubtitles)
+                        .frame(height: StudioTimelineMetrics.captionLaneHeight)
+                }
                 Color.clear
                     .frame(height: StudioTimelineMetrics.clipLaneHeight)
                 if showsAudioLane {
@@ -2443,14 +2268,20 @@ private struct StudioTimelineEditor: View {
                     )
                     .frame(height: StudioTimelineMetrics.audioLaneHeight)
                 }
+                if showsMusicLane {
+                    StudioMusicLane(
+                        title: model.backgroundMusic?.track?.title ?? "",
+                        plan: model.backgroundMusicTimelinePlan,
+                        isLoading: model.isLoadingBackgroundMusic,
+                        scale: scale,
+                        scrollX: scrollX
+                    )
+                    .frame(height: StudioTimelineMetrics.musicLaneHeight)
+                }
                 StudioZoomLaneBackground(
                     showsHint: model.zoomEnabled && model.zoomTimelineBlocks.isEmpty
                 )
                     .frame(height: StudioTimelineMetrics.zoomLaneHeight)
-                if showsCaptionLane {
-                    StudioCaptionLaneBackground(isEmpty: !model.hasSubtitles)
-                        .frame(height: StudioTimelineMetrics.captionLaneHeight)
-                }
                 StudioMotionLaneBackground(
                     showsHint: model.motionTimelineBlocks.isEmpty
                 )
@@ -2461,6 +2292,18 @@ private struct StudioTimelineEditor: View {
 
             ScrollView(.horizontal) {
                 VStack(spacing: StudioTimelineMetrics.rowSpacing) {
+                    if showsCaptionLane {
+                        StudioCaptionLane(
+                            model: model,
+                            scale: scale,
+                            visibleRange: scale.visibleRange(scrollX: scrollX)
+                        )
+                        .frame(
+                            width: scale.contentWidth,
+                            height: StudioTimelineMetrics.captionLaneHeight
+                        )
+                    }
+
                     clipLane
                         .frame(
                             width: scale.contentWidth,
@@ -2475,6 +2318,14 @@ private struct StudioTimelineEditor: View {
                             )
                     }
 
+                    if showsMusicLane {
+                        Color.clear
+                            .frame(
+                                width: scale.contentWidth,
+                                height: StudioTimelineMetrics.musicLaneHeight
+                            )
+                    }
+
                     StudioZoomLane(
                         model: model,
                         scale: scale,
@@ -2484,18 +2335,6 @@ private struct StudioTimelineEditor: View {
                         width: scale.contentWidth,
                         height: StudioTimelineMetrics.zoomLaneHeight
                     )
-
-                    if showsCaptionLane {
-                        StudioCaptionLane(
-                            model: model,
-                            scale: scale,
-                            visibleRange: scale.visibleRange(scrollX: scrollX)
-                        )
-                        .frame(
-                            width: scale.contentWidth,
-                            height: StudioTimelineMetrics.captionLaneHeight
-                        )
-                    }
 
                     StudioMotionLane(
                         model: model,
@@ -2526,14 +2365,9 @@ private struct StudioTimelineEditor: View {
             // scroll view, centered in the viewport rather than in a lane
             // that may be many screens wide.
             if showsCaptionLane, !model.hasSubtitles {
-                VStack(spacing: StudioTimelineMetrics.rowSpacing) {
-                    Color.clear
-                        .frame(height: captionLaneOffset)
-                        .allowsHitTesting(false)
-                    StudioCaptionLanePrompt(model: model)
-                        .frame(height: StudioTimelineMetrics.captionLaneHeight)
-                }
-                .frame(maxWidth: .infinity, alignment: .top)
+                StudioCaptionLanePrompt(model: model)
+                    .frame(height: StudioTimelineMetrics.captionLaneHeight)
+                    .frame(maxWidth: .infinity, alignment: .top)
             }
         }
         .frame(height: StudioTimelineMetrics.scrollingLanesHeight(lanes: visibleLanes))
@@ -2549,19 +2383,16 @@ private struct StudioTimelineEditor: View {
         model.canTranscribe || model.hasSubtitles
     }
 
+    private var showsMusicLane: Bool {
+        model.backgroundMusic != nil
+    }
+
     private var visibleLanes: StudioTimelineMetrics.Lanes {
         StudioTimelineMetrics.Lanes(
             audio: showsAudioLane,
-            captions: showsCaptionLane
+            captions: showsCaptionLane,
+            music: showsMusicLane
         )
-    }
-
-    /// Height above the caption lane inside the scrolling block.
-    private var captionLaneOffset: CGFloat {
-        StudioTimelineMetrics.clipLaneHeight
-            + (showsAudioLane ? StudioTimelineMetrics.audioLaneHeight + StudioTimelineMetrics.rowSpacing : 0)
-            + StudioTimelineMetrics.zoomLaneHeight
-            + StudioTimelineMetrics.rowSpacing
     }
 
     private var showsClipWaveform: Bool {
@@ -2598,6 +2429,26 @@ private struct StudioTimelineEditor: View {
                     alignment: .bottomLeading
                 )
 
+            if showsCaptionLane {
+                if model.hasSubtitles {
+                    StudioLaneHeader(
+                        title: "Captions",
+                        systemImage: "captions.bubble",
+                        tint: StudioCaptionLane.tint,
+                        isOn: $model.showsSubtitles,
+                        toggleHelp: model.showsSubtitles ? "Hide Subtitles" : "Show Subtitles"
+                    )
+                    .frame(height: StudioTimelineMetrics.captionLaneHeight)
+                } else {
+                    StudioLaneHeader(
+                        title: "Captions",
+                        systemImage: "captions.bubble",
+                        tint: StudioCaptionLane.tint
+                    )
+                    .frame(height: StudioTimelineMetrics.captionLaneHeight)
+                }
+            }
+
             if showsClipWaveform {
                 StudioLaneHeader(
                     title: "Video",
@@ -2628,6 +2479,11 @@ private struct StudioTimelineEditor: View {
                 .frame(height: StudioTimelineMetrics.audioLaneHeight)
             }
 
+            if showsMusicLane {
+                StudioLaneHeader(title: "Music", systemImage: "music.note", tint: StudioMusicLane.tint)
+                    .frame(height: StudioTimelineMetrics.musicLaneHeight)
+            }
+
             StudioLaneHeader(
                 title: "Zoom",
                 systemImage: "plus.magnifyingglass",
@@ -2636,26 +2492,6 @@ private struct StudioTimelineEditor: View {
                 toggleHelp: model.zoomEnabled ? "Turn Zooms Off" : "Turn Zooms On"
             )
             .frame(height: StudioTimelineMetrics.zoomLaneHeight)
-
-            if showsCaptionLane {
-                if model.hasSubtitles {
-                    StudioLaneHeader(
-                        title: "Captions",
-                        systemImage: "captions.bubble",
-                        tint: StudioCaptionLane.tint,
-                        isOn: $model.showsSubtitles,
-                        toggleHelp: model.showsSubtitles ? "Hide Subtitles" : "Show Subtitles"
-                    )
-                    .frame(height: StudioTimelineMetrics.captionLaneHeight)
-                } else {
-                    StudioLaneHeader(
-                        title: "Captions",
-                        systemImage: "captions.bubble",
-                        tint: StudioCaptionLane.tint
-                    )
-                    .frame(height: StudioTimelineMetrics.captionLaneHeight)
-                }
-            }
 
             StudioLaneHeader(
                 title: "3D Motion",
@@ -2915,6 +2751,98 @@ private struct StudioTimelineEditor: View {
         InspectorValueFormat.magnification(fractionDigits: 0).displayString(for: speed)
     }
 
+    /// The timeline's own toolbar: cut tools and adding blocks on the
+    /// leading edge, the timeline scale on the trailing edge. Playback
+    /// lives under the canvas.
+    private var transport: some View {
+        HStack(spacing: 0) {
+            editControls
+            Divider()
+                .frame(height: 16)
+                .padding(.horizontal, 8)
+            addControls
+            Spacer(minLength: 0)
+            zoomControls
+        }
+        .frame(height: 36)
+    }
+
+    /// Adds a zoom or a 3D motion block at the playhead, the way the
+    /// inspector's buttons do, without leaving the timeline.
+    private var addControls: some View {
+        HStack(spacing: 2) {
+            Button {
+                model.addZoomCue(at: model.currentTime)
+            } label: {
+                Label("Zoom", systemImage: "plus")
+                    .font(.system(size: 11.5, weight: .medium))
+            }
+            .buttonStyle(TransportTextButtonStyle())
+            .disabled(!model.zoomEnabled)
+            .help(model.zoomEnabled ? "Add a zoom at the playhead" : "Turn zooms on to add one")
+
+            Button {
+                model.addMotionCue(preset: .tiltRight, at: model.currentTime)
+            } label: {
+                Label("Motion", systemImage: "plus")
+                    .font(.system(size: 11.5, weight: .medium))
+            }
+            .buttonStyle(TransportTextButtonStyle())
+            .help("Add a 3D motion block at the playhead")
+        }
+    }
+
+    private var canDeleteSelection: Bool {
+        model.selectedCueID != nil || model.selectedMotionCueID != nil
+            || model.selectedSubtitleCueID != nil || model.canDeleteSelectedClip
+    }
+
+    private func deleteSelection() {
+        if let subtitleID = model.selectedSubtitleCueID {
+            model.deleteSubtitle(id: subtitleID)
+        } else if let cueID = model.selectedCueID {
+            model.removeZoomCue(id: cueID)
+        } else if let motionCueID = model.selectedMotionCueID {
+            model.removeMotionCue(id: motionCueID)
+        } else if model.selectedClipID != nil {
+            model.deleteSelectedClip()
+        }
+    }
+
+    private func timelineButton(
+        _ help: LocalizedStringResource,
+        systemImage: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 28, height: 26)
+                .contentShape(RoundedRectangle(cornerRadius: StudioTransportMetrics.buttonRadius, style: .continuous))
+        }
+        .buttonStyle(TransportIconButtonStyle())
+        .help(Text(help))
+        .accessibilityLabel(Text(help))
+    }
+}
+
+/// Playback under the canvas: where the playhead is against the length of
+/// the cut, and play with stepping between edit points.
+private struct StudioPlaybackBar: View {
+    @Bindable var model: RecordingStudioModel
+
+    var body: some View {
+        ZStack {
+            HStack {
+                timecode
+                Spacer(minLength: 0)
+            }
+            playbackControls
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 48)
+    }
+
     /// Where the playhead is against the length of the cut, on the leading
     /// edge where the eye starts reading the transport.
     private var timecode: some View {
@@ -2982,41 +2910,6 @@ private struct StudioTimelineEditor: View {
 
     private var nextEditPoint: TimeInterval {
         editPoints.first { $0 > model.currentTime + Self.editPointTolerance } ?? model.duration
-    }
-
-    /// Time and the cut tools on the leading edge, playback in the middle,
-    /// and the timeline scale on the trailing edge. The cut tools are
-    /// icon-only so the row still clears the centered playback buttons at
-    /// the window's minimum width.
-    private var transport: some View {
-        ZStack {
-            HStack(spacing: 0) {
-                timecode
-                Divider()
-                    .frame(height: 16)
-                    .padding(.horizontal, 8)
-                editControls
-                Spacer(minLength: 0)
-                zoomControls
-            }
-
-            playbackControls
-        }
-        .frame(height: 36)
-    }
-
-    private var canDeleteSelection: Bool {
-        model.selectedCueID != nil || model.selectedMotionCueID != nil || model.canDeleteSelectedClip
-    }
-
-    private func deleteSelection() {
-        if let cueID = model.selectedCueID {
-            model.removeZoomCue(id: cueID)
-        } else if let motionCueID = model.selectedMotionCueID {
-            model.removeMotionCue(id: motionCueID)
-        } else if model.selectedClipID != nil {
-            model.deleteSelectedClip()
-        }
     }
 
     private func timelineButton(
@@ -3103,6 +2996,7 @@ private enum StudioTimelineMetrics {
     static let scrollerGutter: CGFloat = 8
 
     static let audioLaneHeight: CGFloat = 22
+    static let musicLaneHeight: CGFloat = 22
 
     /// The optional lanes on show. The audio lane appears for replacement
     /// audio and captions for narrated recordings; the video, zoom and 3D
@@ -3110,12 +3004,14 @@ private enum StudioTimelineMetrics {
     struct Lanes: Equatable {
         var audio: Bool
         var captions: Bool
+        var music = false
     }
 
     static func scrollingLanesHeight(lanes: Lanes) -> CGFloat {
         clipLaneHeight + zoomLaneHeight + motionLaneHeight + scrollerGutter + rowSpacing * 3
             + (lanes.audio ? audioLaneHeight + rowSpacing : 0)
             + (lanes.captions ? captionLaneHeight + rowSpacing : 0)
+            + (lanes.music ? musicLaneHeight + rowSpacing : 0)
     }
 
     static func lanesHeight(lanes: Lanes) -> CGFloat {
@@ -3190,6 +3086,83 @@ private struct StudioAudioLane: View {
                 x += Self.barPitch
             }
             context.fill(path, with: .color(Self.tint.opacity(0.75)))
+        }
+    }
+}
+
+/// Background music under the cut: one block from zero to where the music
+/// stops, holding its level as a curve - the fades at either end and the
+/// dips under speech - so ducking can be checked against the narration.
+/// Viewport-sized like the audio lane, redrawn against `scrollX`.
+private struct StudioMusicLane: View {
+    static let tint = Color.pink
+
+    let title: String
+    let plan: BackgroundMusicGainPlan?
+    let isLoading: Bool
+    let scale: StudioTimelineScale
+    let scrollX: CGFloat
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            RoundedRectangle(cornerRadius: StudioZoomLaneMetrics.laneCornerRadius, style: .continuous)
+                .fill(Self.tint.opacity(0.05))
+
+            if let plan, plan.length > 0 {
+                envelope(for: plan)
+            }
+
+            Label(isLoading ? String(localized: "Downloading \(title)…") : title, systemImage: "music.note")
+                .font(.system(size: 10.5, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .padding(.horizontal, 8)
+        }
+        .allowsHitTesting(false)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Music: \(title)"))
+    }
+
+    private func envelope(for plan: BackgroundMusicGainPlan) -> some View {
+        Canvas { context, size in
+            guard scale.pointsPerSecond > 0, size.width > 0 else { return }
+            let startX = scale.x(for: 0) - scrollX
+            let endX = scale.x(for: plan.length) - scrollX
+            guard endX > 0, startX < size.width else { return }
+
+            let block = CGRect(x: startX, y: 1, width: endX - startX, height: size.height - 2)
+            let shape = Path(roundedRect: block, cornerRadius: 4, style: .continuous)
+            context.fill(shape, with: .color(Self.tint.opacity(0.14)))
+
+            // The level as a filled curve, scaled to the loudest point so
+            // the shape reads the same at any music level.
+            let peak = plan.segments.map { max($0.fromGain, $0.toGain) }.max() ?? 0
+            guard peak > 0 else { return }
+            let bottom = block.maxY - 1
+            let usable = block.height - 4
+            func y(_ gain: Double) -> CGFloat { bottom - CGFloat(gain / peak) * usable }
+
+            var curve = Path()
+            curve.move(to: CGPoint(x: startX, y: bottom))
+            for segment in plan.segments {
+                curve.addLine(to: CGPoint(x: scale.x(for: segment.start) - scrollX, y: y(segment.fromGain)))
+                curve.addLine(to: CGPoint(x: scale.x(for: segment.end) - scrollX, y: y(segment.toGain)))
+            }
+            curve.addLine(to: CGPoint(x: endX, y: bottom))
+            curve.closeSubpath()
+            context.clip(to: shape)
+            context.fill(curve, with: .color(Self.tint.opacity(0.28)))
+
+            // Where the track starts over, centred in its crossfade.
+            var seams = Path()
+            for point in plan.loopPoints {
+                let x = scale.x(for: point) - scrollX
+                guard x > 0, x < size.width else { continue }
+                seams.move(to: CGPoint(x: x, y: block.minY + 3))
+                seams.addLine(to: CGPoint(x: x, y: block.maxY - 3))
+            }
+            context.stroke(seams, with: .color(Self.tint.opacity(0.8)), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
+            context.stroke(shape, with: .color(Self.tint.opacity(0.55)), lineWidth: 1)
         }
     }
 }
@@ -3946,6 +3919,10 @@ private struct StudioCaptionLanePrompt: View {
 /// Transcribed captions on the edited timeline. A cue cut in two by an edit
 /// still reads as one block, the same way zoom blocks merge across cuts.
 /// Clicking a block jumps to it; blank space seeks like the other lanes.
+/// Transcribed captions on the edited timeline. A click on blank lane space
+/// seeks; a caption block selects on a click, slides when dragged and trims
+/// from either edge, stopping at its neighbours. Delete removes the selected
+/// caption, and every drag undoes as one step.
 private struct StudioCaptionLane: View {
     static let tint = Color.teal
 
@@ -3953,11 +3930,17 @@ private struct StudioCaptionLane: View {
     let scale: StudioTimelineScale
     let visibleRange: ClosedRange<TimeInterval>
 
-    private struct Block: Identifiable {
-        let id: UUID
-        let text: String
+    /// Clicking the lane takes keyboard focus, so Delete reaches the
+    /// selected caption instead of a caption field still being edited in
+    /// the transcript panel.
+    @FocusState private var isFocused: Bool
+
+    struct Block: Identifiable {
+        let cue: RecordingSubtitleCue
         let editorStart: TimeInterval
         let editorEnd: TimeInterval
+
+        var id: UUID { cue.id }
     }
 
     var body: some View {
@@ -3968,46 +3951,29 @@ private struct StudioCaptionLane: View {
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
                             guard scale.pointsPerSecond > 0 else { return }
+                            isFocused = true
+                            model.selectedSubtitleCueID = nil
                             model.pause()
                             model.seek(to: scale.time(forX: value.location.x))
                         }
                 )
 
             ForEach(visibleBlocks) { block in
-                blockView(block)
+                StudioCaptionBlock(model: model, block: block, scale: scale) {
+                    isFocused = true
+                }
             }
         }
-    }
-
-    private func blockView(_ block: Block) -> some View {
-        let minX = scale.x(for: block.editorStart)
-        let width = max(2, scale.x(for: block.editorEnd) - minX - 2)
-        let isCurrent = (block.editorStart..<block.editorEnd).contains(model.currentTime)
-        return Text(block.text)
-            .font(.system(size: 10.5, weight: .medium))
-            .lineLimit(1)
-            .truncationMode(.tail)
-            .padding(.horizontal, 6)
-            .frame(width: width, height: StudioZoomLaneMetrics.blockHeight, alignment: .leading)
-            .foregroundStyle(isCurrent ? Color.white : Color.primary.opacity(0.8))
-            .background(
-                RoundedRectangle(cornerRadius: StudioZoomLaneMetrics.blockCornerRadius, style: .continuous)
-                    .fill(Self.tint.opacity(isCurrent ? 0.85 : 0.2))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioZoomLaneMetrics.blockCornerRadius, style: .continuous)
-                    .strokeBorder(Self.tint.opacity(isCurrent ? 0 : 0.4), lineWidth: 1)
-            )
-            .contentShape(Rectangle())
-            .onTapGesture {
-                model.pause()
-                model.seek(to: block.editorStart)
-            }
-            .offset(x: minX + 1, y: StudioZoomLaneMetrics.blockInset)
-            .help(block.text)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text(block.text))
-            .accessibilityAddTraits(.isButton)
+        .focusable()
+        .focusEffectDisabled()
+        .focused($isFocused)
+        .onKeyPress(keys: [.delete, .deleteForward]) { _ in
+            guard let id = model.selectedSubtitleCueID else { return .ignored }
+            model.deleteSubtitle(id: id)
+            return .handled
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Captions track")
     }
 
     private var visibleBlocks: [Block] {
@@ -4017,8 +3983,158 @@ private struct StudioCaptionLane: View {
             guard let first = slices.first, let last = slices.last,
                   last.editorEnd >= visibleRange.lowerBound,
                   first.editorStart <= visibleRange.upperBound else { return nil }
-            return Block(id: cue.id, text: cue.text, editorStart: first.editorStart, editorEnd: last.editorEnd)
+            return Block(cue: cue, editorStart: first.editorStart, editorEnd: last.editorEnd)
         }
+    }
+}
+
+/// One caption on the timeline: its text, trim handles on either edge
+/// once selected, and a ring while selected.
+private struct StudioCaptionBlock: View {
+    @Bindable var model: RecordingStudioModel
+    let block: StudioCaptionLane.Block
+    let scale: StudioTimelineScale
+    /// Gives the lane keyboard focus; see StudioCaptionLane.isFocused.
+    let takeFocus: () -> Void
+
+    /// Where the drag began, held in source time so the clip mapping can't
+    /// shift under it mid-drag.
+    @State private var dragBase: RecordingSubtitleCue?
+
+    private var isSelected: Bool {
+        model.selectedSubtitleCueID == block.cue.id
+    }
+
+    var body: some View {
+        let minX = scale.x(for: block.editorStart)
+        let width = max(6, scale.x(for: block.editorEnd) - minX - 2)
+        let isCurrent = (block.editorStart..<block.editorEnd).contains(model.currentTime)
+        let showsHandles = isSelected && width >= 28
+        let tint = StudioCaptionLane.tint
+
+        HStack(spacing: 0) {
+            if showsHandles { resizeHandle(edge: .start) }
+            Text(block.cue.text)
+                .font(.system(size: 10.5, weight: .medium))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .padding(.horizontal, showsHandles ? 0 : 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if showsHandles { resizeHandle(edge: .end) }
+        }
+        .frame(width: width, height: StudioZoomLaneMetrics.blockHeight)
+        .foregroundStyle(isCurrent || isSelected ? Color.white : Color.primary.opacity(0.8))
+        .background(
+            RoundedRectangle(cornerRadius: StudioZoomLaneMetrics.blockCornerRadius, style: .continuous)
+                .fill(tint.opacity(isSelected ? 0.95 : isCurrent ? 0.85 : 0.2))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioZoomLaneMetrics.blockCornerRadius, style: .continuous)
+                .strokeBorder(tint.opacity(isCurrent || isSelected ? 0 : 0.4), lineWidth: 1)
+        )
+        .overlay {
+            if isSelected {
+                RoundedRectangle(
+                    cornerRadius: StudioZoomLaneMetrics.selectionRingCornerRadius,
+                    style: .continuous
+                )
+                    .stroke(Color.white.opacity(0.8), lineWidth: 1.5)
+                    .padding(-StudioZoomLaneMetrics.selectionRingPadding)
+            }
+        }
+        .contentShape(Rectangle())
+        .gesture(moveGesture)
+        .onTapGesture {
+            select()
+            model.pause()
+            model.seek(to: block.editorStart)
+        }
+        .contextMenu {
+            Button("Edit in Transcript") {
+                select()
+                UserDefaults.standard.set(true, forKey: StudioTranscriptPanel.isPresentedKey)
+            }
+            Divider()
+            Button("Delete Caption", role: .destructive) {
+                model.deleteSubtitle(id: block.cue.id)
+            }
+        }
+        .offset(x: minX + 1, y: StudioZoomLaneMetrics.blockInset)
+        .help(block.cue.text)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(block.cue.text))
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAction { select() }
+        .accessibilityAction(named: Text("Delete Caption")) {
+            model.deleteSubtitle(id: block.cue.id)
+        }
+    }
+
+    private func select() {
+        takeFocus()
+        model.selectedSubtitleCueID = block.cue.id
+    }
+
+    /// Slides the caption, keeping its length.
+    private var moveGesture: some Gesture {
+        DragGesture(minimumDistance: 3, coordinateSpace: .global)
+            .onChanged { value in
+                if dragBase == nil {
+                    dragBase = block.cue
+                    select()
+                    model.pause()
+                    model.beginSubtitleEdit()
+                }
+                guard let dragBase else { return }
+                let delta = Double(value.translation.width) * scale.secondsPerPoint
+                let editorStart = model.editorTime(forSourceTime: dragBase.start) ?? block.editorStart
+                model.moveSubtitle(
+                    id: dragBase.id,
+                    toStart: model.sourceTime(atEditorTime: max(0, editorStart + delta))
+                )
+            }
+            .onEnded { _ in
+                dragBase = nil
+                model.endSubtitleEdit(actionName: String(localized: "Move Caption"))
+            }
+    }
+
+    private func resizeHandle(edge: SubtitleCueTiming.Edge) -> some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.001))
+            .frame(width: 10, height: StudioZoomLaneMetrics.blockHeight)
+            .overlay {
+                Capsule()
+                    .fill(Color.white.opacity(0.9))
+                    .frame(width: 2.5, height: 12)
+            }
+            .contentShape(Rectangle())
+            .pointerStyle(.frameResize(position: edge == .start ? .leading : .trailing))
+            .gesture(
+                DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                    .onChanged { value in
+                        if dragBase == nil {
+                            dragBase = block.cue
+                            model.pause()
+                            model.beginSubtitleEdit()
+                        }
+                        guard let dragBase else { return }
+                        let delta = Double(value.translation.width) * scale.secondsPerPoint
+                        let edgeEditorTime = edge == .start
+                            ? (model.editorTime(forSourceTime: dragBase.start) ?? block.editorStart)
+                            : (model.editorTime(forSourceTime: dragBase.end) ?? block.editorEnd)
+                        model.resizeSubtitle(
+                            id: dragBase.id,
+                            edge: edge,
+                            to: model.sourceTime(atEditorTime: max(0, edgeEditorTime + delta))
+                        )
+                    }
+                    .onEnded { _ in
+                        dragBase = nil
+                        model.endSubtitleEdit(actionName: String(localized: "Change Caption Timing"))
+                    }
+            )
+            .accessibilityHidden(true)
     }
 }
 
@@ -4424,6 +4540,47 @@ private enum StudioInspectorTab: Hashable, CaseIterable {
     }
 }
 
+/// One page of the inspector's rail. The open page is a solid block in the
+/// label color, so it reads in light and dark without leaning on the
+/// accent; a dot marks pages whose effect is in the video.
+private struct StudioInspectorRailButton: View {
+    let tab: StudioInspectorTab
+    let isSelected: Bool
+    let isInUse: Bool
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: tab.systemImage)
+                .font(.system(size: 14, weight: .medium))
+                .frame(width: 32, height: 32)
+                .foregroundStyle(isSelected ? AnyShapeStyle(Color(nsColor: .windowBackgroundColor)) : AnyShapeStyle(.secondary))
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(isSelected ? Color.primary : Color.primary.opacity(isHovering ? 0.08 : 0))
+                )
+                .overlay(alignment: .topTrailing) {
+                    if isInUse {
+                        Circle()
+                            .fill(Color.accentColor)
+                            .frame(width: 5, height: 5)
+                            .padding(4)
+                            .accessibilityHidden(true)
+                    }
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .help(tab.title)
+        .accessibilityLabel(Text(tab.title))
+        .accessibilityValue(isInUse ? Text("On") : Text(verbatim: ""))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
 private struct StudioInspector: View {
     /// Whole-number playback rates offered for a clip, within
     /// `RecordingClipSegment`'s 1...8 range.
@@ -4437,6 +4594,7 @@ private struct StudioInspector: View {
     @State private var editedMotionTransition = MotionTransition.entrance
     @State private var isAudioExportOptionsPresented = false
     @State private var scrollPosition = ScrollPosition(edge: .top)
+    @AppStorage(StudioTranscriptPanel.isPresentedKey) private var showsTranscriptPanel = false
 
     /// Whatever the timeline has selected, for scrolling its controls in.
     private var selectionKey: UUID? {
@@ -4445,7 +4603,29 @@ private struct StudioInspector: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
 
+    /// Width of the tab rail on the inspector's trailing edge.
+    private static let railWidth: CGFloat = 44
+
     var body: some View {
+        HStack(spacing: 0) {
+            page
+
+            Rectangle()
+                .fill(Color(nsColor: .separatorColor).opacity(0.45))
+                .frame(width: 0.5)
+
+            tabRail
+        }
+        .background(sidebarBackground)
+        .frame(width: InspectorMetrics.columnIdealWidth + Self.railWidth)
+        .frame(maxHeight: .infinity, alignment: .topLeading)
+        .task {
+            await wallpaperStore.reload()
+        }
+    }
+
+    /// The open tab's controls under its title.
+    private var page: some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 0) {
                 selectionSection
@@ -4487,7 +4667,12 @@ private struct StudioInspector: View {
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
-                tabPicker
+                Text(selectedTab.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .accessibilityAddTraits(.isHeader)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, InspectorMetrics.horizontalPadding)
+                    .padding(.vertical, 12)
 
                 Rectangle()
                     .fill(Color(nsColor: .separatorColor).opacity(0.45))
@@ -4497,57 +4682,29 @@ private struct StudioInspector: View {
         }
         .scrollContentBackground(.hidden)
         .scrollEdgeEffectSoftIfAvailable()
-        .background(sidebarBackground)
-        .inspectorColumnWidth(
-            min: InspectorMetrics.columnMinWidth,
-            ideal: InspectorMetrics.columnIdealWidth,
-            max: InspectorMetrics.columnMaxWidth
-        )
-        .frame(
-            minWidth: InspectorMetrics.columnMinWidth,
-            maxWidth: .infinity,
-            maxHeight: .infinity,
-            alignment: .topLeading
-        )
-        .task {
-            await wallpaperStore.reload()
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var tabPicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            InspectorSegmented(
-                options: StudioInspectorTab.allCases,
-                isSelected: { $0 == selectedTab },
-                onTap: { selectedTab = $0 },
-                label: { tab in
-                    Image(systemName: tab.systemImage)
-                        .font(.system(size: 13, weight: .medium))
-                        .overlay(alignment: .topTrailing) {
-                            if isInUse(tab) {
-                                Circle()
-                                    .fill(Color.accentColor)
-                                    .frame(width: 5, height: 5)
-                                    .offset(x: 5, y: -3)
-                                    .accessibilityHidden(true)
-                            }
-                        }
-                        .help(tab.title)
-                        .accessibilityLabel(Text(tab.title))
-                        .accessibilityValue(isInUse(tab) ? Text("On") : Text(verbatim: ""))
-                },
-                height: 32
-            )
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel("Inspector")
-
-            Text(selectedTab.title)
-                .font(.system(size: 13, weight: .semibold))
-                .accessibilityAddTraits(.isHeader)
+    /// The pages as a column of icons on the trailing edge, so adding a
+    /// component adds an icon instead of narrowing every other one, and
+    /// the page keeps the full height.
+    private var tabRail: some View {
+        VStack(spacing: 6) {
+            ForEach(StudioInspectorTab.allCases, id: \.self) { tab in
+                StudioInspectorRailButton(
+                    tab: tab,
+                    isSelected: tab == selectedTab,
+                    isInUse: isInUse(tab)
+                ) {
+                    selectedTab = tab
+                }
+            }
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, InspectorMetrics.horizontalPadding)
-        .padding(.top, 10)
-        .padding(.bottom, 10)
+        .padding(.vertical, 10)
+        .frame(width: Self.railWidth)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Inspector")
     }
 
     /// Marks the tabs whose effect is showing in the video, so what is
@@ -4567,7 +4724,7 @@ private struct StudioInspector: View {
         case .captions:
             model.hasSubtitles && model.showsSubtitles
         case .audio:
-            model.replacementAudio != nil
+            model.replacementAudio != nil || model.backgroundMusic != nil || model.normalizesAudioLoudness
         }
     }
 
@@ -4832,10 +4989,12 @@ private struct StudioInspector: View {
                 captionSectionControls
             }
 
-            InspectorSectionDivider()
+            if hasIdleTranscript {
+                InspectorSectionDivider()
 
-            InspectorSection("Edit by Text") {
-                editByTextControls
+                InspectorSection("Transcript") {
+                    transcriptSectionControls
+                }
             }
         } else {
             InspectorSection("Captions") {
@@ -4863,6 +5022,12 @@ private struct StudioInspector: View {
             }
         ) {
             audioControls
+        }
+
+        InspectorSectionDivider()
+
+        InspectorSection("Background Music") {
+            StudioBackgroundMusicControls(model: model)
         }
     }
 
@@ -5076,24 +5241,20 @@ private struct StudioInspector: View {
             HStack(spacing: InspectorMetrics.rowSpacing) {
                 adjustOnCanvasButton(for: .base)
 
-                InspectorActionButton("Fit to Canvas", systemImage: "arrow.down.right.and.arrow.up.left") {
+                // Flags the overflow in place by swapping its icon: the
+                // row keeps its size, so nothing shifts under a drag.
+                InspectorActionButton(
+                    "Fit to Canvas",
+                    systemImage: model.motionExceedsCanvas
+                        ? "exclamationmark.triangle.fill"
+                        : "arrow.down.right.and.arrow.up.left"
+                ) {
                     model.fitMotionToCanvas()
                 }
                 .disabled(!model.motionExceedsCanvas)
-                .help("Scale the base pose and every motion so the card stays inside the canvas")
-            }
-
-            if model.motionExceedsCanvas {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                        .accessibilityHidden(true)
-                    Text("Part of the card reaches past the canvas and will be cropped.")
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .font(.inspectorLabel)
-                .accessibilityElement(children: .combine)
+                .help(model.motionExceedsCanvas
+                    ? "Part of the card reaches past the canvas and will be cropped. Scale the base pose and every motion to fit."
+                    : "Scale the base pose and every motion so the card stays inside the canvas")
             }
 
             basePoseDisclosure
@@ -5118,6 +5279,22 @@ private struct StudioInspector: View {
                             .accessibilityLabel(Text(preset.title))
                     }
                 )
+            }
+
+            // Last in the section: it comes and goes while poses are
+            // dragged, and anywhere above the sliders it would shift them
+            // under the pointer.
+            if model.motionExceedsCanvas {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .accessibilityHidden(true)
+                    Text("Part of the card reaches past the canvas and will be cropped.")
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .font(.inspectorLabel)
+                .accessibilityElement(children: .combine)
             }
         }
     }
@@ -5601,57 +5778,41 @@ private struct StudioInspector: View {
 
     // MARK: Transcription
 
-    /// Transcribing, failed, or not yet transcribed: shared by Captions and
-    /// Edit by Text, which both need a transcript.
-    @ViewBuilder
-    private var transcriptionStatus: some View {
-        switch model.transcriptionState {
-        case .transcribing:
-            HStack(spacing: 8) {
-                ProgressView()
-                    .controlSize(.small)
-                InspectorHint("Transcribing narration…")
-            }
-        case .failed(let message):
-            InspectorHint(message, tint: .orange)
-
-            InspectorActionButton("Try Again", systemImage: "waveform") {
-                model.transcribe()
-            }
-        case .idle:
-            InspectorActionButton("Transcribe Narration", systemImage: "waveform") {
-                model.transcribe()
-            }
-            .help("Turn your microphone narration into subtitles, transcribed on this Mac")
-        }
-    }
-
     private var hasIdleTranscript: Bool {
         guard case .idle = model.transcriptionState else { return false }
         return model.hasSubtitles
     }
 
+    /// How the caption bar looks. The captions' text is edited in the
+    /// transcript panel, so this stays a short list of properties.
     private var captionSectionControls: some View {
         VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
             if hasIdleTranscript {
                 if model.showsSubtitles {
                     captionControls
                 }
-                transcriptionActions
             } else {
-                transcriptionStatus
+                StudioTranscriptionStatus(model: model)
             }
         }
     }
 
-    private var editByTextControls: some View {
+    private var transcriptSectionControls: some View {
         VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
-            if hasIdleTranscript {
-                transcriptEditControls
+            if model.hasCaptionRevisions {
+                InspectorHint("\(model.subtitleCues.count) captions · cleaned up")
             } else {
-                transcriptionStatus
-                InspectorHint("Transcribe the narration to cut the video by editing its text.")
+                InspectorHint("\(model.subtitleCues.count) captions")
             }
+
+            if !showsTranscriptPanel {
+                InspectorActionButton("Edit in Transcript", systemImage: "text.quote") {
+                    showsTranscriptPanel = true
+                }
+                .help("Edit the captions' text and cut the video by its words")
+            }
+
+            transcriptionActions
         }
     }
 
@@ -5702,86 +5863,21 @@ private struct StudioInspector: View {
                     isOn: $model.subtitleStyle.highlightsSpokenWord
                 )
             }
-
-            subtitleList
-                .help("Click a timestamp to jump there. Edit any line to fix the transcription.")
-        }
-    }
-
-    @ViewBuilder
-    private var transcriptEditControls: some View {
-        if model.hasTranscriptWords {
-            StudioTranscriptEditPanel(model: model)
-
-            if model.removableFillerWordCount > 0 || model.trimmableSilenceCount > 0 {
-                HStack(spacing: InspectorMetrics.rowSpacing) {
-                    if model.removableFillerWordCount > 0 {
-                        InspectorActionButton(
-                            "Fillers (\(model.removableFillerWordCount))",
-                            systemImage: "scissors"
-                        ) {
-                            model.removeFillerWords()
-                        }
-                        .help("Cut every filler word, like “um” and “uh”")
-                    }
-
-                    if model.trimmableSilenceCount > 0 {
-                        InspectorActionButton(
-                            "Silences (\(model.trimmableSilenceCount))",
-                            systemImage: "waveform.badge.minus"
-                        ) {
-                            model.trimNarrationSilences()
-                        }
-                        .help("Trim long pauses in the narration")
-                    }
-                }
-            }
-
-            InspectorHint("Click a word to jump there. Shift-click to select a passage, then cut it.")
-        } else {
-            InspectorHint("This transcription predates editing by text. Transcribe again to cut the video from its transcript.")
-        }
-    }
-
-    private var subtitleList: some View {
-        let shape = RoundedRectangle(cornerRadius: InspectorMetrics.listRadius, style: .continuous)
-        return ScrollViewReader { proxy in
-            ScrollView(.vertical) {
-                VStack(spacing: 0) {
-                    let cues = model.subtitleCues
-                    ForEach(Array(cues.enumerated()), id: \.element.id) { index, cue in
-                        StudioSubtitleRow(
-                            model: model,
-                            cue: cue,
-                            isActive: model.activeSubtitleCue?.id == cue.id
-                        )
-                        .id(cue.id)
-
-                        if index < cues.count - 1 {
-                            Divider()
-                                .padding(.leading, 10)
-                                .opacity(0.6)
-                        }
-                    }
-                }
-            }
-            .frame(maxHeight: 300)
-            .background(shape.fill(InspectorControlPalette.trackFill(for: colorScheme)))
-            .clipShape(shape)
-            .onChange(of: model.activeSubtitleCue?.id) { _, activeID in
-                // Follow playback through the list, but never yank the list
-                // around while the user is scrubbing or editing.
-                guard let activeID, model.isPlaying else { return }
-                withAnimation(.easeOut(duration: 0.2)) {
-                    proxy.scrollTo(activeID, anchor: .center)
-                }
-            }
         }
     }
 
     // MARK: Camera
 
+    @ViewBuilder
     private var cameraControls: some View {
+        Picker("Camera shape", selection: $model.style.camera.appearance.shape) {
+            Text("Circle").tag(RecordingCameraShape.circle)
+            Text("Square").tag(RecordingCameraShape.square)
+        }
+        .pickerStyle(.segmented)
+
+        InspectorToggleRow("Flip horizontally", isOn: $model.style.camera.isFlipped)
+
         InspectorFieldPair {
             InspectorSlider(
                 "Size",
@@ -5812,6 +5908,21 @@ private struct StudioInspector: View {
             // be given a soundtrack - so only the export half is withheld.
             if model.hasAudio {
                 InspectorSlider("Volume", value: $model.audioVolume, range: 0...2, format: .percent())
+                InspectorToggleRow("Normalize loudness", isOn: $model.normalizesAudioLoudness)
+                if model.normalizesAudioLoudness {
+                    InspectorHint("Target −16 LUFS, with sample peaks below −1 dBFS. Background music keeps its own volume.")
+                    if model.isAnalyzingAudioLoudness {
+                        HStack(spacing: InspectorMetrics.rowSpacing) {
+                            ProgressView().controlSize(.mini)
+                            Text("Analyzing loudness…")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    if let message = model.audioNormalizationError {
+                        InspectorHint(message, tint: .orange)
+                    }
+                }
             }
 
             HStack(spacing: InspectorMetrics.rowSpacing) {

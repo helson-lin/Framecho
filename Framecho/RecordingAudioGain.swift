@@ -9,8 +9,12 @@ nonisolated enum RecordingAudioGain {
         volume.isFinite ? min(2, max(0, volume)) : 1
     }
 
-    static func makeMix(tracks: [AVAssetTrack], volume: Double) -> AVAudioMix? {
-        let gain = Float(normalized(volume))
+    static func makeMix(
+        tracks: [AVAssetTrack],
+        volume: Double,
+        normalization: RecordingAudioNormalization.Measurement? = nil
+    ) -> AVAudioMix? {
+        let gain = Float(normalization?.gain(volume: volume) ?? normalized(volume))
         guard gain != 1, !tracks.isEmpty else { return nil }
         let mix = AVMutableAudioMix()
         mix.inputParameters = tracks.map { track in
@@ -18,7 +22,11 @@ nonisolated enum RecordingAudioGain {
             if gain <= 1 {
                 parameters.setVolume(gain, at: .zero)
             } else {
-                parameters.audioTapProcessor = makeTap(gain: gain)
+                // Normalization bounds the summed soundtrack's peak. Let
+                // float tracks sum before limiting, since opposite-phase
+                // tracks can individually exceed unity without clipping
+                // the finished mix.
+                parameters.audioTapProcessor = makeTap(gain: gain, clipsFloatSamples: normalization == nil)
             }
             return parameters
         }
@@ -27,12 +35,16 @@ nonisolated enum RecordingAudioGain {
 
     private final class State {
         let gain: Float
+        let clipsFloatSamples: Bool
         var format = AudioStreamBasicDescription()
-        init(gain: Float) { self.gain = gain }
+        init(gain: Float, clipsFloatSamples: Bool) {
+            self.gain = gain
+            self.clipsFloatSamples = clipsFloatSamples
+        }
     }
 
-    private static func makeTap(gain: Float) -> MTAudioProcessingTap? {
-        let storage = Unmanaged.passRetained(State(gain: gain)).toOpaque()
+    private static func makeTap(gain: Float, clipsFloatSamples: Bool) -> MTAudioProcessingTap? {
+        let storage = Unmanaged.passRetained(State(gain: gain, clipsFloatSamples: clipsFloatSamples)).toOpaque()
         var callbacks = MTAudioProcessingTapCallbacks(
             version: kMTAudioProcessingTapCallbacksVersion_0,
             clientInfo: storage,
@@ -56,10 +68,16 @@ nonisolated enum RecordingAudioGain {
                     if format.mFormatFlags & kAudioFormatFlagIsFloat != 0 {
                         if format.mBitsPerChannel == 32 {
                             let samples = data.assumingMemoryBound(to: Float.self)
-                            for i in 0..<(bytes / 4) { samples[i] = min(1, max(-1, samples[i] * state.gain)) }
+                            for i in 0..<(bytes / 4) {
+                                let amplified = samples[i] * state.gain
+                                samples[i] = state.clipsFloatSamples ? min(1, max(-1, amplified)) : amplified
+                            }
                         } else if format.mBitsPerChannel == 64 {
                             let samples = data.assumingMemoryBound(to: Double.self)
-                            for i in 0..<(bytes / 8) { samples[i] = min(1, max(-1, samples[i] * Double(state.gain))) }
+                            for i in 0..<(bytes / 8) {
+                                let amplified = samples[i] * Double(state.gain)
+                                samples[i] = state.clipsFloatSamples ? min(1, max(-1, amplified)) : amplified
+                            }
                         }
                     } else if format.mFormatFlags & kAudioFormatFlagIsSignedInteger != 0 {
                         if format.mBitsPerChannel == 16 {

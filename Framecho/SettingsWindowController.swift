@@ -25,7 +25,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
     private init() {
         let window = NSWindow(
-            contentRect: NSRect(origin: .zero, size: CGSize(width: 760, height: 580)),
+            contentRect: NSRect(origin: .zero, size: WindowFrameDefaults.settingsSize),
             styleMask: [
                 .titled,
                 .closable,
@@ -62,12 +62,13 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         // makes the whole content area move the window, which both feels off and
         // swallows in-content drag gestures (e.g. the overlay card editor).
         window.isMovableByWindowBackground = false
-        window.setFrameAutosaveName("SettingsWindow")
-        window.minSize = NSSize(width: 680, height: 540)
-        window.center()
         window.delegate = self
 
         let hostingController = NSHostingController(rootView: SettingsView())
+        // The window keeps the size it is given below rather than taking
+        // the SwiftUI content's ideal size, which overrode the default
+        // width; the minimum still comes from minSize.
+        hostingController.sizingOptions = []
         window.contentViewController = hostingController
         // An empty unified toolbar gives the title bar the Library window's
         // height, so the traffic lights sit inside the inset sidebar panel
@@ -75,6 +76,19 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         if window.toolbar == nil {
             window.toolbar = NSToolbar(identifier: "SettingsWindowToolbar")
         }
+
+        // Size after the content and toolbar are in place - setting a
+        // content view controller resizes the window to its view - then
+        // let a saved frame, if any, take over.
+        window.minSize = WindowFrameDefaults.settingsMinimum
+        window.setContentSize(WindowFrameDefaults.settingsSize)
+        window.setFrameAutosaveName("SettingsWindow")
+        WindowFrameDefaults.adoptDefaultIfTooSmall(
+            window,
+            minimum: WindowFrameDefaults.settingsMinimum,
+            defaultSize: WindowFrameDefaults.settingsSize
+        )
+        window.center()
         PreviewWindowCaptureExclusion.shared.register(window: window)
     }
 

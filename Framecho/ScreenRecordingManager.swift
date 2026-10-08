@@ -112,6 +112,7 @@ final class ScreenRecordingManager {
     var state: ScreenRecordingState = .idle
     var elapsedTime: TimeInterval = 0
     var errorMessage: String?
+    private(set) var recordingDimensions: RecordingPixelDimensions?
     var onFinishRecording: ((RecordingSession, CGDirectDisplayID?) -> Void)?
 
     private let capture = ScreenRecordingCapture()
@@ -188,6 +189,10 @@ final class ScreenRecordingManager {
                 let content = try await ScreenRecordingCapture.availableContent()
                 guard isStarting(session: session) else { return }
                 let target = try Self.captureTarget(for: source, content: content, options: options)
+                recordingDimensions = RecordingPixelDimensions(
+                    sourceSize: CGSize(width: target.width, height: target.height),
+                    pointPixelScale: 1
+                )
 
                 try writer.setupWriter(
                     outputURL: session.screenURL,
@@ -265,6 +270,8 @@ final class ScreenRecordingManager {
                 manifest.includesMicrophone = options.microphoneDeviceID != nil
                 if !cameraStarted {
                     manifest.cameraLeadIn = nil
+                } else {
+                    manifest.cameraAppearance = CameraRecordingManager.shared.appearance
                 }
 
                 startedAt = Date()
@@ -387,6 +394,7 @@ final class ScreenRecordingManager {
                 manifest.cameraLeadIn = cameraResult.firstFrameUptime - sessionStart
                 manifest.cameraWidth = cameraResult.pixelWidth
                 manifest.cameraHeight = cameraResult.pixelHeight
+                manifest.cameraAppearance = CameraRecordingManager.shared.appearance
             }
             if let sessionStart = result.sessionStartUptime {
                 var capture = pointerActivityRecorder.finish(sessionStartUptime: sessionStart, duration: result.duration)
@@ -657,6 +665,7 @@ final class ScreenRecordingManager {
         session = nil
         displayID = nil
         currentSource = nil
+        recordingDimensions = nil
         startedAt = nil
         pausedAt = nil
         accumulatedPauseDuration = 0
@@ -725,8 +734,9 @@ final class ScreenRecordingManager {
         }
 
         let scaleFactor = max(1, CGFloat(filter.pointPixelScale))
-        let width = max(2, Int((sourceSize.width * scaleFactor).rounded(.toNearestOrAwayFromZero)))
-        let height = max(2, Int((sourceSize.height * scaleFactor).rounded(.toNearestOrAwayFromZero)))
+        let dimensions = RecordingPixelDimensions(sourceSize: sourceSize, pointPixelScale: scaleFactor)
+        let width = dimensions.width
+        let height = dimensions.height
         let configuration = ScreenRecordingCapture.buildConfiguration(
             width: width,
             height: height,
@@ -748,6 +758,17 @@ final class ScreenRecordingManager {
             tracksDynamicGeometry: tracksDynamicGeometry,
             inputMapping: inputMapping
         )
+    }
+
+    /// Uses the same mapped region and scale as capture setup.
+    static func areaDimensions(display: SCDisplay, rect: CGRect) -> RecordingPixelDimensions {
+        let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
+        let mappedRect = sourceRect(
+            forAppKitSelectionRect: rect,
+            screenFrame: ActiveDisplayResolver.screen(for: display.displayID)?.frame,
+            contentRect: filter.contentRect
+        )
+        return RecordingPixelDimensions(sourceSize: mappedRect.size, pointPixelScale: CGFloat(filter.pointPixelScale))
     }
 
     /// AppKit's global space has its origin at the main display's bottom-left

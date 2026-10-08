@@ -1,6 +1,1316 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Record Video" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录制视频"
+          }
+        }
+      }
+    },
+    "Choose recording source" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择录制来源"
+          }
+        }
+      }
+    },
+    "Choose a screen or window before recording" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录制前选择屏幕或窗口"
+          }
+        }
+      }
+    },
+    "Use full screen" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用整个屏幕"
+          }
+        }
+      }
+    },
+    "Recording width" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录制宽度"
+          }
+        }
+      }
+    },
+    "Recording height" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录制高度"
+          }
+        }
+      }
+    },
+    "Start recording the selected source (Return)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始录制所选范围（Return）"
+          }
+        }
+      }
+    },
+    "Recording countdown off" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录屏倒计时关闭"
+          }
+        }
+      }
+    },
+    "Recording countdown: %llds" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录屏倒计时：%lld 秒"
+          }
+        }
+      }
+    },
+    "Recording resolution" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录制分辨率"
+          }
+        }
+      }
+    },
+    "Recording resolution: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录制分辨率：%@"
+          }
+        }
+      }
+    },
+    "Camera shape" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "摄像头形状"
+          }
+        }
+      }
+    },
+    "Square" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "方形"
+          }
+        }
+      }
+    },
+    "Flip horizontally" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "水平翻转"
+          }
+        }
+      }
+    },
+    "Merge Captions" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合并字幕"
+          }
+        }
+      }
+    },
+    "Captions track" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕轨道"
+          }
+        }
+      }
+    },
+    "Delete Caption" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除字幕"
+          }
+        }
+      }
+    },
+    "Move Caption" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移动字幕"
+          }
+        }
+      }
+    },
+    "Change Caption Timing" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "调整字幕时长"
+          }
+        }
+      }
+    },
+    "Normalize loudness" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "响度归一化"
+          }
+        }
+      }
+    },
+    "Target −16 LUFS, with sample peaks below −1 dBFS. Background music keeps its own volume." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目标响度 −16 LUFS，采样峰值控制在 −1 dBFS 以下。背景音乐使用独立音量。"
+          }
+        }
+      }
+    },
+    "Analyzing loudness…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在分析响度…"
+          }
+        }
+      }
+    },
+    "The audio could not be analyzed for loudness normalization." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法分析音频响度，请重试。"
+          }
+        }
+      }
+    },
+    "Loop to fill the video" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "循环铺满整段视频"
+          }
+        }
+      }
+    },
+    "%@ track, plays %lld times with crossfades" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲长 %1$@，交叉淡化循环 %2$lld 次"
+          }
+        }
+      }
+    },
+    "%@ track, ends before the video does" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲长 %@，会在视频结束前停止"
+          }
+        }
+      }
+    },
+    "Music" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音乐"
+          }
+        }
+      }
+    },
+    "Downloading %@…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在下载 %@…"
+          }
+        }
+      }
+    },
+    "Music: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音乐：%@"
+          }
+        }
+      }
+    },
+    "The music couldn't be added: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加入音乐：%@"
+          }
+        }
+      }
+    },
+    "Calm" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平静"
+          }
+        }
+      }
+    },
+    "Cinematic" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电影感"
+          }
+        }
+      }
+    },
+    "Upbeat" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻快"
+          }
+        }
+      }
+    },
+    "Jazz" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "爵士"
+          }
+        }
+      }
+    },
+    "The track couldn't be downloaded (HTTP %lld)." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲目下载失败（HTTP %lld）。"
+          }
+        }
+      }
+    },
+    "Choose Music" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择音乐"
+          }
+        }
+      }
+    },
+    "Remove Music" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除音乐"
+          }
+        }
+      }
+    },
+    "This track is no longer in the music library." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲库中已没有这首曲目。"
+          }
+        }
+      }
+    },
+    "The music file couldn't be read." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取音乐文件。"
+          }
+        }
+      }
+    },
+    "Background Music" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背景音乐"
+          }
+        }
+      }
+    },
+    "Music Level" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音乐音量"
+          }
+        }
+      }
+    },
+    "Lower under narration" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "说话时压低音乐"
+          }
+        }
+      }
+    },
+    "Transcribe the narration to lower the music while you speak." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "转写旁白后，说话时会自动压低音乐。"
+          }
+        }
+      }
+    },
+    "Choose Music…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择音乐…"
+          }
+        }
+      }
+    },
+    "Lay a track from the music library under the video" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从音乐库选一首曲子作为视频的背景音乐"
+          }
+        }
+      }
+    },
+    "Downloading…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在下载…"
+          }
+        }
+      }
+    },
+    "Change…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更换…"
+          }
+        }
+      }
+    },
+    "Remove the music" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除音乐"
+          }
+        }
+      }
+    },
+    "Music Library" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音乐库"
+          }
+        }
+      }
+    },
+    "Mood" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "风格"
+          }
+        }
+      }
+    },
+    "All" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部"
+          }
+        }
+      }
+    },
+    "Stop Preview" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止试听"
+          }
+        }
+      }
+    },
+    "Preview" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "试听"
+          }
+        }
+      }
+    },
+    "In Use" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用中"
+          }
+        }
+      }
+    },
+    "This project uses this track" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前项目正在使用这首曲目"
+          }
+        }
+      }
+    },
+    "Use" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用"
+          }
+        }
+      }
+    },
+    "Downloads on first use" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "首次使用时下载"
+          }
+        }
+      }
+    },
+    "Check each track's license before you publish." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发布视频前，请确认每首曲目的授权。"
+          }
+        }
+      }
+    },
+    "Part of the card reaches past the canvas and will be cropped. Scale the base pose and every motion to fit." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片有部分超出画布，导出时会被裁切。缩放基础姿态和所有运镜即可适配。"
+          }
+        }
+      }
+    },
+    "Add a zoom at the playhead" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在播放头处添加缩放"
+          }
+        }
+      }
+    },
+    "Turn zooms on to add one" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先打开缩放才能添加"
+          }
+        }
+      }
+    },
+    "Add a 3D motion block at the playhead" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在播放头处添加 3D 动效"
+          }
+        }
+      }
+    },
+    "Transcript" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文稿"
+          }
+        }
+      }
+    },
+    "Cut" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剪辑"
+          }
+        }
+      }
+    },
+    "Search Transcript" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索文稿"
+          }
+        }
+      }
+    },
+    "Search" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索"
+          }
+        }
+      }
+    },
+    "Hide Transcript" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐藏文稿"
+          }
+        }
+      }
+    },
+    "Show Transcript (⌥⌘T)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示文稿（⌥⌘T）"
+          }
+        }
+      }
+    },
+    "Hide Transcript (⌥⌘T)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐藏文稿（⌥⌘T）"
+          }
+        }
+      }
+    },
+    "Clean up the captions with AI, then review every change" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用 AI 整理字幕，每处修改确认后再应用"
+          }
+        }
+      }
+    },
+    "Transcribe the narration to edit its captions and cut the video by its words." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "转写旁白后，即可编辑字幕文字，并按文字剪辑视频。"
+          }
+        }
+      }
+    },
+    "No captions match “%@”." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有包含“%@”的字幕。"
+          }
+        }
+      }
+    },
+    "%lld captions" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 条字幕"
+          }
+        }
+      }
+    },
+    "%lld captions · cleaned up" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 条字幕 · 已整理"
+          }
+        }
+      }
+    },
+    "Edit in Transcript" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在文稿中编辑"
+          }
+        }
+      }
+    },
+    "Edit the captions' text and cut the video by its words" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑字幕文字，并按文字剪辑视频"
+          }
+        }
+      }
+    },
+    "The AI replied in a format Framecho couldn't read: “%@”" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 返回的内容格式无法识别：“%@”"
+          }
+        }
+      }
+    },
+    "The AI ran out of room before answering. Try a model without deep thinking, or a faster variant." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 在给出答案前就用完了输出长度。请换用不带深度思考的模型，或更快的版本。"
+          }
+        }
+      }
+    },
+    "The AI returned an empty reply." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 返回了空内容。"
+          }
+        }
+      }
+    },
+    "Correct Captions" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "校对字幕"
+          }
+        }
+      }
+    },
+    "Proofread…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "校对字幕…"
+          }
+        }
+      }
+    },
+    "Fix misheard words, names and punctuation, and review each fix before it reaches the captions" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "修正听错的字词、名称和标点，每处修改确认后才会写入字幕"
+          }
+        }
+      }
+    },
+    "Proofreading… %lld/%lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在校对… %1$lld/%2$lld"
+          }
+        }
+      }
+    },
+    "No misheard words found in the captions." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕中没有发现听错的字词。"
+          }
+        }
+      }
+    },
+    "%lld fixes suggested" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "建议修改 %lld 处"
+          }
+        }
+      }
+    },
+    "Skip All" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部跳过"
+          }
+        }
+      }
+    },
+    "Accept All" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部接受"
+          }
+        }
+      }
+    },
+    "Click a fix to skip it. Fixes change the captions only, and Restore Original undoes them." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按某处修改即可跳过。修改只影响字幕，可用“恢复原文”撤回。"
+          }
+        }
+      }
+    },
+    "Click to keep the original" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按保留原文"
+          }
+        }
+      }
+    },
+    "Click to use the fix" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按采用修改"
+          }
+        }
+      }
+    },
+    "%@ to %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 改为 %2$@"
+          }
+        }
+      }
+    },
+    "Will be fixed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将被修改"
+          }
+        }
+      }
+    },
+    "Skipped" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已跳过"
+          }
+        }
+      }
+    },
+    "Apple Intelligence (On This Mac)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Intelligence（本机）"
+          }
+        }
+      }
+    },
+    "OpenAI-Compatible API" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenAI 兼容 API"
+          }
+        }
+      }
+    },
+    "Set up an AI provider in Settings › AI to find fillers in context." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在“设置 › AI”中配置 AI 服务后，即可根据上下文识别口头禅。"
+          }
+        }
+      }
+    },
+    "The AI request failed: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 请求失败：%@"
+          }
+        }
+      }
+    },
+    "The AI replied in a format Framecho couldn't read." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 返回的内容格式无法识别。"
+          }
+        }
+      }
+    },
+    "This Mac doesn't support Apple Intelligence." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这台 Mac 不支持 Apple Intelligence。"
+          }
+        }
+      }
+    },
+    "Turn on Apple Intelligence in System Settings to use it here." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先在系统设置中开启 Apple Intelligence。"
+          }
+        }
+      }
+    },
+    "Apple Intelligence is still downloading its model. Try again later." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Intelligence 模型仍在下载，请稍后再试。"
+          }
+        }
+      }
+    },
+    "Apple Intelligence isn't available on this Mac." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这台 Mac 上无法使用 Apple Intelligence。"
+          }
+        }
+      }
+    },
+    "Remove Fillers from Captions" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从字幕中去除口头禅"
+          }
+        }
+      }
+    },
+    "Restore Original Captions" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复原始字幕"
+          }
+        }
+      }
+    },
+    "Remove Fillers…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "去除口头禅…"
+          }
+        }
+      }
+    },
+    "Find fillers like “嗯”, “那个” or “um” and review them before they leave the captions. The video isn't cut." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找出“嗯”“那个”“um”等口头禅，确认后再从字幕中去除。视频不会被剪辑。"
+          }
+        }
+      }
+    },
+    "Restore Original" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复原文"
+          }
+        }
+      }
+    },
+    "Show every word as it was transcribed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按转写原样显示所有字词"
+          }
+        }
+      }
+    },
+    "Finding fillers… %lld/%lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在查找口头禅… %1$lld/%2$lld"
+          }
+        }
+      }
+    },
+    "AI Settings…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 设置…"
+          }
+        }
+      }
+    },
+    "No fillers found in the captions." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕中没有发现口头禅。"
+          }
+        }
+      }
+    },
+    "%lld fillers found" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发现 %lld 个口头禅"
+          }
+        }
+      }
+    },
+    "Apply (%lld)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用（%lld）"
+          }
+        }
+      }
+    },
+    "Click a word to keep it. Fillers leave the captions only; the video isn't cut." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按字词即可保留。口头禅只会从字幕中去除，视频不会被剪辑。"
+          }
+        }
+      }
+    },
+    "Will be removed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将被去除"
+          }
+        }
+      }
+    },
+    "Kept" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留"
+          }
+        }
+      }
+    },
+    "Hesitation sound" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语气声"
+          }
+        }
+      }
+    },
+    "Filler in context (AI)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语境中的口头禅（AI）"
+          }
+        }
+      }
+    },
+    "%@ - click to keep" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ - 点按保留"
+          }
+        }
+      }
+    },
+    "%@ - click to remove" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ - 点按去除"
+          }
+        }
+      }
+    },
+    "AI" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI"
+          }
+        }
+      }
+    },
+    "Provider" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务"
+          }
+        }
+      }
+    },
+    "Caption Cleanup" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕整理"
+          }
+        }
+      }
+    },
+    "Finds fillers like “嗯”, “那个” or “um” in Studio captions. Only the transcript text is sent; audio and video stay on this Mac." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 Studio 字幕中找出“嗯”“那个”“um”等口头禅。只会发送转写文字，音频和视频始终留在这台 Mac 上。"
+          }
+        }
+      }
+    },
+    "Test Connection" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "测试连接"
+          }
+        }
+      }
+    },
+    "Model" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模型"
+          }
+        }
+      }
+    },
+    "Hide key" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐藏密钥"
+          }
+        }
+      }
+    },
+    "Reveal key" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示密钥"
+          }
+        }
+      }
+    },
+    "Endpoint" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接口"
+          }
+        }
+      }
+    },
+    "Presets" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预设"
+          }
+        }
+      }
+    },
+    "Works with any OpenAI-compatible chat API, such as OpenAI, DeepSeek, Qwen, Kimi or a local Ollama. The key is stored in your Keychain." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支持任意 OpenAI 兼容的对话 API，例如 OpenAI、DeepSeek、通义千问、Kimi 或本地 Ollama。密钥保存在钥匙串中。"
+          }
+        }
+      }
+    },
     "" : {
 
     },
@@ -503,6 +1813,16 @@
         }
       }
     },
+    "Drag to measure a distance, or click to measure the block or gap under the pointer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖移以测量距离，或点按以测量指针下的区块或间距"
+          }
+        }
+      }
+    },
     "Drag to move the card. Double-click to center it." : {
       "localizations" : {
         "zh-Hans" : {
@@ -753,6 +2073,16 @@
         }
       }
     },
+    "Measure" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "测量"
+          }
+        }
+      }
+    },
     "Microphone" : {
       "localizations" : {
         "zh-Hans" : {
@@ -959,6 +2289,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "置顶"
+          }
+        }
+      }
+    },
+    "Pixels" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "像素"
+          }
+        }
+      }
+    },
+    "Points" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点"
+          }
+        }
+      }
+    },
+    "Points divide pixels by the screenshot's pixel density, 2 on a Retina display" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点数等于像素数除以截图的像素密度，在 Retina 显示屏上为 2"
           }
         }
       }
@@ -1329,6 +2689,16 @@
         }
       }
     },
+    "Show size" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示尺寸"
+          }
+        }
+      }
+    },
     "Show Subtitles" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1615,6 +2985,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "撤销"
+          }
+        }
+      }
+    },
+    "Units" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "单位"
           }
         }
       }

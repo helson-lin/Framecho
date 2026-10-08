@@ -5,7 +5,7 @@
 //  Captures the webcam alongside a screen recording. The camera is written
 //  to its own camera.mov inside the recording session (never burned into
 //  the screen video) so the studio editor can restyle, reposition, or drop
-//  the bubble in post. A floating circular preview shows the user what the
+//  the bubble in post. A floating preview shows the user what the
 //  camera sees while recording; the preview panel is excluded from capture.
 //
 //  Sync: AVCaptureSession stamps buffers with the same host clock
@@ -17,6 +17,7 @@ import AppKit
 import AVFoundation
 @preconcurrency import CoreMedia
 import Observation
+import SwiftUI
 
 nonisolated struct CameraRecordingResult: Sendable {
     /// Host-clock seconds of the first written camera frame.
@@ -54,6 +55,7 @@ nonisolated enum RecordingDeviceCatalog {
 }
 
 @MainActor
+@Observable
 final class CameraRecordingManager {
     static let shared = CameraRecordingManager()
 
@@ -65,6 +67,7 @@ final class CameraRecordingManager {
     /// opposed to just warming the sensor for the floating preview.
     private(set) var isWriting = false
     private var activeDeviceID: String?
+    private(set) var appearance = RecordingCameraAppearance()
 
     private init() {}
 
@@ -89,6 +92,17 @@ final class CameraRecordingManager {
 
         let authorized = await AVCaptureDevice.requestAccess(for: .video)
         guard authorized else { return false }
+
+        appearance = RecordingStudioStylePresetStore.shared.activePreset?.value.camera.appearance
+            ?? RecordingCameraAppearance()
+        let defaults = UserDefaults.standard
+        if let roundness = defaults.object(forKey: FramechoPreferences.recordingCameraRoundnessKey) as? Double,
+           roundness.isFinite {
+            appearance.roundness = min(max(roundness, 0.05), 0.5)
+        }
+        if let isFlipped = defaults.object(forKey: FramechoPreferences.recordingCameraIsFlippedKey) as? Bool {
+            appearance.isFlipped = isFlipped
+        }
 
         do {
             try await engine.startSession(device: device)
@@ -173,6 +187,16 @@ final class CameraRecordingManager {
         await engine.cancel()
     }
 
+    func setShape(_ shape: RecordingCameraShape) {
+        appearance.shape = shape
+        UserDefaults.standard.set(appearance.roundness, forKey: FramechoPreferences.recordingCameraRoundnessKey)
+    }
+
+    func flipHorizontally() {
+        appearance.isFlipped.toggle()
+        UserDefaults.standard.set(appearance.isFlipped, forKey: FramechoPreferences.recordingCameraIsFlippedKey)
+    }
+
     private func showPreview(displayID: CGDirectDisplayID?) {
         // Already showing in the right place: the session (and its exposure)
         // is untouched, so recreating the panel here would only cost a
@@ -183,6 +207,7 @@ final class CameraRecordingManager {
         hidePreview()
 
         let diameter: CGFloat = 160
+        let panelSize = CGSize(width: diameter, height: diameter + 44)
         let screen = ActiveDisplayResolver.screen(for: displayID) ?? NSScreen.main
         let visibleFrame = screen?.visibleFrame ?? CGRect(x: 0, y: 0, width: 800, height: 600)
         let origin = CGPoint(
@@ -191,7 +216,7 @@ final class CameraRecordingManager {
         )
 
         let panel = NSPanel(
-            contentRect: CGRect(origin: origin, size: CGSize(width: diameter, height: diameter)),
+            contentRect: CGRect(origin: origin, size: panelSize),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -207,21 +232,15 @@ final class CameraRecordingManager {
         panel.isMovableByWindowBackground = true
         PreviewWindowCaptureExclusion.shared.register(window: panel)
 
-        let container = NSView(frame: CGRect(origin: .zero, size: CGSize(width: diameter, height: diameter)))
-        container.wantsLayer = true
-        container.layer?.cornerRadius = diameter / 2
-        container.layer?.masksToBounds = true
-        container.layer?.backgroundColor = NSColor.black.cgColor
-        container.layer?.borderColor = NSColor.white.withAlphaComponent(0.35).cgColor
-        container.layer?.borderWidth = 1
-
         let previewLayer = engine.makePreviewLayer()
-        previewLayer.frame = container.bounds
-        previewLayer.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
         previewLayer.videoGravity = .resizeAspectFill
-        container.layer?.addSublayer(previewLayer)
-
-        panel.contentView = container
+        let content = NSHostingView(rootView: CameraFloatingPreview(
+            manager: self,
+            previewLayer: previewLayer,
+            diameter: diameter
+        ))
+        content.frame = CGRect(origin: .zero, size: panelSize)
+        panel.contentView = content
         panel.orderFrontRegardless()
         previewPanel = panel
         activePreviewDisplayID = displayID
@@ -231,6 +250,122 @@ final class CameraRecordingManager {
         previewPanel?.orderOut(nil)
         previewPanel = nil
         activePreviewDisplayID = nil
+    }
+}
+
+private struct CameraFloatingPreview: View {
+    let manager: CameraRecordingManager
+    let previewLayer: AVCaptureVideoPreviewLayer
+    let diameter: CGFloat
+    @State private var isHovered = false
+
+    var body: some View {
+        let cornerRadius = diameter * CGFloat(manager.appearance.roundness)
+        VStack(spacing: 8) {
+            HStack(spacing: 4) {
+                appearanceButton("Circle", symbol: "circle", isSelected: manager.appearance.shape == .circle) {
+                    manager.setShape(.circle)
+                }
+                appearanceButton("Square", symbol: "square", isSelected: manager.appearance.shape == .square) {
+                    manager.setShape(.square)
+                }
+                Divider().frame(height: 18)
+                appearanceButton("Flip horizontally", symbol: "arrow.left.and.right.righttriangle.left.righttriangle.right",
+                                 isSelected: manager.appearance.isFlipped) {
+                    manager.flipHorizontally()
+                }
+            }
+            .padding(4)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+            // Keep the toolbar's space so moving into its buttons never shifts the preview.
+            .opacity(isHovered ? 1 : 0)
+            .allowsHitTesting(isHovered)
+            .accessibilityHidden(!isHovered)
+
+            CameraCapturePreviewView(previewLayer: previewLayer, appearance: manager.appearance)
+                .frame(width: diameter, height: diameter)
+                .overlay {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(.white.opacity(0.35), lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
+                .help("Drag to place the camera")
+        }
+        .background(alignment: .bottom) {
+            // Track the preview and toolbar together, including in a non-key floating panel.
+            BarControlHover(isEnabled: true, claimsPointer: false) { isHovered = $0 }
+                .frame(height: isHovered ? diameter + 44 : diameter)
+        }
+        .environment(\.colorScheme, .dark)
+    }
+
+    private func appearanceButton(
+        _ title: LocalizedStringKey,
+        symbol: String,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 14, weight: .medium))
+                .frame(width: 28, height: 28)
+                .background(isSelected ? Color.white.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+        .help(Text(title))
+        .accessibilityLabel(Text(title))
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+    }
+}
+
+private struct CameraCapturePreviewView: NSViewRepresentable {
+    let previewLayer: AVCaptureVideoPreviewLayer
+    let appearance: RecordingCameraAppearance
+
+    func makeNSView(context: Context) -> CameraCapturePreviewNSView {
+        CameraCapturePreviewNSView(previewLayer: previewLayer, appearance: appearance)
+    }
+
+    func updateNSView(_ nsView: CameraCapturePreviewNSView, context: Context) {
+        nsView.bubbleAppearance = appearance
+        nsView.needsLayout = true
+    }
+}
+
+private final class CameraCapturePreviewNSView: NSView {
+    private let previewLayer: AVCaptureVideoPreviewLayer
+    var bubbleAppearance: RecordingCameraAppearance
+
+    init(previewLayer: AVCaptureVideoPreviewLayer, appearance: RecordingCameraAppearance) {
+        self.previewLayer = previewLayer
+        self.bubbleAppearance = appearance
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.black.cgColor
+        layer?.masksToBounds = true
+        layer?.addSublayer(previewLayer)
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    override var mouseDownCanMoveWindow: Bool { false }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        // SwiftUI hosting can swallow background window drags; route the preview's gesture explicitly.
+        window?.performDrag(with: event)
+    }
+
+    override func layout() {
+        super.layout()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        previewLayer.frame = bounds
+        previewLayer.transform = CATransform3DMakeScale(bubbleAppearance.isFlipped ? -1 : 1, 1, 1)
+        layer?.cornerCurve = bubbleAppearance.shape == .circle ? .circular : .continuous
+        layer?.cornerRadius = bounds.width * CGFloat(bubbleAppearance.roundness)
+        CATransaction.commit()
     }
 }
 

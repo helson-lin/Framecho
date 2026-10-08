@@ -20,6 +20,14 @@ enum BarMetrics {
     static let cornerRadius: CGFloat = 16
     static let itemSpacing: CGFloat = 2
     static let horizontalPadding: CGFloat = 6
+    static let pickerCellWidth: CGFloat = 56
+    static let pickerRowHeight: CGFloat = 44
+    static let pickerHeaderHeight: CGFloat = 48
+    static let pickerActionHeight: CGFloat = 40
+    static let pickerCornerRadius: CGFloat = 12
+    static let pickerSectionGap: CGFloat = 8
+    static let pickerWidth = pickerCellWidth * 5
+    static let pickerHeight = pickerHeaderHeight + pickerRowHeight + 1 + pickerSectionGap + pickerActionHeight
 
     /// Transparent slack around the bar so the shadow Liquid Glass casts
     /// isn't clipped by the panel edge. The panel is positioned lower by
@@ -39,7 +47,7 @@ enum BarMetrics {
     /// rounded rect animates. Wide enough for the widest mode plus the room a
     /// tooltip needs beyond the end controls.
     static let panelWidth: CGFloat = 760
-    static var panelHeight: CGFloat { BarTooltip.reservedHeight + height + bottomSlack }
+    static var panelHeight: CGFloat { BarTooltip.reservedHeight + pickerHeight + bottomSlack }
 
     /// The bar's surface is Liquid Glass, which brings its own fill and
     /// shadow. These are the marks drawn on top of it.
@@ -64,13 +72,13 @@ enum BarMetrics {
     /// The microphone's live level, filling its glyph - green as in the
     /// system's own input meters.
     static let levelTint = Color(nsColor: .systemGreen)
-    /// An input that's selected but not working. Never the only cue: the
-    /// glyph changes with it.
+    /// An input that's selected but not working. Never the only cue: its
+    /// check badge becomes a warning.
     static let warningTint = Color(nsColor: .systemOrange)
 
     /// The puck that appears behind an icon on hover. Faint enough to read as
     /// the pointer resting on a target rather than as a second control state -
-    /// the toggles already use tint for on/off.
+    /// the toggles already have a check badge for their enabled state.
     static let hoverFill = Color(nsColor: .labelColor).opacity(0.11)
     static let hoverDiameter: CGFloat = 32
 
@@ -104,6 +112,8 @@ enum BarTooltip {
 /// label changing - Pause becomes Resume without becoming a different
 /// control.
 enum BarTooltipID: String {
+    case source
+    case record
     case display
     case window
     case area
@@ -206,6 +216,15 @@ struct BarTooltipPill: View {
 
 // MARK: - Controls
 
+nonisolated enum RecordingBarControlLayout: Sendable {
+    case inline
+    case grid
+}
+
+extension EnvironmentValues {
+    @Entry var recordingBarControlLayout = RecordingBarControlLayout.inline
+}
+
 /// The bar's only control shape: an icon sized for a comfortable pointer
 /// target rather than for the glyph. Used bare as a `Menu` label and wrapped
 /// by `BarActionButton` everywhere else.
@@ -219,6 +238,11 @@ struct BarActionLabel: View {
     let title: String
     let systemImage: String
     var tint: Color = BarMetrics.activeTint
+    /// A consistent check badge for enabled options; source/actions have no
+    /// state. A selected but broken input gets a warning instead.
+    var isOn: Bool?
+    var isWarning = false
+    var subtitle: String?
     /// 0...1 to fill the glyph from the bottom with a live input level - the
     /// microphone's meter. Nil for every control that isn't metering.
     var level: Double?
@@ -227,12 +251,85 @@ struct BarActionLabel: View {
     var isInteractive = true
 
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.recordingBarControlLayout) private var layout
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(BarTooltipModel.self) private var tooltip: BarTooltipModel?
     @State private var isHovering = false
     @State private var frame: CGRect = .zero
 
     var body: some View {
+        VStack(spacing: layout == .grid ? 3 : 2) {
+            meteredGlyph
+            if let subtitle {
+                Text(subtitle)
+                    .font(.system(size: 9, weight: .medium))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .frame(width: controlWidth - 2)
+            } else if layout == .grid, isOn != nil {
+                Image(systemName: isWarning ? "exclamationmark" : "checkmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(isWarning ? BarMetrics.warningTint : tint)
+                    .frame(height: 10)
+                    .opacity(isOn == true ? 1 : 0)
+                    .accessibilityHidden(true)
+            }
+        }
+            .foregroundStyle(tint.opacity(isEnabled ? 1 : 0.3))
+            .frame(width: controlWidth, height: layout == .grid ? BarMetrics.pickerRowHeight : BarMetrics.controlSize)
+            .overlay(alignment: .topTrailing) {
+                if layout == .inline, isOn == true {
+                    Image(systemName: isWarning ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(isWarning ? BarMetrics.warningTint : BarMetrics.activeTint,
+                                         Color(nsColor: .windowBackgroundColor))
+                        .font(.system(size: 10, weight: .semibold))
+                        .padding(.top, 2)
+                        .padding(.trailing, 2)
+                        .accessibilityHidden(true)
+                }
+            }
+            // As a background so the puck never takes part in layout - it's
+            // wider than the icon and would otherwise spread the bar.
+            .background {
+                if layout == .grid {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(BarMetrics.hoverFill)
+                        .padding(4)
+                        .opacity(isHovering && isInteractive ? 1 : 0)
+                } else {
+                    Circle()
+                    .fill(BarMetrics.hoverFill)
+                    .frame(
+                        width: BarMetrics.hoverDiameter,
+                        height: BarMetrics.hoverDiameter
+                    )
+                    .opacity(isHovering && isInteractive ? 1 : 0)
+                }
+            }
+            .animation(.easeOut(duration: 0.12), value: isHovering)
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .pointerStyle(isEnabled && isInteractive ? .link : nil)
+            .help(title)
+            .onGeometryChange(for: CGRect.self) {
+                $0.frame(in: .named(BarCoordinateSpace.bar))
+            } action: {
+                frame = $0
+            }
+            .background {
+                BarControlHover(isEnabled: isEnabled, claimsPointer: isInteractive, onChange: setHovering)
+            }
+            .onChange(of: title) { _, title in
+                guard isHovering else { return }
+                tooltip?.hover(id: id, text: title, frame: frame)
+            }
+            .onDisappear {
+                tooltip?.endHover(id: id)
+            }
+    }
+
+    private var meteredGlyph: some View {
         glyph
             .overlay {
                 if let level {
@@ -248,54 +345,15 @@ struct BarActionLabel: View {
                         .animation(reduceMotion ? nil : .linear(duration: 0.08), value: level)
                 }
             }
-            .foregroundStyle(tint.opacity(isEnabled ? 1 : 0.3))
-            .frame(width: BarMetrics.controlSize, height: BarMetrics.controlSize)
-            // As a background so the puck never takes part in layout - it's
-            // wider than the icon and would otherwise spread the bar.
-            .background {
-                Circle()
-                    .fill(BarMetrics.hoverFill)
-                    .frame(
-                        width: BarMetrics.hoverDiameter,
-                        height: BarMetrics.hoverDiameter
-                    )
-                    .opacity(isHovering && isInteractive ? 1 : 0)
-            }
-            .animation(.easeOut(duration: 0.12), value: isHovering)
-            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            // One of two cursor paths, for the two states the bar lives in.
-            // While Framecho is the active app the system's pointer-style
-            // engine owns the cursor and enforces the declared style against
-            // any NSCursor.set - so the style has to be declared. It resolves
-            // against the key window, which is why the presenter makes the
-            // panel key when showing it. While Framecho is inactive the
-            // engine doesn't consult it at all and BarControlHover's NSCursor
-            // path takes over.
-            .pointerStyle(isEnabled && isInteractive ? .link : nil)
-            .onGeometryChange(for: CGRect.self) {
-                $0.frame(in: .named(BarCoordinateSpace.bar))
-            } action: {
-                frame = $0
-            }
-            .background {
-                BarControlHover(isEnabled: isEnabled, claimsPointer: isInteractive, onChange: setHovering)
-            }
-            .onChange(of: title) { _, title in
-                // Pause becomes Resume under a pointer that never moved; the
-                // pill it's showing has to follow.
-                guard isHovering else { return }
-                tooltip?.hover(id: id, text: title, frame: frame)
-            }
-            .onDisappear {
-                // A mode morph swaps the controls out from under a pointer
-                // that never leaves the bar, so no exit event is coming.
-                tooltip?.endHover(id: id)
-            }
     }
 
     private var glyph: some View {
         Image(systemName: systemImage)
             .font(.system(size: 17, weight: .regular))
+    }
+
+    private var controlWidth: CGFloat {
+        layout == .grid ? BarMetrics.pickerCellWidth : BarMetrics.controlSize
     }
 
     private func setHovering(_ hovering: Bool) {
@@ -328,6 +386,8 @@ struct BarActionButton: View {
     let title: String
     let systemImage: String
     var tint: Color = BarMetrics.activeTint
+    var isOn: Bool?
+    var subtitle: String?
     /// Only worth setting where the tooltip leaves something out - the device
     /// a control is bound to, what a destructive action destroys.
     var accessibility: String?
@@ -340,10 +400,12 @@ struct BarActionButton: View {
             tooltip?.dismiss()
             action()
         } label: {
-            BarActionLabel(id: id, title: title, systemImage: systemImage, tint: tint)
+            BarActionLabel(id: id, title: title, systemImage: systemImage, tint: tint, isOn: isOn, subtitle: subtitle)
         }
         .buttonStyle(BarButtonStyle())
+        .help(accessibility ?? title)
         .accessibilityLabel(accessibility ?? title)
+        .accessibilityValue(subtitle ?? "")
     }
 }
 

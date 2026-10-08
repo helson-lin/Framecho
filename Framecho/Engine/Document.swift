@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// The shape store: shapes in z-order (back to front), arrow bindings, and the derived geometry
@@ -244,6 +245,31 @@ enum AnnoShapeGeometry {
             return Group2d(children: [
                 Rectangle2d(width: Double(layout.size.width), height: Double(layout.size.height), isFilled: true),
                 Circle2d(x: anchor.x - radius, y: anchor.y - radius, radius: radius, isFilled: true),
+            ])
+        case let .measure(props):
+            // The line (or a box's outline) and the label; the ticks are too small to aim for. A
+            // box stays hollow, so the content it measures can still be clicked through it.
+            let layout = MeasureLayout(props)
+            let rect = layout.labelRect
+            let box = props.box
+            let line: Geometry2d = props.isArea
+                ? Rectangle2d(
+                    x: Double(box.minX), y: Double(box.minY),
+                    width: Double(box.width), height: Double(box.height),
+                    isFilled: false
+                )
+                : props.length > 0
+                ? Edge2d(start: props.start, end: props.end)
+                : Polyline2d(points: [props.start, Vec.addXY(props.start, 1, 1)])
+            return Group2d(children: [
+                line,
+                Rectangle2d(
+                    x: Double(rect.minX),
+                    y: Double(rect.minY),
+                    width: Double(rect.width),
+                    height: Double(rect.height),
+                    isFilled: true
+                ),
             ])
         }
     }

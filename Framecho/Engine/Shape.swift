@@ -54,6 +54,8 @@ struct GeoProps: Codable, Equatable {
     var dash: DashStyle = .solid
     /// Corner rounding for rectangles, in page units. Ellipses ignore it.
     var cornerRadius: Double = 0
+    /// The shape's width and height, written under it. Nil when the size isn't shown.
+    var sizeLabel: MeasureLabel?
 }
 
 struct DrawProps: Codable, Equatable {
@@ -165,6 +167,7 @@ enum AnnoShapeKind: Codable, Equatable {
     case highlight(HighlightProps)
     case numbered(NumberedProps)
     case colorTag(ColorTagProps)
+    case measure(MeasureProps)
 }
 
 struct AnnoShape: Codable, Equatable, Identifiable {
@@ -202,7 +205,7 @@ struct AnnoShape: Codable, Equatable, Identifiable {
         case let .geo(p): p.strokeWidth
         case let .draw(p): p.strokeWidth
         case let .arrow(p): p.strokeWidth
-        case .text, .redaction, .highlight, .numbered, .colorTag: 0
+        case .text, .redaction, .highlight, .numbered, .colorTag, .measure: 0
         }
     }
 
@@ -223,6 +226,7 @@ struct AnnoShape: Codable, Equatable, Identifiable {
         case .highlight: .highlight
         case .numbered: .numberedCircle
         case .colorTag: .colorPicker
+        case .measure: .measure
         }
     }
 
@@ -233,6 +237,7 @@ struct AnnoShape: Codable, Equatable, Identifiable {
         case let .arrow(p): p.swatch
         case let .text(p): p.swatch
         case let .numbered(p): p.swatch
+        case let .measure(p): p.swatch
         case .redaction, .highlight, .colorTag: nil
         }
     }
@@ -242,7 +247,8 @@ struct AnnoShape: Codable, Equatable, Identifiable {
         switch kind {
         case let .geo(p): p.fill != .none
         case let .draw(p): p.isClosed
-        case .arrow: false
+        // A ruler is grabbed by its line and its label, not the space around them.
+        case .arrow, .measure: false
         // Text, redactions, the highlight and numbered callouts are solid objects.
         case .text, .redaction, .highlight, .numbered, .colorTag: true
         }
@@ -255,6 +261,11 @@ struct AnnoShape: Codable, Equatable, Identifiable {
 
     var isText: Bool {
         if case .text = kind { return true }
+        return false
+    }
+
+    var isMeasure: Bool {
+        if case .measure = kind { return true }
         return false
     }
 
@@ -300,6 +311,11 @@ struct AnnoShape: Codable, Equatable, Identifiable {
 
     var colorTagProps: ColorTagProps? {
         if case let .colorTag(p) = kind { return p }
+        return nil
+    }
+
+    var measureProps: MeasureProps? {
+        if case let .measure(p) = kind { return p }
         return nil
     }
 }
