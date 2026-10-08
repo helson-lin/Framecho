@@ -233,7 +233,7 @@ private final class RecordingAreaSelectionView: NSView {
     private func drawSelectionSize(for rect: CGRect) {
         let pixelWidth = Int((rect.width * pixelScale.width).rounded())
         let pixelHeight = Int((rect.height * pixelScale.height).rounded())
-        let label = "\(pixelWidth) x \(pixelHeight)"
+        let label = "\(pixelWidth)×\(pixelHeight)"
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .semibold),
             .foregroundColor: NSColor.white

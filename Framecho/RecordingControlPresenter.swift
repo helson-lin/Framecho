@@ -168,8 +168,10 @@ struct RecordingSessionControls: View {
         return BarActionLabel(
             id: .microphoneLevel,
             title: microphoneReadoutTitle,
-            systemImage: isFaulty ? "mic.badge.xmark" : "mic.fill",
+            systemImage: "mic",
             tint: isFaulty ? BarMetrics.warningTint : BarMetrics.activeTint,
+            isOn: true,
+            isWarning: isFaulty,
             level: microphoneLevel.status == .live ? microphoneLevel.level : nil,
             isInteractive: false
         )
@@ -192,22 +194,35 @@ struct RecordingSessionControls: View {
                 .frame(width: 8, height: 8)
                 .opacity(isPaused ? 0.35 : 1)
 
-            Text(manager.formattedElapsedTime)
-                .font(.system(size: 16, weight: .medium, design: .monospaced))
-                .monospacedDigit()
-                .foregroundStyle(BarMetrics.activeTint)
-                // Fixed width so the clock ticking over from 9:59 to 10:00
-                // doesn't nudge the whole bar sideways.
-                .frame(minWidth: 56, alignment: .leading)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(manager.formattedElapsedTime)
+                    .font(.system(size: 16, weight: .medium, design: .monospaced))
+                    .monospacedDigit()
+                    .foregroundStyle(BarMetrics.activeTint)
+                    // Fixed width so the clock ticking over from 9:59 to 10:00
+                    // doesn't nudge the whole bar sideways.
+                    .frame(minWidth: 56, alignment: .leading)
+                if let dimensions = manager.recordingDimensions {
+                    Text(dimensions.label)
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .monospacedDigit()
+                        .foregroundStyle(BarMetrics.activeTint.opacity(0.75))
+                        .help("Recording resolution")
+                }
+            }
         }
         .padding(.leading, 8)
         .padding(.trailing, 2)
         .frame(height: BarMetrics.controlSize)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            isPaused
+        .accessibilityLabel(elapsedAccessibilityLabel)
+    }
+
+    private var elapsedAccessibilityLabel: String {
+        let elapsed = isPaused
                 ? String(localized: "Recording paused at \(manager.formattedElapsedTime)")
                 : String(localized: "Recording, \(manager.formattedElapsedTime) elapsed")
-        )
+        guard let dimensions = manager.recordingDimensions else { return elapsed }
+        return "\(elapsed), \(String(localized: "Recording resolution: \(dimensions.label)"))"
     }
 }

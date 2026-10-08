@@ -315,22 +315,17 @@ private struct RecordingBarView: View {
                 RecordingPickerControls()
             case .recording:
                 RecordingSessionControls()
+                    .padding(.horizontal, BarMetrics.horizontalPadding)
+                    .frame(height: BarMetrics.height)
+                    .clipShape(barShape)
+                    .glassEffect(.regular, in: barShape)
+                    .overlay { barShape.strokeBorder(BarMetrics.edge, lineWidth: 0.5) }
             }
         }
         // The outgoing controls leave instantly so the bar starts narrowing
         // immediately; a fading-out set would hold its layout width and the
         // bar would visibly bulge to fit both before collapsing.
         .transition(.asymmetric(insertion: .opacity, removal: .identity))
-        .padding(.horizontal, BarMetrics.horizontalPadding)
-        .frame(height: BarMetrics.height)
-        // Clipped to the same shape the glass takes, so a morph reveals and
-        // hides the controls behind the narrowing edge instead of letting
-        // them spill past it.
-        .clipShape(barShape)
-        .glassEffect(.regular, in: barShape)
-        .overlay {
-            barShape.strokeBorder(BarMetrics.edge, lineWidth: 0.5)
-        }
         .background(alignment: .bottom) {
             if presenter.mode == .picker && includeAppWindowsInCaptures {
                 visibilityBanner

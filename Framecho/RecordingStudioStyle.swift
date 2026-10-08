@@ -19,6 +19,15 @@ struct RecordingCameraBubbleSettings: Equatable {
     var size: CGFloat = 0.26
     /// 0.5 = circle, smaller values square the bubble off.
     var roundness: CGFloat = 0.25
+    var isFlipped = false
+
+    var appearance: RecordingCameraAppearance {
+        get { RecordingCameraAppearance(roundness: Double(roundness), isFlipped: isFlipped) }
+        set {
+            roundness = CGFloat(newValue.roundness)
+            isFlipped = newValue.isFlipped
+        }
+    }
 }
 
 struct RecordingEditDocument: Codable, Equatable {
@@ -314,6 +323,8 @@ struct StoredRecordingStudioStyle: Codable, Equatable {
     var cameraCenterY: Double
     var cameraSize: Double
     var cameraRoundness: Double
+    /// Nil preserves the orientation of camera masters from older versions.
+    var cameraIsFlipped: Bool?
 
     init(_ style: RecordingStudioStyle) {
         switch style.background {
@@ -342,6 +353,7 @@ struct StoredRecordingStudioStyle: Codable, Equatable {
         cameraCenterY = Double(style.camera.center.y)
         cameraSize = Double(style.camera.size)
         cameraRoundness = Double(style.camera.roundness)
+        cameraIsFlipped = style.camera.isFlipped ? true : nil
     }
 
     var value: RecordingStudioStyle {
@@ -370,7 +382,8 @@ struct StoredRecordingStudioStyle: Codable, Equatable {
                 isVisible: cameraIsVisible,
                 center: CGPoint(x: cameraCenterX, y: cameraCenterY),
                 size: CGFloat(cameraSize),
-                roundness: CGFloat(cameraRoundness)
+                roundness: CGFloat(cameraRoundness),
+                isFlipped: cameraIsFlipped ?? false
             )
         )
     }

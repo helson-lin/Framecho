@@ -480,6 +480,9 @@ final class RecordingStudioModel {
                 style = defaultPreset.value
                 appliedStylePresetID = defaultPreset.id
             }
+            if let appearance = manifest?.cameraAppearance {
+                style.camera.appearance = appearance
+            }
         }
 
         clipTimeline = Self.clipTimeline(for: document, sourceDuration: sourceDuration)

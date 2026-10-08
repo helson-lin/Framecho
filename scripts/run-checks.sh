@@ -74,6 +74,9 @@ check editor-resources "${strict[@]}" \
 check recording-pause "${strict[@]}" \
   Framecho/RecordingPauseTimeline.swift scripts/check-recording-pause.swift
 
+check camera-appearance "${strict[@]}" \
+  Framecho/RecordingCameraAppearance.swift scripts/check-camera-appearance.swift
+
 check library-date-sections "${strict[@]}" \
   Framecho/CaptureLibraryDateSections.swift scripts/check-library-date-sections.swift
 

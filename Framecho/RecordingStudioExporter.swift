@@ -797,6 +797,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
     private let pointerScale: CGFloat
     private let cursorStyle: RecordingCursorStyle
     private let clickEffect: PointerPressEffectAppearance
+    private let cameraIsFlipped: Bool
     private let colorSpace: CGColorSpace
     private let backdrop: CGImage?
     private let timing: RecordingExportTiming
@@ -866,6 +867,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         self.pointerScale = style.cursorScale
         self.cursorStyle = style.cursorStyle
         self.clickEffect = style.clickEffect
+        self.cameraIsFlipped = style.camera.isFlipped
         self.colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
         self.backdrop = Self.renderBackdrop(
             canvasSize: canvasSize,
@@ -1571,6 +1573,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
             context.saveGState()
             context.addPath(roundedPath(for: bubble, radius: layout.bubbleCornerRadius))
             context.clip()
+            context.concatenate(RecordingCameraAppearance(isFlipped: cameraIsFlipped).transform(in: layerRect))
             if let scaledCamera {
                 context.draw(scaledCamera, in: layerRect)
             } else if let cameraImage {

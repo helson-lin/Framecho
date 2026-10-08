@@ -246,15 +246,20 @@ final class CaptureCoordinator {
     func recordArea(_ display: SCDisplay) {
         RecordingAreaSelectionPresenter.shared.selectArea(on: display) { rect in
             guard let rect else { return }
-            Task {
-                guard await CaptureCountdownPresenter.shared.runIfNeeded(
-                    seconds: FramechoPreferences.recordingStartDelaySeconds,
-                    displayID: display.displayID
-                ) else { return }
-                ScreenRecordingManager.shared.startRecording(
-                    source: ScreenRecordingSource(kind: .area(display: display, rect: rect))
-                )
-            }
+            self.recordArea(display, rect: rect)
+        }
+    }
+
+    /// Starts a region already selected in the recorder's setup panel.
+    func recordArea(_ display: SCDisplay, rect: CGRect) {
+        Task {
+            guard await CaptureCountdownPresenter.shared.runIfNeeded(
+                seconds: FramechoPreferences.recordingStartDelaySeconds,
+                displayID: display.displayID
+            ) else { return }
+            ScreenRecordingManager.shared.startRecording(
+                source: ScreenRecordingSource(kind: .area(display: display, rect: rect))
+            )
         }
     }
     

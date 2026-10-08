@@ -1956,6 +1956,7 @@ private struct StudioCameraBubble: View {
 
             StudioPlayerLayerView(player: model.cameraPlayer, gravity: .resizeAspectFill)
                 .frame(width: rect.width, height: rect.height)
+                .scaleEffect(x: model.style.camera.isFlipped ? -1 : 1, y: 1)
                 .clipShape(RoundedRectangle(cornerRadius: layout.bubbleCornerRadius, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: layout.bubbleCornerRadius, style: .continuous)
@@ -5719,7 +5720,16 @@ private struct StudioInspector: View {
 
     // MARK: Camera
 
+    @ViewBuilder
     private var cameraControls: some View {
+        Picker("Camera shape", selection: $model.style.camera.appearance.shape) {
+            Text("Circle").tag(RecordingCameraShape.circle)
+            Text("Square").tag(RecordingCameraShape.square)
+        }
+        .pickerStyle(.segmented)
+
+        InspectorToggleRow("Flip horizontally", isOn: $model.style.camera.isFlipped)
+
         InspectorFieldPair {
             InspectorSlider(
                 "Size",

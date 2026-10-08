@@ -16,6 +16,8 @@ final class RecordingSourceCatalog {
 
     private(set) var displays: [SCDisplay] = []
     private(set) var windows: [SCWindow] = []
+    private(set) var displaySizes: [CGDirectDisplayID: RecordingPixelDimensions] = [:]
+    private(set) var windowSizes: [CGWindowID: RecordingPixelDimensions] = [:]
     private(set) var isLoading = false
     private(set) var errorMessage: String?
 
@@ -30,9 +32,13 @@ final class RecordingSourceCatalog {
             let content = try await ScreenRecordingCapture.availableContent()
             displays = content.displays
             windows = Self.filteredWindows(from: content)
+            displaySizes = Dictionary(uniqueKeysWithValues: displays.map { ($0.displayID, Self.displayDimensions($0)) })
+            windowSizes = Dictionary(uniqueKeysWithValues: windows.map { ($0.windowID, Self.windowDimensions($0)) })
         } catch {
             displays = []
             windows = []
+            displaySizes = [:]
+            windowSizes = [:]
             errorMessage = error.localizedDescription
         }
 
@@ -40,9 +46,22 @@ final class RecordingSourceCatalog {
     }
 
     static func displayTitle(_ display: SCDisplay, index: Int) -> String {
-        let resolution = "\(display.width)x\(display.height)"
+        let resolution = displayDimensions(display).label
         let name = displayName(for: display.displayID) ?? String(localized: "Display \(index + 1)")
         return "\(name) (\(resolution))"
+    }
+
+    static func displayDimensions(_ display: SCDisplay) -> RecordingPixelDimensions {
+        let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
+        return RecordingPixelDimensions(
+            sourceSize: CGSize(width: display.width, height: display.height),
+            pointPixelScale: CGFloat(filter.pointPixelScale)
+        )
+    }
+
+    static func windowDimensions(_ window: SCWindow) -> RecordingPixelDimensions {
+        let filter = SCContentFilter(desktopIndependentWindow: window)
+        return RecordingPixelDimensions(sourceSize: window.frame.size, pointPixelScale: CGFloat(filter.pointPixelScale))
     }
 
     static func windowTitle(_ window: SCWindow) -> String {

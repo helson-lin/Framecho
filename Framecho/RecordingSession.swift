@@ -302,6 +302,8 @@ nonisolated struct CaptureManifest: Codable, Sendable, Equatable {
     var cameraLeadIn: TimeInterval?
     var cameraWidth: Int?
     var cameraHeight: Int?
+    /// Optional so older recordings retain their original bubble appearance.
+    var cameraAppearance: RecordingCameraAppearance?
     /// True when the capture excluded the OS cursor, so playback and export
     /// must draw the synthetic pointer from the capture sidecar. Optional so
     /// manifests written before this field decode as nil (cursor in pixels).
