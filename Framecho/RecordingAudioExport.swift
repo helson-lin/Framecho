@@ -82,6 +82,7 @@ nonisolated final class RecordingAudioExporter: @unchecked Sendable {
         let replacementURL: URL?
         let format: RecordingAudioFormat
         var volume: Double = 1
+        var normalizesAudioLoudness = false
     }
 
     enum ExportError: LocalizedError {
@@ -132,8 +133,13 @@ nonisolated final class RecordingAudioExporter: @unchecked Sendable {
             start: .zero,
             duration: CMTime(seconds: duration, preferredTimescale: 600)
         )
+        let normalization = configuration.normalizesAudioLoudness
+            ? try await RecordingAudioNormalization.measure(asset: audioAsset, timeRange: reader.timeRange)
+            : nil
         let output = AVAssetReaderAudioMixOutput(audioTracks: tracks, audioSettings: nil)
-        output.audioMix = RecordingAudioGain.makeMix(tracks: tracks, volume: configuration.volume)
+        output.audioMix = RecordingAudioGain.makeMix(
+            tracks: tracks, volume: configuration.volume, normalization: normalization
+        )
         output.alwaysCopiesSampleData = false
         reader.add(output)
 

@@ -1,6 +1,46 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Normalize loudness" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "响度归一化"
+          }
+        }
+      }
+    },
+    "Target −16 LUFS, with sample peaks below −1 dBFS. Background music keeps its own volume." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目标响度 −16 LUFS，采样峰值控制在 −1 dBFS 以下。背景音乐使用独立音量。"
+          }
+        }
+      }
+    },
+    "Analyzing loudness…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在分析响度…"
+          }
+        }
+      }
+    },
+    "The audio could not be analyzed for loudness normalization." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法分析音频响度，请重试。"
+          }
+        }
+      }
+    },
     "Loop to fill the video" : {
       "localizations" : {
         "zh-Hans" : {

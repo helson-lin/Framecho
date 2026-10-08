@@ -4561,7 +4561,7 @@ private struct StudioInspector: View {
         case .captions:
             model.hasSubtitles && model.showsSubtitles
         case .audio:
-            model.replacementAudio != nil || model.backgroundMusic != nil
+            model.replacementAudio != nil || model.backgroundMusic != nil || model.normalizesAudioLoudness
         }
     }
 
@@ -5736,6 +5736,21 @@ private struct StudioInspector: View {
             // be given a soundtrack - so only the export half is withheld.
             if model.hasAudio {
                 InspectorSlider("Volume", value: $model.audioVolume, range: 0...2, format: .percent())
+                InspectorToggleRow("Normalize loudness", isOn: $model.normalizesAudioLoudness)
+                if model.normalizesAudioLoudness {
+                    InspectorHint("Target −16 LUFS, with sample peaks below −1 dBFS. Background music keeps its own volume.")
+                    if model.isAnalyzingAudioLoudness {
+                        HStack(spacing: InspectorMetrics.rowSpacing) {
+                            ProgressView().controlSize(.mini)
+                            Text("Analyzing loudness…")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    if let message = model.audioNormalizationError {
+                        InspectorHint(message, tint: .orange)
+                    }
+                }
             }
 
             HStack(spacing: InspectorMetrics.rowSpacing) {

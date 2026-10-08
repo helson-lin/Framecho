@@ -591,9 +591,12 @@ nonisolated enum BackgroundMusicMixer {
         narrationTracks: [AVAssetTrack],
         narrationVolume: Double,
         musicTracks: [AVAssetTrack],
-        plan: BackgroundMusicGainPlan?
+        plan: BackgroundMusicGainPlan?,
+        normalization: RecordingAudioNormalization.Measurement? = nil
     ) -> AVAudioMix? {
-        let narrationMix = RecordingAudioGain.makeMix(tracks: narrationTracks, volume: narrationVolume)
+        let narrationMix = RecordingAudioGain.makeMix(
+            tracks: narrationTracks, volume: narrationVolume, normalization: normalization
+        )
         guard let plan, !musicTracks.isEmpty, musicTracks.count == plan.lanes.count else { return narrationMix }
         let mix = AVMutableAudioMix()
         mix.inputParameters = (narrationMix?.inputParameters ?? [])

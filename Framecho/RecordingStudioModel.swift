@@ -245,6 +245,54 @@ final class RecordingStudioModel {
         }
     }
 
+    var normalizesAudioLoudness = false {
+        didSet {
+            guard normalizesAudioLoudness != oldValue else { return }
+            if !isApplyingDocument { refreshAudioNormalization() }
+            scheduleProjectSave()
+        }
+    }
+    private(set) var isAnalyzingAudioLoudness = false
+    private(set) var audioNormalizationError: String?
+    private var audioNormalization: RecordingAudioNormalization.Measurement?
+    private var audioNormalizationTask: Task<Void, Never>?
+
+    private func refreshAudioNormalization() {
+        audioNormalizationTask?.cancel()
+        audioNormalizationTask = nil
+        audioNormalization = nil
+        audioNormalizationError = nil
+        isAnalyzingAudioLoudness = false
+        updatePlaybackVolume()
+        guard normalizesAudioLoudness, hasAudio,
+              let item = screenPlayer.currentItem else { return }
+        let tracks = item.asset.tracks(withMediaType: .audio)
+            .filter { !playbackMusicTrackIDs.contains($0.trackID) }
+        guard !tracks.isEmpty else { return }
+        let musicIDs = playbackMusicTrackIDs
+        let range = CMTimeRange(start: .zero, duration: CMTime(seconds: duration, preferredTimescale: 600))
+        isAnalyzingAudioLoudness = true
+        audioNormalizationTask = Task { [weak self] in
+            do {
+                let measurement = try await RecordingAudioNormalization.measure(
+                    asset: item.asset, excludingTrackIDs: musicIDs, timeRange: range
+                )
+                guard let self, !Task.isCancelled, !self.isTornDown,
+                      self.screenPlayer.currentItem === item else { return }
+                self.audioNormalization = measurement
+                self.isAnalyzingAudioLoudness = false
+                self.audioNormalizationTask = nil
+                self.updatePlaybackVolume()
+            } catch {
+                guard let self, !Task.isCancelled, !self.isTornDown,
+                      self.screenPlayer.currentItem === item else { return }
+                self.audioNormalizationError = error.localizedDescription
+                self.isAnalyzingAudioLoudness = false
+                self.audioNormalizationTask = nil
+            }
+        }
+    }
+
     private func updatePlaybackVolume() {
         guard let item = screenPlayer.currentItem else { return }
         let tracks = item.asset.tracks(withMediaType: .audio)
@@ -254,7 +302,8 @@ final class RecordingStudioModel {
             narrationTracks: tracks.filter { !musicIDs.contains($0.trackID) },
             narrationVolume: Double(audioVolume),
             musicTracks: musicTracks,
-            plan: loadedBackgroundMusic.flatMap(backgroundMusicPlan(for:))
+            plan: loadedBackgroundMusic.flatMap(backgroundMusicPlan(for:)),
+            normalization: normalizesAudioLoudness ? audioNormalization : nil
         )
     }
 
@@ -555,6 +604,7 @@ final class RecordingStudioModel {
         videoCropRect = document.normalizedVideoCropRect
         audioExportFormat = document.audioExportFormatValue
         audioVolume = CGFloat(RecordingAudioGain.normalized(document.audioVolume ?? 1))
+        normalizesAudioLoudness = document.normalizesAudioLoudness ?? false
     }
 
     func teardown() {
@@ -568,6 +618,8 @@ final class RecordingStudioModel {
         audioExportTask?.cancel()
         replacementAudioTask?.cancel()
         audioWaveformTask?.cancel()
+        audioNormalizationTask?.cancel()
+        audioNormalizationTask = nil
         audioWaveformTask = nil
         audioWaveform = nil
         cancelShare()
@@ -970,7 +1022,7 @@ final class RecordingStudioModel {
         }
 
         screenPlayer.replaceCurrentItem(with: AVPlayerItem(asset: playbackAsset))
-        updatePlaybackVolume()
+        refreshAudioNormalization()
         screenPlayer.actionAtItemEnd = .pause
         currentTime = min(max(editorTime, 0), duration)
         movePlayers(to: currentTime)
@@ -1756,6 +1808,7 @@ final class RecordingStudioModel {
             replacementAudioDisplayName: replacementAudio?.displayName,
             audioExportFormat: audioExportFormat,
             audioVolume: Double(audioVolume),
+            normalizesAudioLoudness: normalizesAudioLoudness,
             motion: motion == .disabled ? nil : motion,
             backgroundMusic: backgroundMusic
         )
@@ -2625,6 +2678,7 @@ final class RecordingStudioModel {
             exportSettings: exportSettings,
             audioReplacementURL: replacementAudio?.url,
             audioVolume: Double(audioVolume),
+            normalizesAudioLoudness: normalizesAudioLoudness,
             backgroundMusic: loadedBackgroundMusic.flatMap { music in
                 backgroundMusicPlan(for: music).map { BackgroundMusicExport(url: music.url, plan: $0) }
             },
@@ -3028,7 +3082,8 @@ final class RecordingStudioModel {
             clipTimeline: clipTimeline,
             replacementURL: replacementAudio?.url,
             format: audioExportFormat,
-            volume: Double(audioVolume)
+            volume: Double(audioVolume),
+            normalizesAudioLoudness: normalizesAudioLoudness
         )
         let suggestedFileName = audioExportSuggestedFileName
         let dockProgressID = DockExportProgressCoordinator.shared.start()

@@ -63,6 +63,7 @@ struct RecordingEditDocument: Codable, Equatable {
     /// Raw RecordingAudioFormat value for the audio-only export.
     var audioExportFormat: String?
     var audioVolume: Double?
+    var normalizesAudioLoudness: Bool?
     /// 3D card pose and motion cues. Optional so projects saved before
     /// format 6 decode with motion off and a flat card.
     var motion: RecordingMotionSettings?
@@ -98,6 +99,7 @@ struct RecordingEditDocument: Codable, Equatable {
         case replacementAudioDisplayName
         case audioExportFormat
         case audioVolume
+        case normalizesAudioLoudness
         case motion
         case backgroundMusic
     }
@@ -123,6 +125,7 @@ struct RecordingEditDocument: Codable, Equatable {
         replacementAudioDisplayName: String? = nil,
         audioExportFormat: RecordingAudioFormat? = nil,
         audioVolume: Double? = nil,
+        normalizesAudioLoudness: Bool? = nil,
         motion: RecordingMotionSettings? = nil,
         backgroundMusic: RecordingBackgroundMusic? = nil
     ) {
@@ -155,6 +158,7 @@ struct RecordingEditDocument: Codable, Equatable {
         self.replacementAudioDisplayName = replacementAudioDisplayName
         self.audioExportFormat = audioExportFormat.map(\.rawValue)
         self.audioVolume = audioVolume
+        self.normalizesAudioLoudness = normalizesAudioLoudness
         self.motion = motion
         self.backgroundMusic = backgroundMusic
     }
@@ -242,6 +246,7 @@ struct RecordingEditDocument: Codable, Equatable {
         )
         audioExportFormat = try container.decodeIfPresent(String.self, forKey: .audioExportFormat)
         audioVolume = try container.decodeIfPresent(Double.self, forKey: .audioVolume)
+        normalizesAudioLoudness = try container.decodeIfPresent(Bool.self, forKey: .normalizesAudioLoudness)
         motion = try container.decodeIfPresent(RecordingMotionSettings.self, forKey: .motion)
         backgroundMusic = try container.decodeIfPresent(RecordingBackgroundMusic.self, forKey: .backgroundMusic)
     }
@@ -275,6 +280,7 @@ struct RecordingEditDocument: Codable, Equatable {
         )
         try container.encodeIfPresent(audioExportFormat, forKey: .audioExportFormat)
         try container.encodeIfPresent(audioVolume, forKey: .audioVolume)
+        try container.encodeIfPresent(normalizesAudioLoudness, forKey: .normalizesAudioLoudness)
         try container.encodeIfPresent(motion, forKey: .motion)
         try container.encodeIfPresent(backgroundMusic, forKey: .backgroundMusic)
     }

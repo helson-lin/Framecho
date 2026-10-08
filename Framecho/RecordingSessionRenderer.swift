@@ -271,6 +271,7 @@ enum RecordingSessionRenderer {
             clipTimeline: clipTimeline,
             exportSettings: document?.exportSettings ?? VideoCompressionSettings(),
             audioVolume: document?.audioVolume ?? 1,
+            normalizesAudioLoudness: document?.normalizesAudioLoudness ?? false,
             backgroundMusic: backgroundMusic,
             reframe: reframe,
             fitContentAspect: fitContentAspect,

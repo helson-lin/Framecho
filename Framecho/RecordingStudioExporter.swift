@@ -59,6 +59,7 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
         /// from zero instead of being re-cut through the clip timeline.
         let audioReplacementURL: URL?
         let audioVolume: Double
+        let normalizesAudioLoudness: Bool
         /// Library music mixed under the soundtrack, with its gain plan.
         let backgroundMusic: BackgroundMusicExport?
         /// Non-nil when exporting into a different aspect ratio; drives the
@@ -92,6 +93,7 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             exportSettings: VideoCompressionSettings,
             audioReplacementURL: URL? = nil,
             audioVolume: Double = 1,
+            normalizesAudioLoudness: Bool = false,
             backgroundMusic: BackgroundMusicExport? = nil,
             reframe: ReframeTrack? = nil,
             fitContentAspect: CGFloat? = nil,
@@ -116,6 +118,7 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             self.exportSettings = exportSettings
             self.audioReplacementURL = audioReplacementURL
             self.audioVolume = audioVolume
+            self.normalizesAudioLoudness = normalizesAudioLoudness
             self.backgroundMusic = backgroundMusic
             self.reframe = reframe
             self.fitContentAspect = fitContentAspect
@@ -229,12 +232,22 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
         var audioOutput: AVAssetReaderAudioMixOutput?
         var replacementReader: AVAssetReader?
         if !configuration.exportSettings.removeAudio {
+            let normalization: RecordingAudioNormalization.Measurement?
+            if configuration.normalizesAudioLoudness {
+                let narrationAsset: AVAsset = configuration.audioReplacementURL.map { AVURLAsset(url: $0) } ?? screenAsset
+                normalization = try await RecordingAudioNormalization.measure(
+                    asset: narrationAsset, timeRange: exportTimeRange
+                )
+            } else {
+                normalization = nil
+            }
             if let music = configuration.backgroundMusic,
                let mixed = try await Self.makeMusicMixReader(
                    music: music,
                    replacementURL: configuration.audioReplacementURL,
                    screenAudioTracks: audioTracks,
                    narrationVolume: configuration.audioVolume,
+                   normalization: normalization,
                    timeRange: exportTimeRange
                ) {
                 // Narration and music meet in one composition so a single
@@ -253,7 +266,9 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
                         audioTracks: replacementTracks,
                         audioSettings: nil
                     )
-                    output.audioMix = RecordingAudioGain.makeMix(tracks: replacementTracks, volume: configuration.audioVolume)
+                    output.audioMix = RecordingAudioGain.makeMix(
+                        tracks: replacementTracks, volume: configuration.audioVolume, normalization: normalization
+                    )
                     output.alwaysCopiesSampleData = false
                     reader.add(output)
                     replacementReader = reader
@@ -264,7 +279,9 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
                     audioTracks: audioTracks,
                     audioSettings: nil
                 )
-                output.audioMix = RecordingAudioGain.makeMix(tracks: audioTracks, volume: configuration.audioVolume)
+                output.audioMix = RecordingAudioGain.makeMix(
+                    tracks: audioTracks, volume: configuration.audioVolume, normalization: normalization
+                )
                 output.alwaysCopiesSampleData = false
                 screenReader.add(output)
                 audioOutput = output
@@ -570,6 +587,7 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
         replacementURL: URL?,
         screenAudioTracks: [AVAssetTrack],
         narrationVolume: Double,
+        normalization: RecordingAudioNormalization.Measurement?,
         timeRange: CMTimeRange
     ) async throws -> (reader: AVAssetReader, output: AVAssetReaderAudioMixOutput)? {
         let musicAsset = AVURLAsset(url: music.url)
@@ -621,7 +639,8 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             narrationTracks: narrationTracks,
             narrationVolume: narrationVolume,
             musicTracks: musicTracks,
-            plan: music.plan
+            plan: music.plan,
+            normalization: normalization
         )
         output.alwaysCopiesSampleData = false
         reader.add(output)

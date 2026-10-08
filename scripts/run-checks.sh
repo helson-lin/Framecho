@@ -145,6 +145,11 @@ check caption-cleanup "${strict[@]}" \
 
 check background-music "${strict[@]}" \
   Framecho/BackgroundMusic.swift Framecho/RecordingAudioGain.swift \
+  Framecho/RecordingAudioNormalization.swift \
   Framecho/RecordingTranscription.swift scripts/check-background-music.swift
+
+check audio-normalization "${strict[@]}" \
+  Framecho/RecordingAudioGain.swift Framecho/RecordingAudioNormalization.swift \
+  scripts/check-audio-normalization.swift
 
 echo "All checks passed."
