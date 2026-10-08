@@ -116,6 +116,7 @@ private struct RecordingStudioContent: View {
                                 StudioCanvasBar(model: model)
                                 StudioCanvas(model: model)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                StudioPlaybackBar(model: model)
                             }
                             .background(AnnotationEditorWorkspaceBackground())
                             .studioCard()
@@ -2233,6 +2234,10 @@ private struct StudioTimelineEditor: View {
     private func scrollingLanes(scale: StudioTimelineScale) -> some View {
         ZStack(alignment: .topLeading) {
             VStack(spacing: StudioTimelineMetrics.rowSpacing) {
+                if showsCaptionLane {
+                    StudioCaptionLaneBackground(isEmpty: !model.hasSubtitles)
+                        .frame(height: StudioTimelineMetrics.captionLaneHeight)
+                }
                 Color.clear
                     .frame(height: StudioTimelineMetrics.clipLaneHeight)
                 if showsAudioLane {
@@ -2250,10 +2255,6 @@ private struct StudioTimelineEditor: View {
                     showsHint: model.zoomEnabled && model.zoomTimelineBlocks.isEmpty
                 )
                     .frame(height: StudioTimelineMetrics.zoomLaneHeight)
-                if showsCaptionLane {
-                    StudioCaptionLaneBackground(isEmpty: !model.hasSubtitles)
-                        .frame(height: StudioTimelineMetrics.captionLaneHeight)
-                }
                 StudioMotionLaneBackground(
                     showsHint: model.motionTimelineBlocks.isEmpty
                 )
@@ -2264,6 +2265,18 @@ private struct StudioTimelineEditor: View {
 
             ScrollView(.horizontal) {
                 VStack(spacing: StudioTimelineMetrics.rowSpacing) {
+                    if showsCaptionLane {
+                        StudioCaptionLane(
+                            model: model,
+                            scale: scale,
+                            visibleRange: scale.visibleRange(scrollX: scrollX)
+                        )
+                        .frame(
+                            width: scale.contentWidth,
+                            height: StudioTimelineMetrics.captionLaneHeight
+                        )
+                    }
+
                     clipLane
                         .frame(
                             width: scale.contentWidth,
@@ -2287,18 +2300,6 @@ private struct StudioTimelineEditor: View {
                         width: scale.contentWidth,
                         height: StudioTimelineMetrics.zoomLaneHeight
                     )
-
-                    if showsCaptionLane {
-                        StudioCaptionLane(
-                            model: model,
-                            scale: scale,
-                            visibleRange: scale.visibleRange(scrollX: scrollX)
-                        )
-                        .frame(
-                            width: scale.contentWidth,
-                            height: StudioTimelineMetrics.captionLaneHeight
-                        )
-                    }
 
                     StudioMotionLane(
                         model: model,
@@ -2329,14 +2330,9 @@ private struct StudioTimelineEditor: View {
             // scroll view, centered in the viewport rather than in a lane
             // that may be many screens wide.
             if showsCaptionLane, !model.hasSubtitles {
-                VStack(spacing: StudioTimelineMetrics.rowSpacing) {
-                    Color.clear
-                        .frame(height: captionLaneOffset)
-                        .allowsHitTesting(false)
-                    StudioCaptionLanePrompt(model: model)
-                        .frame(height: StudioTimelineMetrics.captionLaneHeight)
-                }
-                .frame(maxWidth: .infinity, alignment: .top)
+                StudioCaptionLanePrompt(model: model)
+                    .frame(height: StudioTimelineMetrics.captionLaneHeight)
+                    .frame(maxWidth: .infinity, alignment: .top)
             }
         }
         .frame(height: StudioTimelineMetrics.scrollingLanesHeight(lanes: visibleLanes))
@@ -2357,14 +2353,6 @@ private struct StudioTimelineEditor: View {
             audio: showsAudioLane,
             captions: showsCaptionLane
         )
-    }
-
-    /// Height above the caption lane inside the scrolling block.
-    private var captionLaneOffset: CGFloat {
-        StudioTimelineMetrics.clipLaneHeight
-            + (showsAudioLane ? StudioTimelineMetrics.audioLaneHeight + StudioTimelineMetrics.rowSpacing : 0)
-            + StudioTimelineMetrics.zoomLaneHeight
-            + StudioTimelineMetrics.rowSpacing
     }
 
     private var showsClipWaveform: Bool {
@@ -2400,6 +2388,26 @@ private struct StudioTimelineEditor: View {
                         + StudioTimelineMetrics.rowSpacing,
                     alignment: .bottomLeading
                 )
+
+            if showsCaptionLane {
+                if model.hasSubtitles {
+                    StudioLaneHeader(
+                        title: "Captions",
+                        systemImage: "captions.bubble",
+                        tint: StudioCaptionLane.tint,
+                        isOn: $model.showsSubtitles,
+                        toggleHelp: model.showsSubtitles ? "Hide Subtitles" : "Show Subtitles"
+                    )
+                    .frame(height: StudioTimelineMetrics.captionLaneHeight)
+                } else {
+                    StudioLaneHeader(
+                        title: "Captions",
+                        systemImage: "captions.bubble",
+                        tint: StudioCaptionLane.tint
+                    )
+                    .frame(height: StudioTimelineMetrics.captionLaneHeight)
+                }
+            }
 
             if showsClipWaveform {
                 StudioLaneHeader(
@@ -2439,26 +2447,6 @@ private struct StudioTimelineEditor: View {
                 toggleHelp: model.zoomEnabled ? "Turn Zooms Off" : "Turn Zooms On"
             )
             .frame(height: StudioTimelineMetrics.zoomLaneHeight)
-
-            if showsCaptionLane {
-                if model.hasSubtitles {
-                    StudioLaneHeader(
-                        title: "Captions",
-                        systemImage: "captions.bubble",
-                        tint: StudioCaptionLane.tint,
-                        isOn: $model.showsSubtitles,
-                        toggleHelp: model.showsSubtitles ? "Hide Subtitles" : "Show Subtitles"
-                    )
-                    .frame(height: StudioTimelineMetrics.captionLaneHeight)
-                } else {
-                    StudioLaneHeader(
-                        title: "Captions",
-                        systemImage: "captions.bubble",
-                        tint: StudioCaptionLane.tint
-                    )
-                    .frame(height: StudioTimelineMetrics.captionLaneHeight)
-                }
-            }
 
             StudioLaneHeader(
                 title: "3D Motion",
@@ -2718,6 +2706,95 @@ private struct StudioTimelineEditor: View {
         InspectorValueFormat.magnification(fractionDigits: 0).displayString(for: speed)
     }
 
+    /// The timeline's own toolbar: cut tools and adding blocks on the
+    /// leading edge, the timeline scale on the trailing edge. Playback
+    /// lives under the canvas.
+    private var transport: some View {
+        HStack(spacing: 0) {
+            editControls
+            Divider()
+                .frame(height: 16)
+                .padding(.horizontal, 8)
+            addControls
+            Spacer(minLength: 0)
+            zoomControls
+        }
+        .frame(height: 36)
+    }
+
+    /// Adds a zoom or a 3D motion block at the playhead, the way the
+    /// inspector's buttons do, without leaving the timeline.
+    private var addControls: some View {
+        HStack(spacing: 2) {
+            Button {
+                model.addZoomCue(at: model.currentTime)
+            } label: {
+                Label("Zoom", systemImage: "plus")
+                    .font(.system(size: 11.5, weight: .medium))
+            }
+            .buttonStyle(TransportTextButtonStyle())
+            .disabled(!model.zoomEnabled)
+            .help(model.zoomEnabled ? "Add a zoom at the playhead" : "Turn zooms on to add one")
+
+            Button {
+                model.addMotionCue(preset: .tiltRight, at: model.currentTime)
+            } label: {
+                Label("Motion", systemImage: "plus")
+                    .font(.system(size: 11.5, weight: .medium))
+            }
+            .buttonStyle(TransportTextButtonStyle())
+            .help("Add a 3D motion block at the playhead")
+        }
+    }
+
+    private var canDeleteSelection: Bool {
+        model.selectedCueID != nil || model.selectedMotionCueID != nil || model.canDeleteSelectedClip
+    }
+
+    private func deleteSelection() {
+        if let cueID = model.selectedCueID {
+            model.removeZoomCue(id: cueID)
+        } else if let motionCueID = model.selectedMotionCueID {
+            model.removeMotionCue(id: motionCueID)
+        } else if model.selectedClipID != nil {
+            model.deleteSelectedClip()
+        }
+    }
+
+    private func timelineButton(
+        _ help: LocalizedStringResource,
+        systemImage: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 28, height: 26)
+                .contentShape(RoundedRectangle(cornerRadius: StudioTransportMetrics.buttonRadius, style: .continuous))
+        }
+        .buttonStyle(TransportIconButtonStyle())
+        .help(Text(help))
+        .accessibilityLabel(Text(help))
+    }
+}
+
+/// Playback under the canvas: where the playhead is against the length of
+/// the cut, and play with stepping between edit points.
+private struct StudioPlaybackBar: View {
+    @Bindable var model: RecordingStudioModel
+
+    var body: some View {
+        ZStack {
+            HStack {
+                timecode
+                Spacer(minLength: 0)
+            }
+            playbackControls
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 48)
+    }
+
     /// Where the playhead is against the length of the cut, on the leading
     /// edge where the eye starts reading the transport.
     private var timecode: some View {
@@ -2785,41 +2862,6 @@ private struct StudioTimelineEditor: View {
 
     private var nextEditPoint: TimeInterval {
         editPoints.first { $0 > model.currentTime + Self.editPointTolerance } ?? model.duration
-    }
-
-    /// Time and the cut tools on the leading edge, playback in the middle,
-    /// and the timeline scale on the trailing edge. The cut tools are
-    /// icon-only so the row still clears the centered playback buttons at
-    /// the window's minimum width.
-    private var transport: some View {
-        ZStack {
-            HStack(spacing: 0) {
-                timecode
-                Divider()
-                    .frame(height: 16)
-                    .padding(.horizontal, 8)
-                editControls
-                Spacer(minLength: 0)
-                zoomControls
-            }
-
-            playbackControls
-        }
-        .frame(height: 36)
-    }
-
-    private var canDeleteSelection: Bool {
-        model.selectedCueID != nil || model.selectedMotionCueID != nil || model.canDeleteSelectedClip
-    }
-
-    private func deleteSelection() {
-        if let cueID = model.selectedCueID {
-            model.removeZoomCue(id: cueID)
-        } else if let motionCueID = model.selectedMotionCueID {
-            model.removeMotionCue(id: motionCueID)
-        } else if model.selectedClipID != nil {
-            model.deleteSelectedClip()
-        }
     }
 
     private func timelineButton(

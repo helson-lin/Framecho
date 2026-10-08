@@ -1,6 +1,36 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Add a zoom at the playhead" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在播放头处添加缩放"
+          }
+        }
+      }
+    },
+    "Turn zooms on to add one" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先打开缩放才能添加"
+          }
+        }
+      }
+    },
+    "Add a 3D motion block at the playhead" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在播放头处添加 3D 动效"
+          }
+        }
+      }
+    },
     "Transcript" : {
       "localizations" : {
         "zh-Hans" : {
