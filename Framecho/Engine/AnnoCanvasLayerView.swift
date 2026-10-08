@@ -173,8 +173,27 @@ final class AnnoCanvasNSView: NSView {
         // up while the caret is live.
         let skipped: Set<AnnoShapeID> = editor.editingTextId.map { [$0] } ?? []
         AnnoShapeDrawing.draw(editor.document, in: context, target: target, skipping: skipped)
+        drawMeasurePreview(editor: editor, in: context, target: target)
 
         drawOverlays(editor: editor, in: context)
+    }
+
+    /// What a click with the measure tool would measure, drawn faintly so it reads as a preview.
+    private func drawMeasurePreview(editor: AnnoEditor, in context: CGContext, target: AnnoShapeDrawing.Target) {
+        guard !editor.measurePreview.isEmpty else { return }
+        context.saveGState()
+        context.setAlpha(0.6)
+        context.beginTransparencyLayer(auxiliaryInfo: nil)
+        for shape in editor.measurePreview {
+            AnnoShapeDrawing.drawShape(
+                shape,
+                elements: AnnoShapeRenderer.elements(for: shape, in: editor.document),
+                in: context,
+                target: target
+            )
+        }
+        context.endTransparencyLayer()
+        context.restoreGState()
     }
 
     // MARK: - Overlays

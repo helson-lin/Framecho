@@ -22,6 +22,7 @@ struct AnnotationDocumentChecks {
         checkRoundTrip(fixture)
         checkOlderDocuments(fixture)
         checkTolerance(fixture)
+        checkMeasurements(fixture)
         print("Annotation document checks passed (\(checks) assertions).")
     }
 
@@ -176,5 +177,26 @@ struct AnnotationDocumentChecks {
         shapes2[0]["kind"] = kind
         localized["shapes"] = shapes2
         expect(shape(try! decode(data(localized)), "rect").swatch?.alpha == 1, "Missing alpha means opaque")
+    }
+
+    static func checkMeasurements(_ fixture: Data) {
+        var document = try! decode(fixture)
+        expect(shape(document, "rect").geoProps?.sizeLabel == nil, "Shapes from before size labels show no size")
+
+        let label = MeasureLabel(unit: .points, pixelsPerPoint: 2, fontSize: 18)
+        let index = document.shapes.firstIndex { $0.id == AnnoShapeID("rect") }!
+        guard case var .geo(geo) = document.shapes[index].kind else { return expect(false, "Rectangle kind") }
+        geo.sizeLabel = label
+        document.shapes[index].kind = .geo(geo)
+        var ruler = MeasureProps()
+        ruler.end = Vec(0, 240)
+        ruler.swatch = .blue
+        ruler.label = label
+        document.shapes.append(AnnoShape(id: AnnoShapeID("ruler"), x: 10, y: 20, kind: .measure(ruler)))
+
+        let reopened = try! decode(try! JSONEncoder().encode(document))
+        expect(reopened == document, "Rulers and size labels survive a save")
+        expect(shape(reopened, "rect").geoProps?.sizeLabel == label, "The size label keeps its unit and density")
+        expect(shape(reopened, "ruler").measureProps == ruler && shape(reopened, "ruler").tool == .measure, "A ruler")
     }
 }

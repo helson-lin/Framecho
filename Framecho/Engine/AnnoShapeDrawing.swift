@@ -69,7 +69,16 @@ enum AnnoShapeDrawing {
         in context: CGContext,
         target: Target
     ) {
-        let elements = document.renderElements(shape.id)
+        drawShape(shape, elements: document.renderElements(shape.id), in: context, target: target)
+    }
+
+    /// Draw a shape that isn't in a document, such as a preview, from elements built for it.
+    static func drawShape(
+        _ shape: AnnoShape,
+        elements: [RenderElement],
+        in context: CGContext,
+        target: Target
+    ) {
         guard !elements.isEmpty else { return }
 
         context.saveGState()

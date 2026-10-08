@@ -60,7 +60,7 @@ enum AnnoShapeRenderer {
     static func elements(for shape: AnnoShape, in document: AnnoDocument) -> [RenderElement] {
         switch shape.kind {
         case let .geo(props):
-            geoElements(props)
+            geoElements(props) + sizeLabelElements(props)
         case let .draw(props):
             drawElements(props)
         case .arrow:
@@ -77,7 +77,14 @@ enum AnnoShapeRenderer {
             ColorTagLayout(props).elements(
                 anchor: shape.pageTransform.inverse.applyToPoint(shape.colorTagAnchor ?? Vec(0, 0))
             )
+        case let .measure(props):
+            MeasureLayout(props).elements()
         }
+    }
+
+    private static func sizeLabelElements(_ props: GeoProps) -> [RenderElement] {
+        guard let (layout, origin) = props.sizeLabelLayout() else { return [] }
+        return layout.elements(at: origin)
     }
 
     // MARK: - Text

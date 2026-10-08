@@ -175,32 +175,34 @@ struct AnnotationCanvas: View {
                         hoveredLocation = nil
                         hoveredViewLocation = nil
                         colorLoupe = nil
+                        model.updateMeasurePreview(at: nil, imageFrame: imageFrame)
                         setCursor(.arrow)
                         return
                     }
                     let mappedLocation = projection.unproject(location)
                     hoveredLocation = mappedLocation
                     hoveredViewLocation = location
-                    updateColorLoupe(imageFrame: imageFrame)
+                    updateHoverFeedback(imageFrame: imageFrame)
                     updateCursor(at: mappedLocation, imageFrame: imageFrame, boundaryFrame: boundaryFrame)
                 case .ended:
                     hoveredLocation = nil
                     hoveredViewLocation = nil
                     colorLoupe = nil
+                    model.updateMeasurePreview(at: nil, imageFrame: imageFrame)
                     setCursor(.arrow)
                 }
             }
             .onChange(of: model.selectedTool) { _, _ in
-                updateColorLoupe(imageFrame: imageFrame)
+                updateHoverFeedback(imageFrame: imageFrame)
                 refreshCursor(imageFrame: imageFrame, boundaryFrame: boundaryFrame)
             }
             .onChange(of: model.isCropping) { _, _ in
-                updateColorLoupe(imageFrame: imageFrame)
+                updateHoverFeedback(imageFrame: imageFrame)
                 refreshCursor(imageFrame: imageFrame, boundaryFrame: boundaryFrame)
             }
             .onChange(of: imageFrame) { _, _ in
                 // Scrolling and zooming move the image under a still pointer.
-                updateColorLoupe(imageFrame: imageFrame)
+                updateHoverFeedback(imageFrame: imageFrame)
             }
             .onChange(of: model.revision) { _, _ in
                 refreshCursor(imageFrame: imageFrame, boundaryFrame: boundaryFrame)
@@ -678,7 +680,7 @@ struct AnnotationCanvas: View {
                 // otherwise steps aside, e.g. while a new tag's label is pulled out.
                 hoveredLocation = location
                 hoveredViewLocation = value.location
-                updateColorLoupe(imageFrame: imageFrame)
+                updateHoverFeedback(imageFrame: imageFrame)
                 updateCursor(at: location, imageFrame: imageFrame, boundaryFrame: boundaryFrame)
             }
             .onEnded { value in
@@ -688,7 +690,7 @@ struct AnnotationCanvas: View {
                 hasActiveInteraction = false
                 hoveredLocation = location
                 hoveredViewLocation = value.location
-                updateColorLoupe(imageFrame: imageFrame)
+                updateHoverFeedback(imageFrame: imageFrame)
                 updateCursor(at: location, imageFrame: imageFrame, boundaryFrame: boundaryFrame)
             }
     }
@@ -702,8 +704,10 @@ struct AnnotationCanvas: View {
         )
     }
 
-    private func updateColorLoupe(imageFrame: CGRect) {
+    /// What the pointer previews as it moves: the color loupe, and what a click would measure.
+    private func updateHoverFeedback(imageFrame: CGRect) {
         colorLoupe = hoveredLocation.flatMap { model.colorLoupe(at: $0, imageFrame: imageFrame) }
+        model.updateMeasurePreview(at: hoveredLocation, imageFrame: imageFrame)
     }
 
     private func refreshCursor(imageFrame: CGRect, boundaryFrame: CGRect) {

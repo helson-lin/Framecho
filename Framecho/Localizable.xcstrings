@@ -503,6 +503,16 @@
         }
       }
     },
+    "Drag to measure a distance, or click to measure the block or gap under the pointer" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖移以测量距离，或点按以测量指针下的区块或间距"
+          }
+        }
+      }
+    },
     "Drag to move the card. Double-click to center it." : {
       "localizations" : {
         "zh-Hans" : {
@@ -753,6 +763,16 @@
         }
       }
     },
+    "Measure" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "测量"
+          }
+        }
+      }
+    },
     "Microphone" : {
       "localizations" : {
         "zh-Hans" : {
@@ -959,6 +979,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "置顶"
+          }
+        }
+      }
+    },
+    "Pixels" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "像素"
+          }
+        }
+      }
+    },
+    "Points" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点"
+          }
+        }
+      }
+    },
+    "Points divide pixels by the screenshot's pixel density, 2 on a Retina display" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点数等于像素数除以截图的像素密度，在 Retina 显示屏上为 2"
           }
         }
       }
@@ -1329,6 +1379,16 @@
         }
       }
     },
+    "Show size" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示尺寸"
+          }
+        }
+      }
+    },
     "Show Subtitles" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1615,6 +1675,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "撤销"
+          }
+        }
+      }
+    },
+    "Units" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "单位"
           }
         }
       }

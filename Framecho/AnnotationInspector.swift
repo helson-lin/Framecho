@@ -505,6 +505,38 @@ struct AnnotationEditorInspector: View {
                         format: .percent()
                     )
                 }
+
+                if model.isSizeLabelStyleAvailable {
+                    InspectorToggleRow(
+                        "Show size",
+                        isOn: Binding(
+                            get: { model.showsSize },
+                            set: {
+                                onEditorAction()
+                                model.setShowsSize($0)
+                            }
+                        )
+                    )
+                }
+
+                if model.isMeasureUnitStyleAvailable {
+                    InspectorRow("Units") {
+                        InspectorSegmented(
+                            options: MeasureUnit.allCases,
+                            isSelected: { $0 == model.measureUnit },
+                            onTap: { unit in
+                                onEditorAction()
+                                model.setMeasureUnit(unit)
+                            },
+                            label: { unit in
+                                Text(unit.label)
+                                    .font(.inspectorSegment)
+                                    .lineLimit(1)
+                            }
+                        )
+                        .help("Points divide pixels by the screenshot's pixel density, 2 on a Retina display")
+                    }
+                }
             }
         }
     }
