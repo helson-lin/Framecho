@@ -141,6 +141,46 @@
         }
       }
     },
+    "Captions track" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕轨道"
+          }
+        }
+      }
+    },
+    "Delete Caption" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除字幕"
+          }
+        }
+      }
+    },
+    "Move Caption" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移动字幕"
+          }
+        }
+      }
+    },
+    "Change Caption Timing" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "调整字幕时长"
+          }
+        }
+      }
+    },
     "Normalize loudness" : {
       "localizations" : {
         "zh-Hans" : {

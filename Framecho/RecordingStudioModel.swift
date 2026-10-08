@@ -197,6 +197,7 @@ final class RecordingStudioModel {
         didSet {
             guard selectedCueID != nil else { return }
             selectedMotionCueID = nil
+            selectedSubtitleCueID = nil
             // Zoom editing works on the flat picture; a pose adjustment left
             // open would hide its canvas target.
             endPoseAdjustment()
@@ -207,7 +208,18 @@ final class RecordingStudioModel {
         didSet {
             guard selectedClipID != nil else { return }
             selectedMotionCueID = nil
+            selectedSubtitleCueID = nil
             endPoseAdjustment()
+        }
+    }
+    /// The caption picked on the timeline, for moving, trimming and
+    /// deleting it.
+    var selectedSubtitleCueID: UUID? {
+        didSet {
+            guard selectedSubtitleCueID != nil else { return }
+            selectedCueID = nil
+            selectedClipID = nil
+            selectedMotionCueID = nil
         }
     }
     var timelineHoverTime: TimeInterval?
@@ -348,6 +360,8 @@ final class RecordingStudioModel {
     private(set) var undoRevision = 0
     private var zoomEditSnapshot: [ZoomCue]?
     private var motionEditSnapshot: RecordingMotionSettings?
+    /// The captions before a timeline drag, so the whole drag undoes as one.
+    private var subtitleEditSnapshot: [RecordingSubtitleCue]?
     private var motionEditCommitTask: Task<Void, Never>?
     /// The document as of the last explicit save. Everything the user does
     /// after that lives in memory and in the autosaved draft until they save
@@ -848,6 +862,7 @@ final class RecordingStudioModel {
         selectedMotionCueID = id
         selectedCueID = nil
         selectedClipID = nil
+        selectedSubtitleCueID = nil
     }
 
     func undo() {
@@ -2052,6 +2067,7 @@ final class RecordingStudioModel {
 
     private func applyTranscription(_ transcript: RecordingTranscript) {
         discardCaptionCleanup()
+        selectedSubtitleCueID = nil
         subtitleCues = transcript.cues
         subtitleTimeline = SubtitleTimeline(cues: transcript.cues)
         transcriptWords = transcript.words
@@ -2065,6 +2081,7 @@ final class RecordingStudioModel {
 
     func removeTranscription() {
         discardCaptionCleanup()
+        selectedSubtitleCueID = nil
         subtitleCues = []
         subtitleTimeline = .empty
         transcriptWords = []
@@ -2094,6 +2111,59 @@ final class RecordingStudioModel {
         guard let target else { return }
         pause()
         seek(to: target)
+    }
+
+    // MARK: - Caption timing
+
+    /// Starts a timeline drag on a caption; `endSubtitleEdit` makes the
+    /// whole drag one undo step.
+    func beginSubtitleEdit() {
+        if subtitleEditSnapshot == nil {
+            subtitleEditSnapshot = subtitleCues
+        }
+    }
+
+    func endSubtitleEdit(actionName: String) {
+        guard let previous = subtitleEditSnapshot else { return }
+        subtitleEditSnapshot = nil
+        guard previous != subtitleCues else { return }
+        registerUndo(actionName) { target in
+            target.applySubtitleCues(previous, actionName: actionName)
+        }
+    }
+
+    /// Slides a caption to a new source start, keeping its length; it stops
+    /// at its neighbours.
+    func moveSubtitle(id: UUID, toStart start: TimeInterval) {
+        replaceSubtitleCues(SubtitleCueTiming.moving(
+            subtitleCues, id: id, toStart: start, sourceDuration: sourceDuration
+        ))
+    }
+
+    /// Drags one edge of a caption to a source time.
+    func resizeSubtitle(id: UUID, edge: SubtitleCueTiming.Edge, to time: TimeInterval) {
+        replaceSubtitleCues(SubtitleCueTiming.resizing(
+            subtitleCues, id: id, edge: edge, to: time, sourceDuration: sourceDuration
+        ))
+    }
+
+    /// Removes one caption. Its words stay in the transcript, so cutting by
+    /// text still sees them; they just no longer show on screen.
+    func deleteSubtitle(id: UUID) {
+        guard subtitleCues.contains(where: { $0.id == id }) else { return }
+        if selectedSubtitleCueID == id {
+            selectedSubtitleCueID = nil
+        }
+        applySubtitleCues(subtitleCues.filter { $0.id != id }, actionName: String(localized: "Delete Caption"))
+    }
+
+    /// A live edit mid-drag: no undo step of its own.
+    private func replaceSubtitleCues(_ cues: [RecordingSubtitleCue]) {
+        guard cues != subtitleCues else { return }
+        subtitleCues = cues
+        subtitleTimeline = SubtitleTimeline(cues: cues)
+        karaokeTimeline = KaraokeTimeline(cues: cues, words: transcriptWords)
+        scheduleProjectSave()
     }
 
     /// Cue under the playhead right now, for highlighting the list row.
@@ -2216,8 +2286,8 @@ final class RecordingStudioModel {
 
     /// Rewrites the text of cues touched by a cut so captions stop showing
     /// words whose audio is gone. Only touched cues are rebuilt, so manual
-    /// caption edits elsewhere survive. A word belongs to the last cue that
-    /// starts at or before it.
+    /// caption edits elsewhere survive. Words map to cues as
+    /// TranscriptCaptionText.wordIndices maps them.
     private static func rebuildingCueTexts(
         _ cues: [RecordingSubtitleCue],
         words: [RecordingTranscriptWord],
@@ -2226,23 +2296,16 @@ final class RecordingStudioModel {
     ) -> [RecordingSubtitleCue] {
         guard !words.isEmpty, !cues.isEmpty else { return cues }
         var result = cues
-        let byStart = result.indices.sorted { result[$0].start < result[$1].start }
+        let groups = TranscriptCaptionText.wordIndices(for: cues, words: words)
 
-        for (position, index) in byStart.enumerated() {
-            let cue = result[index]
+        for (index, cue) in cues.enumerated() {
             let overlapsCut = cutRanges.contains {
                 $0.lowerBound < cue.end && $0.upperBound > cue.start
             }
             guard overlapsCut else { continue }
-
-            let nextCueStart = position < byStart.count - 1
-                ? result[byStart[position + 1]].start
-                : .infinity
-            result[index].text = TranscriptCaptionText.text(of: words.filter { word in
-                word.start >= cue.start - 0.001
-                    && word.start < nextCueStart - 0.001
-                    && timeline.editorTime(forSourceTime: word.midpoint) != nil
-            })
+            result[index].text = TranscriptCaptionText.text(of: groups[index]
+                .map { words[$0] }
+                .filter { timeline.editorTime(forSourceTime: $0.midpoint) != nil })
         }
         return result
     }

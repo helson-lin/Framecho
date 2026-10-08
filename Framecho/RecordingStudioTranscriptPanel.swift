@@ -410,6 +410,11 @@ private struct StudioSubtitleRow: View {
         .onTapGesture {
             model.seekToSubtitle(cue)
         }
+        .contextMenu {
+            Button("Delete Caption", role: .destructive) {
+                model.deleteSubtitle(id: cue.id)
+            }
+        }
         .onHover { hovering in
             // Hover skims the paused preview like the timeline strip does;
             // leaving hands the frame back to the real playhead.

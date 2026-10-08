@@ -233,7 +233,9 @@ private struct RecordingStudioContent: View {
             closeGuard.refreshDocumentEdited()
         }
         .onDeleteCommand {
-            if let selectedCueID = model.selectedCueID {
+            if let subtitleID = model.selectedSubtitleCueID {
+                model.deleteSubtitle(id: subtitleID)
+            } else if let selectedCueID = model.selectedCueID {
                 model.removeZoomCue(id: selectedCueID)
             } else if let selectedMotionCueID = model.selectedMotionCueID {
                 model.removeMotionCue(id: selectedMotionCueID)
@@ -2791,11 +2793,14 @@ private struct StudioTimelineEditor: View {
     }
 
     private var canDeleteSelection: Bool {
-        model.selectedCueID != nil || model.selectedMotionCueID != nil || model.canDeleteSelectedClip
+        model.selectedCueID != nil || model.selectedMotionCueID != nil
+            || model.selectedSubtitleCueID != nil || model.canDeleteSelectedClip
     }
 
     private func deleteSelection() {
-        if let cueID = model.selectedCueID {
+        if let subtitleID = model.selectedSubtitleCueID {
+            model.deleteSubtitle(id: subtitleID)
+        } else if let cueID = model.selectedCueID {
             model.removeZoomCue(id: cueID)
         } else if let motionCueID = model.selectedMotionCueID {
             model.removeMotionCue(id: motionCueID)
@@ -3914,6 +3919,10 @@ private struct StudioCaptionLanePrompt: View {
 /// Transcribed captions on the edited timeline. A cue cut in two by an edit
 /// still reads as one block, the same way zoom blocks merge across cuts.
 /// Clicking a block jumps to it; blank space seeks like the other lanes.
+/// Transcribed captions on the edited timeline. A click on blank lane space
+/// seeks; a caption block selects on a click, slides when dragged and trims
+/// from either edge, stopping at its neighbours. Delete removes the selected
+/// caption, and every drag undoes as one step.
 private struct StudioCaptionLane: View {
     static let tint = Color.teal
 
@@ -3921,11 +3930,17 @@ private struct StudioCaptionLane: View {
     let scale: StudioTimelineScale
     let visibleRange: ClosedRange<TimeInterval>
 
-    private struct Block: Identifiable {
-        let id: UUID
-        let text: String
+    /// Clicking the lane takes keyboard focus, so Delete reaches the
+    /// selected caption instead of a caption field still being edited in
+    /// the transcript panel.
+    @FocusState private var isFocused: Bool
+
+    struct Block: Identifiable {
+        let cue: RecordingSubtitleCue
         let editorStart: TimeInterval
         let editorEnd: TimeInterval
+
+        var id: UUID { cue.id }
     }
 
     var body: some View {
@@ -3936,46 +3951,29 @@ private struct StudioCaptionLane: View {
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
                             guard scale.pointsPerSecond > 0 else { return }
+                            isFocused = true
+                            model.selectedSubtitleCueID = nil
                             model.pause()
                             model.seek(to: scale.time(forX: value.location.x))
                         }
                 )
 
             ForEach(visibleBlocks) { block in
-                blockView(block)
+                StudioCaptionBlock(model: model, block: block, scale: scale) {
+                    isFocused = true
+                }
             }
         }
-    }
-
-    private func blockView(_ block: Block) -> some View {
-        let minX = scale.x(for: block.editorStart)
-        let width = max(2, scale.x(for: block.editorEnd) - minX - 2)
-        let isCurrent = (block.editorStart..<block.editorEnd).contains(model.currentTime)
-        return Text(block.text)
-            .font(.system(size: 10.5, weight: .medium))
-            .lineLimit(1)
-            .truncationMode(.tail)
-            .padding(.horizontal, 6)
-            .frame(width: width, height: StudioZoomLaneMetrics.blockHeight, alignment: .leading)
-            .foregroundStyle(isCurrent ? Color.white : Color.primary.opacity(0.8))
-            .background(
-                RoundedRectangle(cornerRadius: StudioZoomLaneMetrics.blockCornerRadius, style: .continuous)
-                    .fill(Self.tint.opacity(isCurrent ? 0.85 : 0.2))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioZoomLaneMetrics.blockCornerRadius, style: .continuous)
-                    .strokeBorder(Self.tint.opacity(isCurrent ? 0 : 0.4), lineWidth: 1)
-            )
-            .contentShape(Rectangle())
-            .onTapGesture {
-                model.pause()
-                model.seek(to: block.editorStart)
-            }
-            .offset(x: minX + 1, y: StudioZoomLaneMetrics.blockInset)
-            .help(block.text)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text(block.text))
-            .accessibilityAddTraits(.isButton)
+        .focusable()
+        .focusEffectDisabled()
+        .focused($isFocused)
+        .onKeyPress(keys: [.delete, .deleteForward]) { _ in
+            guard let id = model.selectedSubtitleCueID else { return .ignored }
+            model.deleteSubtitle(id: id)
+            return .handled
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Captions track")
     }
 
     private var visibleBlocks: [Block] {
@@ -3985,8 +3983,158 @@ private struct StudioCaptionLane: View {
             guard let first = slices.first, let last = slices.last,
                   last.editorEnd >= visibleRange.lowerBound,
                   first.editorStart <= visibleRange.upperBound else { return nil }
-            return Block(id: cue.id, text: cue.text, editorStart: first.editorStart, editorEnd: last.editorEnd)
+            return Block(cue: cue, editorStart: first.editorStart, editorEnd: last.editorEnd)
         }
+    }
+}
+
+/// One caption on the timeline: its text, trim handles on either edge
+/// once selected, and a ring while selected.
+private struct StudioCaptionBlock: View {
+    @Bindable var model: RecordingStudioModel
+    let block: StudioCaptionLane.Block
+    let scale: StudioTimelineScale
+    /// Gives the lane keyboard focus; see StudioCaptionLane.isFocused.
+    let takeFocus: () -> Void
+
+    /// Where the drag began, held in source time so the clip mapping can't
+    /// shift under it mid-drag.
+    @State private var dragBase: RecordingSubtitleCue?
+
+    private var isSelected: Bool {
+        model.selectedSubtitleCueID == block.cue.id
+    }
+
+    var body: some View {
+        let minX = scale.x(for: block.editorStart)
+        let width = max(6, scale.x(for: block.editorEnd) - minX - 2)
+        let isCurrent = (block.editorStart..<block.editorEnd).contains(model.currentTime)
+        let showsHandles = isSelected && width >= 28
+        let tint = StudioCaptionLane.tint
+
+        HStack(spacing: 0) {
+            if showsHandles { resizeHandle(edge: .start) }
+            Text(block.cue.text)
+                .font(.system(size: 10.5, weight: .medium))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .padding(.horizontal, showsHandles ? 0 : 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if showsHandles { resizeHandle(edge: .end) }
+        }
+        .frame(width: width, height: StudioZoomLaneMetrics.blockHeight)
+        .foregroundStyle(isCurrent || isSelected ? Color.white : Color.primary.opacity(0.8))
+        .background(
+            RoundedRectangle(cornerRadius: StudioZoomLaneMetrics.blockCornerRadius, style: .continuous)
+                .fill(tint.opacity(isSelected ? 0.95 : isCurrent ? 0.85 : 0.2))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioZoomLaneMetrics.blockCornerRadius, style: .continuous)
+                .strokeBorder(tint.opacity(isCurrent || isSelected ? 0 : 0.4), lineWidth: 1)
+        )
+        .overlay {
+            if isSelected {
+                RoundedRectangle(
+                    cornerRadius: StudioZoomLaneMetrics.selectionRingCornerRadius,
+                    style: .continuous
+                )
+                    .stroke(Color.white.opacity(0.8), lineWidth: 1.5)
+                    .padding(-StudioZoomLaneMetrics.selectionRingPadding)
+            }
+        }
+        .contentShape(Rectangle())
+        .gesture(moveGesture)
+        .onTapGesture {
+            select()
+            model.pause()
+            model.seek(to: block.editorStart)
+        }
+        .contextMenu {
+            Button("Edit in Transcript") {
+                select()
+                UserDefaults.standard.set(true, forKey: StudioTranscriptPanel.isPresentedKey)
+            }
+            Divider()
+            Button("Delete Caption", role: .destructive) {
+                model.deleteSubtitle(id: block.cue.id)
+            }
+        }
+        .offset(x: minX + 1, y: StudioZoomLaneMetrics.blockInset)
+        .help(block.cue.text)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(block.cue.text))
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAction { select() }
+        .accessibilityAction(named: Text("Delete Caption")) {
+            model.deleteSubtitle(id: block.cue.id)
+        }
+    }
+
+    private func select() {
+        takeFocus()
+        model.selectedSubtitleCueID = block.cue.id
+    }
+
+    /// Slides the caption, keeping its length.
+    private var moveGesture: some Gesture {
+        DragGesture(minimumDistance: 3, coordinateSpace: .global)
+            .onChanged { value in
+                if dragBase == nil {
+                    dragBase = block.cue
+                    select()
+                    model.pause()
+                    model.beginSubtitleEdit()
+                }
+                guard let dragBase else { return }
+                let delta = Double(value.translation.width) * scale.secondsPerPoint
+                let editorStart = model.editorTime(forSourceTime: dragBase.start) ?? block.editorStart
+                model.moveSubtitle(
+                    id: dragBase.id,
+                    toStart: model.sourceTime(atEditorTime: max(0, editorStart + delta))
+                )
+            }
+            .onEnded { _ in
+                dragBase = nil
+                model.endSubtitleEdit(actionName: String(localized: "Move Caption"))
+            }
+    }
+
+    private func resizeHandle(edge: SubtitleCueTiming.Edge) -> some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.001))
+            .frame(width: 10, height: StudioZoomLaneMetrics.blockHeight)
+            .overlay {
+                Capsule()
+                    .fill(Color.white.opacity(0.9))
+                    .frame(width: 2.5, height: 12)
+            }
+            .contentShape(Rectangle())
+            .pointerStyle(.frameResize(position: edge == .start ? .leading : .trailing))
+            .gesture(
+                DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                    .onChanged { value in
+                        if dragBase == nil {
+                            dragBase = block.cue
+                            model.pause()
+                            model.beginSubtitleEdit()
+                        }
+                        guard let dragBase else { return }
+                        let delta = Double(value.translation.width) * scale.secondsPerPoint
+                        let edgeEditorTime = edge == .start
+                            ? (model.editorTime(forSourceTime: dragBase.start) ?? block.editorStart)
+                            : (model.editorTime(forSourceTime: dragBase.end) ?? block.editorEnd)
+                        model.resizeSubtitle(
+                            id: dragBase.id,
+                            edge: edge,
+                            to: model.sourceTime(atEditorTime: max(0, edgeEditorTime + delta))
+                        )
+                    }
+                    .onEnded { _ in
+                        dragBase = nil
+                        model.endSubtitleEdit(actionName: String(localized: "Change Caption Timing"))
+                    }
+            )
+            .accessibilityHidden(true)
     }
 }
 

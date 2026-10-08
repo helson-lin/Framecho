@@ -112,8 +112,8 @@ nonisolated struct TranscriptWordRevision: Sendable, Equatable {
 
 /// How transcript words map onto subtitle cues, and the caption text the
 /// words produce. A word belongs to the last cue starting at or before it -
-/// the same rule the cues were chunked by - so this holds after cues are
-/// reordered or edited.
+/// the same rule the cues were chunked by - as long as it starts before
+/// that cue ends, so this holds after cues are moved, trimmed or deleted.
 nonisolated enum TranscriptCaptionText {
     /// Indices into `words` for each cue in `cues`, in cue order.
     static func wordIndices(
@@ -133,8 +133,11 @@ nonisolated enum TranscriptCaptionText {
                   start >= cues[cueOrder[position + 1]].start - 0.001 {
                 position += 1
             }
-            // Words before the first cue have no caption to belong to.
-            guard start >= cues[cueOrder[position]].start - 0.001 else { continue }
+            // Words before the first cue, and words past the end of the cue
+            // they follow (its tail was trimmed, or the cue after it was
+            // deleted), have no caption to belong to.
+            let cue = cues[cueOrder[position]]
+            guard start >= cue.start - 0.001, start < cue.end else { continue }
             result[cueOrder[position]].append(index)
         }
         return result
@@ -313,6 +316,73 @@ nonisolated struct SubtitleBarStyle: Sendable, Equatable {
     }
 }
 
+// MARK: - Subtitle timing edits
+
+/// Moving and resizing one caption on the timeline. A caption stays between
+/// its neighbours and never gets shorter than it can be read in; captions
+/// that already overlap (a short cue padded to its minimum) aren't forced
+/// apart by an edit to either one. Times are on the source timeline.
+nonisolated enum SubtitleCueTiming {
+    static let minimumDuration: TimeInterval = 0.3
+
+    enum Edge: Sendable {
+        case start
+        case end
+    }
+
+    /// Where the cue may sit, given its neighbours by start time.
+    private static func room(
+        for cue: RecordingSubtitleCue,
+        in cues: [RecordingSubtitleCue],
+        sourceDuration: TimeInterval
+    ) -> ClosedRange<TimeInterval> {
+        let others = cues.filter { $0.id != cue.id }
+        let previousEnd = others.filter { $0.start <= cue.start }.map(\.end).max() ?? 0
+        let nextStart = others.filter { $0.start > cue.start }.map(\.start).min() ?? max(sourceDuration, cue.end)
+        let lower = min(previousEnd, cue.start)
+        return lower...max(lower, max(nextStart, cue.end))
+    }
+
+    /// The cue slid to start at `start`, keeping its length.
+    static func moving(
+        _ cues: [RecordingSubtitleCue],
+        id: UUID,
+        toStart start: TimeInterval,
+        sourceDuration: TimeInterval
+    ) -> [RecordingSubtitleCue] {
+        guard let index = cues.firstIndex(where: { $0.id == id }), start.isFinite else { return cues }
+        var result = cues
+        let cue = cues[index]
+        let length = cue.end - cue.start
+        let room = room(for: cue, in: cues, sourceDuration: sourceDuration)
+        let newStart = min(max(start, room.lowerBound), max(room.lowerBound, room.upperBound - length))
+        result[index].start = newStart
+        result[index].end = newStart + length
+        return result
+    }
+
+    /// The cue with one edge dragged to `time`.
+    static func resizing(
+        _ cues: [RecordingSubtitleCue],
+        id: UUID,
+        edge: Edge,
+        to time: TimeInterval,
+        sourceDuration: TimeInterval
+    ) -> [RecordingSubtitleCue] {
+        guard let index = cues.firstIndex(where: { $0.id == id }), time.isFinite else { return cues }
+        var result = cues
+        let cue = cues[index]
+        let room = room(for: cue, in: cues, sourceDuration: sourceDuration)
+        switch edge {
+        case .start:
+            result[index].start = min(max(time, room.lowerBound), cue.end - minimumDuration)
+        case .end:
+            result[index].end = max(min(time, room.upperBound), cue.start + minimumDuration)
+        }
+        return result
+    }
+}
+
 // MARK: - Subtitle timeline
 
 /// Deterministic subtitle playback: the cue covering a source time, if any.
@@ -403,17 +473,8 @@ nonisolated struct KaraokeTimeline: Sendable {
         let sortedCues = cues
             .filter { $0.start.isFinite && $0.end > $0.start }
             .sorted { $0.start < $1.start }
-        var timedByCue: [[RecordingTranscriptWord]] = sortedCues.map { _ in [] }
-        var cueIndex = 0
-        for word in words.sorted(by: { $0.start < $1.start }) {
-            while cueIndex < sortedCues.count - 1,
-                  word.start >= sortedCues[cueIndex + 1].start - 0.001 {
-                cueIndex += 1
-            }
-            if !timedByCue.isEmpty {
-                timedByCue[min(cueIndex, timedByCue.count - 1)].append(word)
-            }
-        }
+        let timedByCue = TranscriptCaptionText.wordIndices(for: sortedCues, words: words)
+            .map { indices in indices.map { words[$0] } }
 
         self.cues = zip(sortedCues, timedByCue).compactMap { cue, timed in
             guard !timed.isEmpty else { return nil }

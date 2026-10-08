@@ -158,6 +158,46 @@ struct TranscriptCaptionChecks {
         let fresh = RecordingTranscriptionService.makeCues(from: [word("，开始", 0), word("吧。", 0.5)])
         precondition(fresh.map(\.text) == ["开始吧。"], "\(fresh)")
 
+        // Timing edits: moves keep a caption's length and stop at its
+        // neighbours; trims keep it readable.
+        let timed = [
+            RecordingSubtitleCue(start: 0, end: 2, text: "a"),
+            RecordingSubtitleCue(start: 3, end: 5, text: "b"),
+            RecordingSubtitleCue(start: 8, end: 9, text: "c"),
+        ]
+        let b = timed[1].id
+        func cue(_ cues: [RecordingSubtitleCue]) -> RecordingSubtitleCue { cues.first { $0.id == b }! }
+        precondition(cue(SubtitleCueTiming.moving(timed, id: b, toStart: 4, sourceDuration: 10)).start == 4)
+        precondition(cue(SubtitleCueTiming.moving(timed, id: b, toStart: 4, sourceDuration: 10)).end == 6)
+        precondition(cue(SubtitleCueTiming.moving(timed, id: b, toStart: 7.5, sourceDuration: 10)).end == 8, "Stops at the next caption")
+        precondition(cue(SubtitleCueTiming.moving(timed, id: b, toStart: 0, sourceDuration: 10)).start == 2, "Stops at the previous caption")
+        precondition(cue(SubtitleCueTiming.resizing(timed, id: b, edge: .end, to: 20, sourceDuration: 10)).end == 8)
+        precondition(cue(SubtitleCueTiming.resizing(timed, id: b, edge: .end, to: 3.1, sourceDuration: 10)).end == 3 + SubtitleCueTiming.minimumDuration)
+        precondition(cue(SubtitleCueTiming.resizing(timed, id: b, edge: .start, to: 1, sourceDuration: 10)).start == 2)
+        let last = timed[2].id
+        precondition(SubtitleCueTiming.resizing(timed, id: last, edge: .end, to: 30, sourceDuration: 10).first { $0.id == last }!.end == 10)
+        // Captions that already overlap aren't pushed apart by an edit.
+        let overlapping = [RecordingSubtitleCue(start: 0, end: 3.5, text: "x"), RecordingSubtitleCue(start: 3, end: 4, text: "y")]
+        let y = overlapping[1].id
+        precondition(cue2(SubtitleCueTiming.resizing(overlapping, id: y, edge: .end, to: 5, sourceDuration: 10), y).start == 3)
+        func cue2(_ cues: [RecordingSubtitleCue], _ id: UUID) -> RecordingSubtitleCue { cues.first { $0.id == id }! }
+
+        // A deleted caption's words don't fall into the caption before it,
+        // and a trimmed caption keeps only the words inside it.
+        let spoken = [word("one ", 0), word("two ", 0.5), word("three ", 3), word("four", 3.5)]
+        let pair = [
+            RecordingSubtitleCue(start: 0, end: 1, text: "one two"),
+            RecordingSubtitleCue(start: 3, end: 4, text: "three four"),
+        ]
+        precondition(TranscriptCaptionText.wordIndices(for: pair, words: spoken) == [[0, 1], [2, 3]])
+        precondition(TranscriptCaptionText.wordIndices(for: [pair[0]], words: spoken) == [[0, 1]], "Deleted caption's words stay out")
+        var trimmed = pair[0]
+        trimmed.end = 0.4
+        precondition(TranscriptCaptionText.wordIndices(for: [trimmed], words: spoken) == [[0]])
+        let karaokeAfterDelete = KaraokeTimeline(cues: [pair[0]], words: spoken)
+        precondition(karaokeAfterDelete.line(at: 0.6)?.words == ["one", " two"])
+        precondition(karaokeAfterDelete.line(at: 3.2) == nil)
+
         print("Transcript caption checks passed.")
     }
 }
