@@ -387,16 +387,7 @@ final class RecordingStudioModel {
             }
         }
 
-        if let storedClips = document?.clips, !storedClips.isEmpty {
-            clipTimeline = RecordingClipTimeline(segments: storedClips)
-                .normalized(to: sourceDuration)
-        } else {
-            clipTimeline = .legacyTrim(
-                start: document?.trimStart,
-                end: document?.trimEnd,
-                sourceDuration: sourceDuration
-            )
-        }
+        clipTimeline = Self.clipTimeline(for: document, sourceDuration: sourceDuration)
         duration = clipTimeline.duration
         // Nothing is selected until the user picks a clip; an unsplit
         // recording would otherwise open wrapped in selection chrome.
@@ -454,6 +445,22 @@ final class RecordingStudioModel {
 
     /// Copies a stored project onto the model. Shared by the initial load and
     /// by discarding changes, so both routes can never drift apart.
+    /// The stored cuts, or the trim of projects saved before cuts shipped.
+    private static func clipTimeline(
+        for document: RecordingEditDocument?,
+        sourceDuration: TimeInterval
+    ) -> RecordingClipTimeline {
+        if let storedClips = document?.clips, !storedClips.isEmpty {
+            return RecordingClipTimeline(segments: storedClips)
+                .normalized(to: sourceDuration)
+        }
+        return .legacyTrim(
+            start: document?.trimStart,
+            end: document?.trimEnd,
+            sourceDuration: sourceDuration
+        )
+    }
+
     private func applyDocumentSettings(_ document: RecordingEditDocument) {
         isApplyingDocument = true
         defer { isApplyingDocument = false }
@@ -476,9 +483,17 @@ final class RecordingStudioModel {
         showsKeystrokes = document.showsKeystrokes ?? true
         keystrokePlacement = document.keystrokePlacement ?? .bottomCenter
         showsSubtitles = document.showsSubtitles ?? true
-        subtitleCues = document.subtitleCues ?? []
-        subtitleTimeline = SubtitleTimeline(cues: subtitleCues)
         transcriptWords = document.subtitleWords ?? []
+        // Captions saved with punctuation left dangling by a hidden filler
+        // ("，包括…") read tidy again; typed captions are untouched.
+        subtitleCues = TranscriptCaptionText.tidied(
+            document.subtitleCues ?? [],
+            words: transcriptWords,
+            isIncluded: { [words = transcriptWords, timeline = Self.clipTimeline(for: document, sourceDuration: sourceDuration)] in
+                timeline.editorTime(forSourceTime: words[$0].midpoint) != nil
+            }
+        )
+        subtitleTimeline = SubtitleTimeline(cues: subtitleCues)
         karaokeTimeline = KaraokeTimeline(cues: subtitleCues, words: transcriptWords)
         subtitleStyle = document.subtitleStyle
         exportAspect = document.exportAspectPreset
@@ -1768,16 +1783,7 @@ final class RecordingStudioModel {
         isApplyingDocument = true
         defer { isApplyingDocument = false }
 
-        if let storedClips = document.clips, !storedClips.isEmpty {
-            clipTimeline = RecordingClipTimeline(segments: storedClips)
-                .normalized(to: sourceDuration)
-        } else {
-            clipTimeline = .legacyTrim(
-                start: document.trimStart,
-                end: document.trimEnd,
-                sourceDuration: sourceDuration
-            )
-        }
+        clipTimeline = Self.clipTimeline(for: document, sourceDuration: sourceDuration)
         duration = clipTimeline.duration
         // Nothing is selected until the user picks a clip; an unsplit
         // recording would otherwise open wrapped in selection chrome.
@@ -2090,17 +2096,62 @@ final class RecordingStudioModel {
             let nextCueStart = position < byStart.count - 1
                 ? result[byStart[position + 1]].start
                 : .infinity
-            result[index].text = words
-                .filter { word in
-                    word.start >= cue.start - 0.001
-                        && word.start < nextCueStart - 0.001
-                        && timeline.editorTime(forSourceTime: word.midpoint) != nil
-                }
-                .map(\.text)
-                .joined()
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+            result[index].text = TranscriptCaptionText.text(of: words.filter { word in
+                word.start >= cue.start - 0.001
+                    && word.start < nextCueStart - 0.001
+                    && timeline.editorTime(forSourceTime: word.midpoint) != nil
+            })
         }
         return result
+    }
+
+    // MARK: - Caption revisions
+
+    /// Words corrected or hidden in captions, for "Restore Original".
+    var hasCaptionRevisions: Bool {
+        transcriptWords.contains(where: \.hasCaptionRevision)
+    }
+
+    /// Applies reviewed caption revisions - corrections and hidden fillers -
+    /// as one undoable step. The words keep their audio and timing; only
+    /// the captions they produce change.
+    func applyCaptionRevisions(_ revisions: [Int: TranscriptWordRevision], actionName: String) {
+        let revised = TranscriptCaptionText.applying(
+            revisions,
+            to: transcriptWords,
+            cues: subtitleCues,
+            isIncluded: transcriptWordSurvives
+        )
+        applyTranscript(words: revised.words, cues: revised.cues, actionName: actionName)
+    }
+
+    /// Clears every correction and hidden filler, back to what the
+    /// recognizer heard. Captions edited by hand keep their text.
+    func restoreOriginalCaptions() {
+        let revisions = Dictionary(
+            uniqueKeysWithValues: transcriptWords.indices
+                .filter { transcriptWords[$0].hasCaptionRevision }
+                .map { ($0, TranscriptWordRevision.original) }
+        )
+        applyCaptionRevisions(revisions, actionName: String(localized: "Restore Original Captions"))
+    }
+
+    private func applyTranscript(
+        words: [RecordingTranscriptWord],
+        cues: [RecordingSubtitleCue],
+        actionName: String
+    ) {
+        guard words != transcriptWords || cues != subtitleCues else { return }
+        let previousWords = transcriptWords
+        let previousCues = subtitleCues
+        registerUndo(actionName) { target in
+            target.applyTranscript(words: previousWords, cues: previousCues, actionName: actionName)
+        }
+        transcriptWords = words
+        subtitleCues = cues
+        subtitleTimeline = SubtitleTimeline(cues: cues)
+        karaokeTimeline = KaraokeTimeline(cues: cues, words: words)
+        scheduleProjectSave()
     }
 
     /// Recomputes which word the playhead is on; assigns only on change so

@@ -136,4 +136,7 @@ check recording-timelines "${strict[@]}" \
   Framecho/RecordingOverlayEffects.swift Framecho/RecordingCursorStyle.swift \
   scripts/check-recording-timelines.swift
 
+check transcript-captions "${strict[@]}" \
+  Framecho/RecordingTranscription.swift scripts/check-transcript-captions.swift
+
 echo "All checks passed."

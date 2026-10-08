@@ -18,17 +18,234 @@ import Speech
 /// `text` keeps the transcript's original trailing punctuation/spacing so
 /// concatenating words reconstructs the transcript exactly.
 nonisolated struct RecordingTranscriptWord: Codable, Sendable, Equatable {
+    /// What the recognizer heard. Never rewritten, so revisions can always
+    /// be reverted to it.
     var text: String
     var start: TimeInterval
     var end: TimeInterval
+    /// Replacement for the word in captions (a correction). Spans of
+    /// several words carry the replacement on the first word and an empty
+    /// string on the rest, so the span keeps its timing.
+    var correctedText: String?
+    /// Dropped from captions (a filler) without cutting its audio.
+    var isHiddenInCaptions = false
+
+    init(
+        text: String,
+        start: TimeInterval,
+        end: TimeInterval,
+        correctedText: String? = nil,
+        isHiddenInCaptions: Bool = false
+    ) {
+        self.text = text
+        self.start = start
+        self.end = end
+        self.correctedText = correctedText
+        self.isHiddenInCaptions = isHiddenInCaptions
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case text
+        case start
+        case end
+        case correctedText
+        case isHiddenInCaptions
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        text = try container.decode(String.self, forKey: .text)
+        start = try container.decode(TimeInterval.self, forKey: .start)
+        end = try container.decode(TimeInterval.self, forKey: .end)
+        // Words saved before caption revisions shipped carry neither.
+        correctedText = try container.decodeIfPresent(String.self, forKey: .correctedText)
+        isHiddenInCaptions = try container.decodeIfPresent(Bool.self, forKey: .isHiddenInCaptions) ?? false
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(text, forKey: .text)
+        try container.encode(start, forKey: .start)
+        try container.encode(end, forKey: .end)
+        // Unrevised words - nearly all of them - stay as small as before.
+        try container.encodeIfPresent(correctedText, forKey: .correctedText)
+        if isHiddenInCaptions {
+            try container.encode(true, forKey: .isHiddenInCaptions)
+        }
+    }
 
     /// Word as shown in the transcript editor, without the glued spacing.
     var displayText: String {
         text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// The word as captions show it, keeping the recognizer's glued
+    /// spacing around a correction so concatenation still reads naturally.
+    /// Empty when hidden.
+    var captionText: String {
+        if isHiddenInCaptions { return "" }
+        guard let correctedText else { return text }
+        let corrected = correctedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !corrected.isEmpty else { return "" }
+        let leading = text.prefix { $0.isWhitespace }
+        let trailing = text.reversed().prefix { $0.isWhitespace }.reversed()
+        return leading + corrected + String(trailing)
+    }
+
+    var hasCaptionRevision: Bool {
+        correctedText != nil || isHiddenInCaptions
+    }
+
     var midpoint: TimeInterval {
         (start + end) / 2
+    }
+}
+
+/// A caption revision for one word, as suggested by caption cleanup and
+/// applied in one undoable step.
+nonisolated struct TranscriptWordRevision: Sendable, Equatable {
+    var correctedText: String?
+    var isHiddenInCaptions: Bool
+
+    static let original = TranscriptWordRevision(correctedText: nil, isHiddenInCaptions: false)
+}
+
+/// How transcript words map onto subtitle cues, and the caption text the
+/// words produce. A word belongs to the last cue starting at or before it -
+/// the same rule the cues were chunked by - so this holds after cues are
+/// reordered or edited.
+nonisolated enum TranscriptCaptionText {
+    /// Indices into `words` for each cue in `cues`, in cue order.
+    static func wordIndices(
+        for cues: [RecordingSubtitleCue],
+        words: [RecordingTranscriptWord]
+    ) -> [[Int]] {
+        var result: [[Int]] = cues.map { _ in [] }
+        let cueOrder = cues.indices
+            .filter { cues[$0].start.isFinite }
+            .sorted { cues[$0].start < cues[$1].start }
+        guard !cueOrder.isEmpty else { return result }
+
+        var position = 0
+        for index in words.indices.sorted(by: { words[$0].start < words[$1].start }) {
+            let start = words[index].start
+            while position < cueOrder.count - 1,
+                  start >= cues[cueOrder[position + 1]].start - 0.001 {
+                position += 1
+            }
+            // Words before the first cue have no caption to belong to.
+            guard start >= cues[cueOrder[position]].start - 0.001 else { continue }
+            result[cueOrder[position]].append(index)
+        }
+        return result
+    }
+
+    /// The caption a run of words reads as.
+    static func text(of words: some Sequence<RecordingTranscriptWord>) -> String {
+        pieces(of: words).map(\.text).joined()
+    }
+
+    /// The caption's visible words, in order, each carrying its own leading
+    /// space so plain concatenation reads as the caption, with the offset of
+    /// the word it came from. Punctuation the recognizer glued to a word can
+    /// dangle once its neighbor is hidden or corrected away ("嗯，包括" →
+    /// "，包括"), so a caption never opens with a separator and two separators
+    /// never stack ("好，，然后"); the stronger one wins ("好，。" → "好。").
+    static func pieces(
+        of words: some Sequence<RecordingTranscriptWord>
+    ) -> [(offset: Int, text: String)] {
+        var pieces: [(offset: Int, text: String)] = []
+        var pendingSpace = false
+        for (offset, word) in words.enumerated() {
+            let caption = word.captionText
+            var trimmed = Substring(caption.trimmingCharacters(in: .whitespacesAndNewlines))
+            guard !trimmed.isEmpty else {
+                pendingSpace = pendingSpace || !caption.isEmpty
+                continue
+            }
+
+            let lead = trimmed.prefix(while: \.isCaptionSeparator)
+            if !lead.isEmpty {
+                trimmed = trimmed.dropFirst(lead.count)
+                if let last = pieces.indices.last {
+                    let previous = pieces[last].text
+                    let trail = previous.reversed().prefix(while: \.isCaptionSeparator)
+                    if trail.isEmpty {
+                        // Punctuation that belongs to the previous word.
+                        pieces[last].text += lead
+                    } else if lead.contains(where: \.isSentenceEnd), !trail.contains(where: \.isSentenceEnd) {
+                        pieces[last].text = String(previous.dropLast(trail.count)) + lead
+                    }
+                }
+                // Nothing before it: a caption doesn't open on punctuation.
+            }
+            if trimmed.isEmpty {
+                pendingSpace = caption.last?.isWhitespace == true
+                continue
+            }
+
+            let spaced = !pieces.isEmpty && (pendingSpace || caption.first?.isWhitespace == true)
+            pieces.append((offset, spaced ? " " + trimmed : String(trimmed)))
+            pendingSpace = caption.last?.isWhitespace == true
+        }
+        return pieces
+    }
+
+    /// Whether a cue still reads as its words rather than as text the user
+    /// typed. Captions derived before punctuation was tidied (plain
+    /// concatenation) still count, so they keep following their words.
+    static func cue(_ cue: RecordingSubtitleCue, readsAs words: [RecordingTranscriptWord]) -> Bool {
+        cue.text == text(of: words)
+            || cue.text == words.map(\.captionText).joined().trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Re-derives captions that still read as their words, so captions
+    /// saved with dangling punctuation pick up the tidy text. Captions the
+    /// user typed are left alone.
+    static func tidied(
+        _ cues: [RecordingSubtitleCue],
+        words: [RecordingTranscriptWord],
+        isIncluded: (Int) -> Bool = { _ in true }
+    ) -> [RecordingSubtitleCue] {
+        guard !words.isEmpty else { return cues }
+        var result = cues
+        for (cueIndex, indices) in wordIndices(for: cues, words: words).enumerated() where !indices.isEmpty {
+            let cueWords = indices.filter(isIncluded).map { words[$0] }
+            if cue(cues[cueIndex], readsAs: cueWords) {
+                result[cueIndex].text = text(of: cueWords)
+            }
+        }
+        return result
+    }
+
+    /// Applies word revisions and rewrites the captions they touch. A cue
+    /// whose text no longer matches its words was edited by hand and keeps
+    /// its text; revising a word never overwrites what the user typed.
+    /// `isIncluded` leaves out words whose audio was cut, which their
+    /// captions no longer show.
+    static func applying(
+        _ revisions: [Int: TranscriptWordRevision],
+        to words: [RecordingTranscriptWord],
+        cues: [RecordingSubtitleCue],
+        isIncluded: (Int) -> Bool = { _ in true }
+    ) -> (words: [RecordingTranscriptWord], cues: [RecordingSubtitleCue]) {
+        var revisedWords = words
+        for (index, revision) in revisions where revisedWords.indices.contains(index) {
+            revisedWords[index].correctedText = revision.correctedText
+            revisedWords[index].isHiddenInCaptions = revision.isHiddenInCaptions
+        }
+        guard revisedWords != words else { return (words, cues) }
+
+        var revisedCues = cues
+        for (cueIndex, allIndices) in wordIndices(for: cues, words: words).enumerated() {
+            let shown = allIndices.filter(isIncluded)
+            guard shown.contains(where: { revisions[$0] != nil }),
+                  cue(cues[cueIndex], readsAs: shown.map { words[$0] }) else {
+                continue
+            }
+            revisedCues[cueIndex].text = text(of: shown.map { revisedWords[$0] })
+        }
+        return (revisedWords, revisedCues)
     }
 }
 
@@ -151,7 +368,9 @@ nonisolated struct SubtitleTimeline: Sendable, Equatable {
 /// SwiftUI preview and the CoreGraphics exporter so highlights match.
 nonisolated struct KaraokeTimeline: Sendable {
     struct Line: Equatable {
-        /// Display words of the active cue, original order, trimmed.
+        /// Display pieces of the active cue in order, each carrying its own
+        /// leading spacing, so plain concatenation reads as the caption.
+        /// Unspaced scripts (Chinese, Japanese) need no separator at all.
         var words: [String]
         /// Index into `words` currently being spoken; nil between words
         /// and after the cue's last word ends.
@@ -164,10 +383,11 @@ nonisolated struct KaraokeTimeline: Sendable {
     private struct CueLine {
         var start: TimeInterval
         var end: TimeInterval
-        /// Display words from the cue's (possibly hand-edited) text.
+        /// Display pieces from the cue's (possibly hand-edited) text.
         var words: [String]
-        /// Per-display-word timing, index-mapped from the timed words so
-        /// text edits keep working even when word counts drift.
+        /// Per-piece timing: exact when the caption still reads as its
+        /// words, index-mapped from the timed words after a hand edit so
+        /// it keeps working even when word counts drift.
         var timings: [(start: TimeInterval, end: TimeInterval)]
     }
 
@@ -197,9 +417,10 @@ nonisolated struct KaraokeTimeline: Sendable {
 
         self.cues = zip(sortedCues, timedByCue).compactMap { cue, timed in
             guard !timed.isEmpty else { return nil }
-            let displayWords = cue.text
-                .split(whereSeparator: \.isWhitespace)
-                .map(String.init)
+            if let line = Self.exactLine(for: cue, timed: timed) {
+                return line
+            }
+            let displayWords = Self.displayPieces(of: cue.text)
             guard !displayWords.isEmpty else { return nil }
             let timings = displayWords.indices.map { index in
                 let timedIndex = min(
@@ -215,6 +436,39 @@ nonisolated struct KaraokeTimeline: Sendable {
                 timings: timings
             )
         }
+    }
+
+    /// A caption that still reads exactly as its words (corrections and
+    /// hidden fillers included) highlights word by word with the
+    /// recognizer's own timing.
+    private static func exactLine(
+        for cue: RecordingSubtitleCue,
+        timed: [RecordingTranscriptWord]
+    ) -> CueLine? {
+        let pieces = TranscriptCaptionText.pieces(of: timed)
+        guard !pieces.isEmpty, cue.text == pieces.map(\.text).joined() else { return nil }
+        let timings = pieces.map { (start: timed[$0.offset].start, end: timed[$0.offset].end) }
+        return CueLine(start: cue.start, end: cue.end, words: pieces.map(\.text), timings: timings)
+    }
+
+    /// Hand-edited text split into pieces: by whitespace for spaced
+    /// scripts, by character for unspaced ones (a whole Chinese sentence
+    /// would otherwise light up as a single word).
+    private static func displayPieces(of text: String) -> [String] {
+        let spaced = text.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard spaced.count == 1, let only = spaced.first, only.contains(where: \.isUnspacedScript) else {
+            return spaced.enumerated().map { $0.offset > 0 ? " " + $0.element : $0.element }
+        }
+        // Punctuation rides with the character before it.
+        var pieces: [String] = []
+        for character in only {
+            if !pieces.isEmpty, character.isPunctuation {
+                pieces[pieces.count - 1].append(character)
+            } else {
+                pieces.append(String(character))
+            }
+        }
+        return pieces
     }
 
     var isEmpty: Bool {
@@ -256,6 +510,31 @@ nonisolated struct KaraokeTimeline: Sendable {
             activeIndex: activeIndex,
             spokenCount: spokenCount
         )
+    }
+}
+
+private extension Character {
+    /// Punctuation that separates clauses, which a caption must not open
+    /// with or repeat. Quotes and brackets are left alone.
+    nonisolated var isCaptionSeparator: Bool {
+        "，。、；：！？,.;:!?…．".contains(self)
+    }
+
+    nonisolated var isSentenceEnd: Bool {
+        "。！？.!?…".contains(self)
+    }
+
+    /// Written without spaces between words: Han, kana, Hangul.
+    nonisolated var isUnspacedScript: Bool {
+        unicodeScalars.contains { scalar in
+            switch scalar.value {
+            case 0x3040...0x30FF, 0x3400...0x4DBF, 0x4E00...0x9FFF,
+                 0xAC00...0xD7AF, 0xF900...0xFAFF, 0x20000...0x2FA1F:
+                true
+            default:
+                false
+            }
+        }
     }
 }
 
@@ -467,8 +746,11 @@ nonisolated enum RecordingTranscriptionService {
         var start: TimeInterval = 0
         var end: TimeInterval = 0
 
+        var cueWords: [RecordingTranscriptWord] = []
+
         func flush() {
-            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmed = TranscriptCaptionText.text(of: cueWords)
+            cueWords = []
             text = ""
             guard !trimmed.isEmpty else { return }
             cues.append(RecordingSubtitleCue(
@@ -495,6 +777,7 @@ nonisolated enum RecordingTranscriptionService {
             // Runs keep the transcript's original spacing, so plain
             // concatenation reconstructs the text exactly.
             text += word.text
+            cueWords.append(word)
             end = max(end, word.end)
         }
         flush()

@@ -1815,7 +1815,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
                 color = CGColor(gray: 1, alpha: SubtitleBarMetrics.karaokeUpcomingAlpha)
             }
             text.append(NSAttributedString(
-                string: index > 0 ? " \(word)" : word,
+                string: word,
                 attributes: [fontKey: font, colorKey: color]
             ))
         }

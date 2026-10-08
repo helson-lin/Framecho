@@ -1806,7 +1806,7 @@ private struct StudioSubtitleBarView: View {
             } else {
                 color = .white.opacity(SubtitleBarMetrics.karaokeUpcomingAlpha)
             }
-            let piece = Text(verbatim: index > 0 ? " \(word)" : word)
+            let piece = Text(verbatim: word)
                 .foregroundStyle(color)
             combined = combined + piece
         }
