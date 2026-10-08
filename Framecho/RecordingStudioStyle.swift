@@ -66,6 +66,9 @@ struct RecordingEditDocument: Codable, Equatable {
     /// 3D card pose and motion cues. Optional so projects saved before
     /// format 6 decode with motion off and a flat card.
     var motion: RecordingMotionSettings?
+    /// Library music under the soundtrack; optional so older projects
+    /// decode without any.
+    var backgroundMusic: RecordingBackgroundMusic?
 
     private enum CodingKeys: String, CodingKey {
         case formatVersion
@@ -96,6 +99,7 @@ struct RecordingEditDocument: Codable, Equatable {
         case audioExportFormat
         case audioVolume
         case motion
+        case backgroundMusic
     }
 
     init(
@@ -119,7 +123,8 @@ struct RecordingEditDocument: Codable, Equatable {
         replacementAudioDisplayName: String? = nil,
         audioExportFormat: RecordingAudioFormat? = nil,
         audioVolume: Double? = nil,
-        motion: RecordingMotionSettings? = nil
+        motion: RecordingMotionSettings? = nil,
+        backgroundMusic: RecordingBackgroundMusic? = nil
     ) {
         self.style = StoredRecordingStudioStyle(style)
         self.zoomEnabled = zoomEnabled
@@ -151,6 +156,7 @@ struct RecordingEditDocument: Codable, Equatable {
         self.audioExportFormat = audioExportFormat.map(\.rawValue)
         self.audioVolume = audioVolume
         self.motion = motion
+        self.backgroundMusic = backgroundMusic
     }
 
     var audioExportFormatValue: RecordingAudioFormat {
@@ -237,6 +243,7 @@ struct RecordingEditDocument: Codable, Equatable {
         audioExportFormat = try container.decodeIfPresent(String.self, forKey: .audioExportFormat)
         audioVolume = try container.decodeIfPresent(Double.self, forKey: .audioVolume)
         motion = try container.decodeIfPresent(RecordingMotionSettings.self, forKey: .motion)
+        backgroundMusic = try container.decodeIfPresent(RecordingBackgroundMusic.self, forKey: .backgroundMusic)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -269,6 +276,7 @@ struct RecordingEditDocument: Codable, Equatable {
         try container.encodeIfPresent(audioExportFormat, forKey: .audioExportFormat)
         try container.encodeIfPresent(audioVolume, forKey: .audioVolume)
         try container.encodeIfPresent(motion, forKey: .motion)
+        try container.encodeIfPresent(backgroundMusic, forKey: .backgroundMusic)
     }
 }
 

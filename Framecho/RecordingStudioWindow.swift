@@ -2251,6 +2251,16 @@ private struct StudioTimelineEditor: View {
                     )
                     .frame(height: StudioTimelineMetrics.audioLaneHeight)
                 }
+                if showsMusicLane {
+                    StudioMusicLane(
+                        title: model.backgroundMusic?.track?.title ?? "",
+                        plan: model.backgroundMusicTimelinePlan,
+                        isLoading: model.isLoadingBackgroundMusic,
+                        scale: scale,
+                        scrollX: scrollX
+                    )
+                    .frame(height: StudioTimelineMetrics.musicLaneHeight)
+                }
                 StudioZoomLaneBackground(
                     showsHint: model.zoomEnabled && model.zoomTimelineBlocks.isEmpty
                 )
@@ -2288,6 +2298,14 @@ private struct StudioTimelineEditor: View {
                             .frame(
                                 width: scale.contentWidth,
                                 height: StudioTimelineMetrics.audioLaneHeight
+                            )
+                    }
+
+                    if showsMusicLane {
+                        Color.clear
+                            .frame(
+                                width: scale.contentWidth,
+                                height: StudioTimelineMetrics.musicLaneHeight
                             )
                     }
 
@@ -2348,10 +2366,15 @@ private struct StudioTimelineEditor: View {
         model.canTranscribe || model.hasSubtitles
     }
 
+    private var showsMusicLane: Bool {
+        model.backgroundMusic != nil
+    }
+
     private var visibleLanes: StudioTimelineMetrics.Lanes {
         StudioTimelineMetrics.Lanes(
             audio: showsAudioLane,
-            captions: showsCaptionLane
+            captions: showsCaptionLane,
+            music: showsMusicLane
         )
     }
 
@@ -2437,6 +2460,11 @@ private struct StudioTimelineEditor: View {
                     offSymbol: "speaker.slash"
                 )
                 .frame(height: StudioTimelineMetrics.audioLaneHeight)
+            }
+
+            if showsMusicLane {
+                StudioLaneHeader(title: "Music", systemImage: "music.note", tint: StudioMusicLane.tint)
+                    .frame(height: StudioTimelineMetrics.musicLaneHeight)
             }
 
             StudioLaneHeader(
@@ -2948,6 +2976,7 @@ private enum StudioTimelineMetrics {
     static let scrollerGutter: CGFloat = 8
 
     static let audioLaneHeight: CGFloat = 22
+    static let musicLaneHeight: CGFloat = 22
 
     /// The optional lanes on show. The audio lane appears for replacement
     /// audio and captions for narrated recordings; the video, zoom and 3D
@@ -2955,12 +2984,14 @@ private enum StudioTimelineMetrics {
     struct Lanes: Equatable {
         var audio: Bool
         var captions: Bool
+        var music = false
     }
 
     static func scrollingLanesHeight(lanes: Lanes) -> CGFloat {
         clipLaneHeight + zoomLaneHeight + motionLaneHeight + scrollerGutter + rowSpacing * 3
             + (lanes.audio ? audioLaneHeight + rowSpacing : 0)
             + (lanes.captions ? captionLaneHeight + rowSpacing : 0)
+            + (lanes.music ? musicLaneHeight + rowSpacing : 0)
     }
 
     static func lanesHeight(lanes: Lanes) -> CGFloat {
@@ -3035,6 +3066,83 @@ private struct StudioAudioLane: View {
                 x += Self.barPitch
             }
             context.fill(path, with: .color(Self.tint.opacity(0.75)))
+        }
+    }
+}
+
+/// Background music under the cut: one block from zero to where the music
+/// stops, holding its level as a curve - the fades at either end and the
+/// dips under speech - so ducking can be checked against the narration.
+/// Viewport-sized like the audio lane, redrawn against `scrollX`.
+private struct StudioMusicLane: View {
+    static let tint = Color.pink
+
+    let title: String
+    let plan: BackgroundMusicGainPlan?
+    let isLoading: Bool
+    let scale: StudioTimelineScale
+    let scrollX: CGFloat
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            RoundedRectangle(cornerRadius: StudioZoomLaneMetrics.laneCornerRadius, style: .continuous)
+                .fill(Self.tint.opacity(0.05))
+
+            if let plan, plan.length > 0 {
+                envelope(for: plan)
+            }
+
+            Label(isLoading ? String(localized: "Downloading \(title)…") : title, systemImage: "music.note")
+                .font(.system(size: 10.5, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .padding(.horizontal, 8)
+        }
+        .allowsHitTesting(false)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Music: \(title)"))
+    }
+
+    private func envelope(for plan: BackgroundMusicGainPlan) -> some View {
+        Canvas { context, size in
+            guard scale.pointsPerSecond > 0, size.width > 0 else { return }
+            let startX = scale.x(for: 0) - scrollX
+            let endX = scale.x(for: plan.length) - scrollX
+            guard endX > 0, startX < size.width else { return }
+
+            let block = CGRect(x: startX, y: 1, width: endX - startX, height: size.height - 2)
+            let shape = Path(roundedRect: block, cornerRadius: 4, style: .continuous)
+            context.fill(shape, with: .color(Self.tint.opacity(0.14)))
+
+            // The level as a filled curve, scaled to the loudest point so
+            // the shape reads the same at any music level.
+            let peak = plan.segments.map { max($0.fromGain, $0.toGain) }.max() ?? 0
+            guard peak > 0 else { return }
+            let bottom = block.maxY - 1
+            let usable = block.height - 4
+            func y(_ gain: Double) -> CGFloat { bottom - CGFloat(gain / peak) * usable }
+
+            var curve = Path()
+            curve.move(to: CGPoint(x: startX, y: bottom))
+            for segment in plan.segments {
+                curve.addLine(to: CGPoint(x: scale.x(for: segment.start) - scrollX, y: y(segment.fromGain)))
+                curve.addLine(to: CGPoint(x: scale.x(for: segment.end) - scrollX, y: y(segment.toGain)))
+            }
+            curve.addLine(to: CGPoint(x: endX, y: bottom))
+            curve.closeSubpath()
+            context.clip(to: shape)
+            context.fill(curve, with: .color(Self.tint.opacity(0.28)))
+
+            // Where the track starts over, centred in its crossfade.
+            var seams = Path()
+            for point in plan.loopPoints {
+                let x = scale.x(for: point) - scrollX
+                guard x > 0, x < size.width else { continue }
+                seams.move(to: CGPoint(x: x, y: block.minY + 3))
+                seams.addLine(to: CGPoint(x: x, y: block.maxY - 3))
+            }
+            context.stroke(seams, with: .color(Self.tint.opacity(0.8)), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
+            context.stroke(shape, with: .color(Self.tint.opacity(0.55)), lineWidth: 1)
         }
     }
 }
@@ -4453,7 +4561,7 @@ private struct StudioInspector: View {
         case .captions:
             model.hasSubtitles && model.showsSubtitles
         case .audio:
-            model.replacementAudio != nil
+            model.replacementAudio != nil || model.backgroundMusic != nil
         }
     }
 
@@ -4751,6 +4859,12 @@ private struct StudioInspector: View {
             }
         ) {
             audioControls
+        }
+
+        InspectorSectionDivider()
+
+        InspectorSection("Background Music") {
+            StudioBackgroundMusicControls(model: model)
         }
     }
 

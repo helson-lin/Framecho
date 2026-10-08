@@ -247,8 +247,14 @@ final class RecordingStudioModel {
 
     private func updatePlaybackVolume() {
         guard let item = screenPlayer.currentItem else { return }
-        item.audioMix = RecordingAudioGain.makeMix(
-            tracks: item.asset.tracks(withMediaType: .audio), volume: Double(audioVolume)
+        let tracks = item.asset.tracks(withMediaType: .audio)
+        let musicIDs = playbackMusicTrackIDs
+        let musicTracks = musicIDs.compactMap { id in tracks.first { $0.trackID == id } }
+        item.audioMix = BackgroundMusicMixer.makeMix(
+            narrationTracks: tracks.filter { !musicIDs.contains($0.trackID) },
+            narrationVolume: Double(audioVolume),
+            musicTracks: musicTracks,
+            plan: loadedBackgroundMusic.flatMap(backgroundMusicPlan(for:))
         )
     }
 
@@ -261,6 +267,16 @@ final class RecordingStudioModel {
     private(set) var replacementAudio: RecordingReplacementAudio?
     /// Why the last import was rejected, shown next to the Replace control.
     private(set) var replacementAudioError: String?
+    /// Library music laid under the soundtrack; nil when none is chosen.
+    private(set) var backgroundMusic: RecordingBackgroundMusic?
+    /// The chosen track, once its file is on disk and readable.
+    private(set) var loadedBackgroundMusic: LoadedBackgroundMusic?
+    private(set) var isLoadingBackgroundMusic = false
+    private(set) var backgroundMusicError: String?
+    private var backgroundMusicTask: Task<Void, Never>?
+    /// The music's tracks in the current player item, one per lane, kept
+    /// apart from the narration so each gets its own level.
+    private var playbackMusicTrackIDs: [CMPersistentTrackID] = []
 
     private var timeObserver: Any?
     private var endObserver: NSObjectProtocol?
@@ -436,6 +452,8 @@ final class RecordingStudioModel {
                 replacementAudio = loadedAudio
             }
         }
+        await loadCachedBackgroundMusic()
+        guard !isTornDown, !Task.isCancelled else { return }
 
         do {
             try rebuildScreenPlayerItem(preserving: 0)
@@ -450,6 +468,11 @@ final class RecordingStudioModel {
         isLoaded = true
         rebuildPreviewReframe()
         loadTimelineThumbnails()
+        // A track that isn't cached yet downloads in the background and
+        // joins playback when it arrives.
+        if backgroundMusic != nil, loadedBackgroundMusic == nil {
+            resolveBackgroundMusic()
+        }
 
         if let session {
             if session.hasUnsavedDraft {
@@ -496,6 +519,7 @@ final class RecordingStudioModel {
         defer { isApplyingDocument = false }
 
         style = document.style.value
+        backgroundMusic = document.backgroundMusic
         zoomEnabled = document.zoomEnabled
         zoomCues = document.zoomCues
         motion = Self.editableMotion(document.motion)
@@ -549,6 +573,9 @@ final class RecordingStudioModel {
         cancelShare()
         transcriptionTask?.cancel()
         discardCaptionCleanup()
+        backgroundMusicTask?.cancel()
+        backgroundMusicTask = nil
+        BackgroundMusicStore.shared.stopPreview()
         projectSaveTask?.cancel()
         exportTask = nil
         audioExportTask = nil
@@ -906,6 +933,9 @@ final class RecordingStudioModel {
 
     private func rebuildScreenPlayerItem(preserving editorTime: TimeInterval) throws {
         guard let screenAsset else { return }
+        let musicMix = loadedBackgroundMusic.flatMap { music in
+            backgroundMusicPlan(for: music).map { (music: music, plan: $0) }
+        }
         let playbackAsset: AVAsset
         if let replacementAudio, let screenVideoTrack {
             playbackAsset = try RecordingCompositionBuilder.makeAsset(
@@ -918,8 +948,25 @@ final class RecordingStudioModel {
             playbackAsset = try RecordingCompositionBuilder.makeAsset(
                 from: screenAsset,
                 timeline: clipTimeline,
-                sourceDuration: sourceDuration
+                sourceDuration: sourceDuration,
+                forcesComposition: musicMix != nil
             )
+        }
+
+        // Music that can't be laid in never costs the recording its
+        // playback: the item plays without it and the inspector says why.
+        playbackMusicTrackIDs = []
+        if let musicMix, let composition = playbackAsset as? AVMutableComposition {
+            do {
+                playbackMusicTrackIDs = try BackgroundMusicMixer.addingMusic(
+                    from: musicMix.music.track,
+                    sourceRange: musicMix.music.timeRange,
+                    plan: musicMix.plan,
+                    to: composition
+                ).map(\.trackID)
+            } catch {
+                backgroundMusicError = String(localized: "The music couldn't be added: \(error.localizedDescription)")
+            }
         }
 
         screenPlayer.replaceCurrentItem(with: AVPlayerItem(asset: playbackAsset))
@@ -1709,7 +1756,8 @@ final class RecordingStudioModel {
             replacementAudioDisplayName: replacementAudio?.displayName,
             audioExportFormat: audioExportFormat,
             audioVolume: Double(audioVolume),
-            motion: motion == .disabled ? nil : motion
+            motion: motion == .disabled ? nil : motion,
+            backgroundMusic: backgroundMusic
         )
     }
 
@@ -1833,10 +1881,13 @@ final class RecordingStudioModel {
         } else {
             replacementAudio = nil
         }
+        await loadCachedBackgroundMusic()
+        guard !isTornDown, !Task.isCancelled else { return }
 
         isApplyingDocument = false
 
         try? rebuildScreenPlayerItem(preserving: currentTime)
+        resolveBackgroundMusic()
         rebuildPointerTimeline()
         rebuildViewportTimeline()
         rebuildMotionTimeline()
@@ -1952,6 +2003,7 @@ final class RecordingStudioModel {
         showsSubtitles = true
         transcriptionState = .idle
         updateActiveTranscriptWord()
+        updatePlaybackVolume()
         scheduleProjectSave()
     }
 
@@ -1963,6 +2015,7 @@ final class RecordingStudioModel {
         karaokeTimeline = .empty
         activeTranscriptWordIndex = nil
         transcriptionState = .idle
+        updatePlaybackVolume()
         scheduleProjectSave()
     }
 
@@ -2572,6 +2625,9 @@ final class RecordingStudioModel {
             exportSettings: exportSettings,
             audioReplacementURL: replacementAudio?.url,
             audioVolume: Double(audioVolume),
+            backgroundMusic: loadedBackgroundMusic.flatMap { music in
+                backgroundMusicPlan(for: music).map { BackgroundMusicExport(url: music.url, plan: $0) }
+            },
             reframe: reframe,
             fitContentAspect: fitContentAspect,
             usesUniformPadding: exportAspect == .original,
@@ -2774,6 +2830,164 @@ final class RecordingStudioModel {
         exportTask = nil
         if exportState.isExporting {
             exportState = .idle
+        }
+    }
+
+    // MARK: - Background music
+
+    /// The music's level over the cut, for the timeline's music lane.
+    var backgroundMusicTimelinePlan: BackgroundMusicGainPlan? {
+        loadedBackgroundMusic.flatMap(backgroundMusicPlan(for:))
+    }
+
+    /// Ducking needs the narration's words; without a transcript the music
+    /// simply plays at its level.
+    var canDuckBackgroundMusic: Bool {
+        hasTranscriptWords
+    }
+
+    func chooseBackgroundMusic(_ track: BackgroundMusicTrack) {
+        var next = backgroundMusic ?? RecordingBackgroundMusic(trackID: track.id)
+        next.trackID = track.id
+        applyBackgroundMusic(next, actionName: String(localized: "Choose Music"))
+    }
+
+    func removeBackgroundMusic() {
+        applyBackgroundMusic(nil, actionName: String(localized: "Remove Music"))
+    }
+
+    var backgroundMusicVolume: Double {
+        get { backgroundMusic?.clampedVolume ?? RecordingBackgroundMusic.defaultVolume }
+        set {
+            guard var music = backgroundMusic, music.volume != newValue else { return }
+            music.volume = newValue
+            backgroundMusic = music
+            updatePlaybackVolume()
+            scheduleProjectSave()
+        }
+    }
+
+    /// Looping changes how many passes the composition holds, so it
+    /// rebuilds playback rather than just the mix.
+    var backgroundMusicLoops: Bool {
+        get { backgroundMusic?.loops ?? true }
+        set {
+            guard var music = backgroundMusic, music.loops != newValue else { return }
+            music.loops = newValue
+            backgroundMusic = music
+            try? rebuildScreenPlayerItem(preserving: currentTime)
+            scheduleProjectSave()
+        }
+    }
+
+    var backgroundMusicDucksUnderSpeech: Bool {
+        get { backgroundMusic?.ducksUnderSpeech ?? true }
+        set {
+            guard var music = backgroundMusic, music.ducksUnderSpeech != newValue else { return }
+            music.ducksUnderSpeech = newValue
+            backgroundMusic = music
+            updatePlaybackVolume()
+            scheduleProjectSave()
+        }
+    }
+
+    /// Picking or removing a track is undoable; level and ducking are
+    /// continuous settings, like the soundtrack's volume.
+    private func applyBackgroundMusic(_ music: RecordingBackgroundMusic?, actionName: String) {
+        guard music != backgroundMusic else { return }
+        let previous = backgroundMusic
+        registerUndo(actionName) { target in
+            target.applyBackgroundMusic(previous, actionName: actionName)
+        }
+        backgroundMusic = music
+        resolveBackgroundMusic()
+        scheduleProjectSave()
+    }
+
+    /// How the loaded track sits under this cut: its level, fades, and dips
+    /// under the narration's words.
+    private func backgroundMusicPlan(for music: LoadedBackgroundMusic) -> BackgroundMusicGainPlan? {
+        guard let settings = backgroundMusic, settings.trackID == music.trackID else { return nil }
+        let timeline = clipTimeline
+        let speech = settings.ducksUnderSpeech
+            ? BackgroundMusicGainPlan.speechRanges(words: transcriptWords) { timeline.editorTime(forSourceTime: $0) }
+            : []
+        return BackgroundMusicGainPlan(
+            musicDuration: music.duration,
+            videoDuration: duration,
+            volume: settings.clampedVolume,
+            speech: speech,
+            loops: settings.loops,
+            isSeamlessLoop: settings.track?.isSeamlessLoop ?? false,
+            loopRegion: music.loopRegion
+        )
+    }
+
+    /// Loads the chosen track from the cache without downloading, so a
+    /// project opens already playing its music when it can.
+    private func loadCachedBackgroundMusic() async {
+        guard let music = backgroundMusic else {
+            loadedBackgroundMusic = nil
+            return
+        }
+        guard loadedBackgroundMusic?.trackID != music.trackID,
+              let track = music.track,
+              let url = BackgroundMusicCatalog.cachedFileIfPresent(for: track) else {
+            return
+        }
+        let loaded = await LoadedBackgroundMusic.load(trackID: music.trackID, url: url)
+        guard !isTornDown, backgroundMusic?.trackID == music.trackID else { return }
+        loadedBackgroundMusic = loaded
+    }
+
+    /// Brings playback in line with the chosen track: drops music that is
+    /// no longer chosen, and downloads and loads a new choice before
+    /// rebuilding the player item with it.
+    private func resolveBackgroundMusic() {
+        backgroundMusicTask?.cancel()
+        backgroundMusicTask = nil
+        isLoadingBackgroundMusic = false
+        backgroundMusicError = nil
+
+        if loadedBackgroundMusic != nil, loadedBackgroundMusic?.trackID != backgroundMusic?.trackID {
+            loadedBackgroundMusic = nil
+            try? rebuildScreenPlayerItem(preserving: currentTime)
+        }
+        guard let music = backgroundMusic else { return }
+        if loadedBackgroundMusic != nil {
+            if playbackMusicTrackIDs.isEmpty {
+                try? rebuildScreenPlayerItem(preserving: currentTime)
+            } else {
+                updatePlaybackVolume()
+            }
+            return
+        }
+        guard let track = music.track else {
+            backgroundMusicError = String(localized: "This track is no longer in the music library.")
+            return
+        }
+
+        isLoadingBackgroundMusic = true
+        backgroundMusicTask = Task { [weak self] in
+            do {
+                let url = try await BackgroundMusicStore.shared.localURL(for: track)
+                let loaded = await LoadedBackgroundMusic.load(trackID: track.id, url: url)
+                guard let self, !Task.isCancelled, !self.isTornDown,
+                      self.backgroundMusic?.trackID == track.id else { return }
+                self.isLoadingBackgroundMusic = false
+                self.backgroundMusicTask = nil
+                guard let loaded else {
+                    self.backgroundMusicError = String(localized: "The music file couldn't be read.")
+                    return
+                }
+                self.loadedBackgroundMusic = loaded
+                try? self.rebuildScreenPlayerItem(preserving: self.currentTime)
+            } catch {
+                guard let self, !Task.isCancelled, !(error is CancellationError) else { return }
+                self.isLoadingBackgroundMusic = false
+                self.backgroundMusicTask = nil
+                self.backgroundMusicError = error.localizedDescription
+            }
         }
     }
 

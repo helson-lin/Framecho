@@ -143,4 +143,8 @@ check caption-cleanup "${strict[@]}" \
   Framecho/RecordingTranscription.swift Framecho/CaptionCleanup.swift \
   scripts/check-caption-cleanup.swift
 
+check background-music "${strict[@]}" \
+  Framecho/BackgroundMusic.swift Framecho/RecordingAudioGain.swift \
+  Framecho/RecordingTranscription.swift scripts/check-background-music.swift
+
 echo "All checks passed."

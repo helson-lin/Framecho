@@ -8,13 +8,16 @@
 import AVFoundation
 
 nonisolated enum RecordingCompositionBuilder {
+    /// `forcesComposition` builds a composition even for an unedited
+    /// recording, for callers that add tracks of their own to it.
     static func makeAsset(
         from sourceAsset: AVAsset,
         timeline: RecordingClipTimeline,
-        sourceDuration: TimeInterval
+        sourceDuration: TimeInterval,
+        forcesComposition: Bool = false
     ) throws -> AVAsset {
         let normalized = timeline.normalized(to: sourceDuration)
-        if normalized.isUnedited(sourceDuration: sourceDuration) {
+        if !forcesComposition, normalized.isUnedited(sourceDuration: sourceDuration) {
             return sourceAsset
         }
 

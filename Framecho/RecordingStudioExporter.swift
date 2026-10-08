@@ -59,6 +59,8 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
         /// from zero instead of being re-cut through the clip timeline.
         let audioReplacementURL: URL?
         let audioVolume: Double
+        /// Library music mixed under the soundtrack, with its gain plan.
+        let backgroundMusic: BackgroundMusicExport?
         /// Non-nil when exporting into a different aspect ratio; drives the
         /// crop-and-follow virtual camera in place of the zoom viewport.
         let reframe: ReframeTrack?
@@ -90,6 +92,7 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             exportSettings: VideoCompressionSettings,
             audioReplacementURL: URL? = nil,
             audioVolume: Double = 1,
+            backgroundMusic: BackgroundMusicExport? = nil,
             reframe: ReframeTrack? = nil,
             fitContentAspect: CGFloat? = nil,
             usesUniformPadding: Bool = false,
@@ -113,6 +116,7 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             self.exportSettings = exportSettings
             self.audioReplacementURL = audioReplacementURL
             self.audioVolume = audioVolume
+            self.backgroundMusic = backgroundMusic
             self.reframe = reframe
             self.fitContentAspect = fitContentAspect
             self.usesUniformPadding = usesUniformPadding
@@ -225,7 +229,19 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
         var audioOutput: AVAssetReaderAudioMixOutput?
         var replacementReader: AVAssetReader?
         if !configuration.exportSettings.removeAudio {
-            if let replacementURL = configuration.audioReplacementURL {
+            if let music = configuration.backgroundMusic,
+               let mixed = try await Self.makeMusicMixReader(
+                   music: music,
+                   replacementURL: configuration.audioReplacementURL,
+                   screenAudioTracks: audioTracks,
+                   narrationVolume: configuration.audioVolume,
+                   timeRange: exportTimeRange
+               ) {
+                // Narration and music meet in one composition so a single
+                // mix output sums them, exactly as playback hears them.
+                replacementReader = mixed.reader
+                audioOutput = mixed.output
+            } else if let replacementURL = configuration.audioReplacementURL {
                 let replacementAsset = AVURLAsset(url: replacementURL)
                 let replacementTracks = try await replacementAsset.loadTracks(withMediaType: .audio)
                 if !replacementTracks.isEmpty {
@@ -543,6 +559,73 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             }
         }
         input.markAsFinished()
+    }
+
+    /// A reader over the soundtrack - the recording's audio or its
+    /// replacement - and the background music, mixed by one audio mix.
+    /// Nil when the music file can't be read, so the export goes ahead
+    /// without it rather than failing.
+    private static func makeMusicMixReader(
+        music: BackgroundMusicExport,
+        replacementURL: URL?,
+        screenAudioTracks: [AVAssetTrack],
+        narrationVolume: Double,
+        timeRange: CMTimeRange
+    ) async throws -> (reader: AVAssetReader, output: AVAssetReaderAudioMixOutput)? {
+        let musicAsset = AVURLAsset(url: music.url)
+        guard let musicSource = try await musicAsset.loadTracks(withMediaType: .audio).first,
+              music.plan.length > 0 else {
+            return nil
+        }
+        let musicRange = try await musicSource.load(.timeRange)
+        let composition = AVMutableComposition()
+        var narrationTracks: [AVAssetTrack] = []
+        func addNarration(_ track: AVAssetTrack, range: CMTimeRange) throws {
+            guard range.duration > .zero,
+                  let compositionTrack = composition.addMutableTrack(
+                      withMediaType: .audio,
+                      preferredTrackID: kCMPersistentTrackID_Invalid
+                  ) else { return }
+            try compositionTrack.insertTimeRange(range, of: track, at: .zero)
+            narrationTracks.append(compositionTrack)
+        }
+
+        if let replacementURL {
+            let replacementAsset = AVURLAsset(url: replacementURL)
+            let duration = try await replacementAsset.load(.duration)
+            for track in try await replacementAsset.loadTracks(withMediaType: .audio) {
+                try addNarration(track, range: CMTimeRange(start: .zero, duration: min(duration, timeRange.duration)))
+            }
+        } else {
+            for track in screenAudioTracks {
+                let trackRange = try await track.load(.timeRange)
+                try addNarration(track, range: timeRange.intersection(trackRange))
+            }
+        }
+
+        let musicTracks = try BackgroundMusicMixer.addingMusic(
+            from: musicSource,
+            sourceRange: musicRange,
+            plan: music.plan,
+            to: composition
+        )
+        guard !musicTracks.isEmpty else { return nil }
+
+        let reader = try AVAssetReader(asset: composition)
+        reader.timeRange = timeRange
+        let output = AVAssetReaderAudioMixOutput(
+            audioTracks: narrationTracks + musicTracks,
+            audioSettings: nil
+        )
+        output.audioMix = BackgroundMusicMixer.makeMix(
+            narrationTracks: narrationTracks,
+            narrationVolume: narrationVolume,
+            musicTracks: musicTracks,
+            plan: music.plan
+        )
+        output.alwaysCopiesSampleData = false
+        reader.add(output)
+        return (reader, output)
     }
 
     private static func temporaryOutputURL(container: VideoExportContainer) -> URL {
