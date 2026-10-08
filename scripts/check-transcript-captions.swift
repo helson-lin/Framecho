@@ -198,6 +198,24 @@ struct TranscriptCaptionChecks {
         precondition(karaokeAfterDelete.line(at: 0.6)?.words == ["one", " two"])
         precondition(karaokeAfterDelete.line(at: 3.2) == nil)
 
+        // Backspace at the start of a caption joins it onto the one before.
+        precondition(SubtitleCueMerging.joined("你好，", "世界") == ("你好，世界", 3))
+        precondition(SubtitleCueMerging.joined("Hello", "world.") == ("Hello world.", 6))
+        precondition(SubtitleCueMerging.joined("Hello ", "  world") == ("Hello world", 6), "One space, never two")
+        precondition(SubtitleCueMerging.joined("用 SwiftUI", "写界面") == ("用 SwiftUI写界面", 9), "Unspaced side joins directly")
+        precondition(SubtitleCueMerging.joined("前面", "") == ("前面", 2), "An empty caption just folds away")
+        let three = [
+            RecordingSubtitleCue(start: 0, end: 2, text: "第一句"),
+            RecordingSubtitleCue(start: 2.5, end: 4, text: "第二句"),
+            RecordingSubtitleCue(start: 5, end: 6, text: "第三句"),
+        ]
+        let merged = SubtitleCueMerging.mergingIntoPrevious(three, id: three[1].id)!
+        precondition(merged.cues.count == 2 && merged.mergedID == three[0].id)
+        precondition(merged.cues[0].text == "第一句第二句" && merged.cues[0].start == 0 && merged.cues[0].end == 4)
+        precondition(merged.joinOffset == 3)
+        precondition(merged.cues[1] == three[2])
+        precondition(SubtitleCueMerging.mergingIntoPrevious(three, id: three[0].id) == nil, "The first caption has nothing above")
+
         print("Transcript caption checks passed.")
     }
 }

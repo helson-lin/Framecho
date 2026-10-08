@@ -2157,6 +2157,19 @@ final class RecordingStudioModel {
         applySubtitleCues(subtitleCues.filter { $0.id != id }, actionName: String(localized: "Delete Caption"))
     }
 
+    /// Folds a caption into the one before it. Returns the merged caption
+    /// and where the joined text starts, for placing the caret; nil for the
+    /// first caption.
+    @discardableResult
+    func mergeSubtitleIntoPrevious(id: UUID) -> (id: UUID, joinOffset: Int)? {
+        guard let result = SubtitleCueMerging.mergingIntoPrevious(subtitleCues, id: id) else { return nil }
+        if selectedSubtitleCueID == id {
+            selectedSubtitleCueID = result.mergedID
+        }
+        applySubtitleCues(result.cues, actionName: String(localized: "Merge Captions"))
+        return (result.mergedID, result.joinOffset)
+    }
+
     /// A live edit mid-drag: no undo step of its own.
     private func replaceSubtitleCues(_ cues: [RecordingSubtitleCue]) {
         guard cues != subtitleCues else { return }

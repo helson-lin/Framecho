@@ -141,6 +141,16 @@
         }
       }
     },
+    "Merge Captions" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合并字幕"
+          }
+        }
+      }
+    },
     "Captions track" : {
       "localizations" : {
         "zh-Hans" : {

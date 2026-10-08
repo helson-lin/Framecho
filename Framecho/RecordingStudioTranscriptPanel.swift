@@ -40,6 +40,8 @@ struct StudioTranscriptPanel: View {
     @AppStorage(isPresentedKey) private var isPresented = false
     @AppStorage("studioTranscriptMode") private var mode = StudioTranscriptMode.captions
     @State private var searchText = ""
+    @FocusState private var focusedCueID: UUID?
+    @State private var backspaceMonitor: Any?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -56,6 +58,49 @@ struct StudioTranscriptPanel: View {
             }
         }
         .frame(width: Self.width)
+        .onAppear(perform: installBackspaceMonitor)
+        .onDisappear {
+            if let backspaceMonitor {
+                NSEvent.removeMonitor(backspaceMonitor)
+            }
+            backspaceMonitor = nil
+        }
+    }
+
+    // MARK: Merging captions
+
+    /// Backspace with the caret at the very start of a caption joins it onto
+    /// the caption above, like joining paragraphs. A local monitor sees the
+    /// key before the field editor, which would otherwise swallow a
+    /// Backspace that has nothing to delete.
+    private func installBackspaceMonitor() {
+        guard backspaceMonitor == nil else { return }
+        backspaceMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let modifiers = event.modifierFlags
+                .intersection(.deviceIndependentFlagsMask)
+                .subtracting([.capsLock, .numericPad, .function])
+            guard event.keyCode == 51, modifiers.isEmpty,
+                  let id = focusedCueID,
+                  let editor = event.window?.firstResponder as? NSTextView,
+                  !editor.hasMarkedText(),
+                  editor.selectedRange() == NSRange(location: 0, length: 0),
+                  let merged = model.mergeSubtitleIntoPrevious(id: id) else {
+                return event
+            }
+            focusedCueID = merged.id
+            placeCaret(at: merged.joinOffset, in: event.window)
+            return nil
+        }
+    }
+
+    /// Puts the caret at the join once the merged caption's field has taken
+    /// focus.
+    private func placeCaret(at offset: Int, in window: NSWindow?) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            guard let editor = window?.firstResponder as? NSTextView else { return }
+            let location = min(offset, (editor.string as NSString).length)
+            editor.setSelectedRange(NSRange(location: location, length: 0))
+        }
     }
 
     private var hasTranscript: Bool {
@@ -238,7 +283,12 @@ struct StudioTranscriptPanel: View {
             ScrollView(.vertical) {
                 LazyVStack(spacing: 0) {
                     ForEach(Array(cues.enumerated()), id: \.element.id) { index, cue in
-                        StudioSubtitleRow(model: model, cue: cue, isActive: activeID == cue.id)
+                        StudioSubtitleRow(
+                            model: model,
+                            cue: cue,
+                            isActive: activeID == cue.id,
+                            focusedCueID: $focusedCueID
+                        )
                             .id(cue.id)
 
                         if index < cues.count - 1 {
@@ -367,8 +417,13 @@ private struct StudioSubtitleRow: View {
     @Bindable var model: RecordingStudioModel
     let cue: RecordingSubtitleCue
     let isActive: Bool
+    /// Which caption's field is being edited, shared by the list so a merge
+    /// can hand the caret to the caption above.
+    var focusedCueID: FocusState<UUID?>.Binding
 
-    @FocusState private var isEditing: Bool
+    private var isEditing: Bool {
+        focusedCueID.wrappedValue == cue.id
+    }
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -393,7 +448,7 @@ private struct StudioSubtitleRow: View {
             )
             .textFieldStyle(.plain)
             .font(.inspectorValue)
-            .focused($isEditing)
+            .focused(focusedCueID, equals: cue.id)
             .onChange(of: isEditing) { _, editing in
                 // Starting to edit parks the paused preview on this cue so
                 // the correction is visible in context while typing.

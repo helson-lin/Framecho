@@ -383,6 +383,49 @@ nonisolated enum SubtitleCueTiming {
     }
 }
 
+/// Joining a caption onto the one before it - Backspace at the start of a
+/// caption in the transcript panel, like joining two paragraphs.
+nonisolated enum SubtitleCueMerging {
+    struct Result: Equatable {
+        var cues: [RecordingSubtitleCue]
+        /// The caption that now holds both texts.
+        var mergedID: UUID
+        /// Where the joined-on text starts, in UTF-16 units, for the caret.
+        var joinOffset: Int
+    }
+
+    /// The two texts as one caption: unspaced scripts (Chinese, Japanese)
+    /// join directly, spaced ones with a single space.
+    static func joined(_ first: String, _ second: String) -> (text: String, joinOffset: Int) {
+        let left = String(first.reversed().drop(while: \.isWhitespace).reversed())
+        let right = String(second.drop(while: \.isWhitespace))
+        let needsSpace = !left.isEmpty && !right.isEmpty
+            && !(left.last?.isUnspacedScript ?? false)
+            && !(right.first?.isUnspacedScript ?? false)
+        let separator = needsSpace ? " " : ""
+        return (left + separator + right, left.utf16.count + separator.utf16.count)
+    }
+
+    /// The caption folded into the one starting before it; nil for the
+    /// first caption.
+    static func mergingIntoPrevious(_ cues: [RecordingSubtitleCue], id: UUID) -> Result? {
+        let order = cues.indices.sorted { cues[$0].start < cues[$1].start }
+        guard let position = order.firstIndex(where: { cues[$0].id == id }), position > 0 else { return nil }
+        let currentIndex = order[position]
+        let previousIndex = order[position - 1]
+        let current = cues[currentIndex]
+        var merged = cues[previousIndex]
+        let joined = joined(merged.text, current.text)
+        merged.text = joined.text
+        merged.end = max(merged.end, current.end)
+
+        var result = cues
+        result[previousIndex] = merged
+        result.remove(at: currentIndex)
+        return Result(cues: result, mergedID: merged.id, joinOffset: joined.joinOffset)
+    }
+}
+
 // MARK: - Subtitle timeline
 
 /// Deterministic subtitle playback: the cue covering a source time, if any.
