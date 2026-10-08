@@ -1597,6 +1597,12 @@ private struct StudioCursorOverlay: View {
                     width: height * artwork.aspectRatio,
                     height: height
                 )
+                // Blur and fade the pointer itself, before it is positioned:
+                // after `.position` the view spans the whole card, and a
+                // card-sized filter layer that comes and goes with every
+                // move flashes the video under it. Sub-pixel blur is
+                // invisible, so it never switches the filter on.
+                let blurRadius = pointer.blurRadius >= 0.3 ? CGFloat(pointer.blurRadius) : 0
                 Image(nsImage: image)
                     .resizable()
                     .frame(width: size.width, height: size.height)
@@ -1608,12 +1614,12 @@ private struct StudioCursorOverlay: View {
                         .degrees(pointer.tiltDegrees),
                         anchor: UnitPoint(x: anchor.x, y: anchor.y)
                     )
+                    .blur(radius: blurRadius)
+                    .opacity(pointer.opacity)
                     .position(
                         x: tip.x + (0.5 - anchor.x) * size.width,
                         y: tip.y + (0.5 - anchor.y) * size.height
                     )
-                    .opacity(pointer.opacity)
-                    .blur(radius: CGFloat(pointer.blurRadius))
             }
         }
         .frame(width: cardSize.width, height: cardSize.height)
