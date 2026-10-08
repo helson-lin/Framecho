@@ -4964,24 +4964,20 @@ private struct StudioInspector: View {
             HStack(spacing: InspectorMetrics.rowSpacing) {
                 adjustOnCanvasButton(for: .base)
 
-                InspectorActionButton("Fit to Canvas", systemImage: "arrow.down.right.and.arrow.up.left") {
+                // Flags the overflow in place by swapping its icon: the
+                // row keeps its size, so nothing shifts under a drag.
+                InspectorActionButton(
+                    "Fit to Canvas",
+                    systemImage: model.motionExceedsCanvas
+                        ? "exclamationmark.triangle.fill"
+                        : "arrow.down.right.and.arrow.up.left"
+                ) {
                     model.fitMotionToCanvas()
                 }
                 .disabled(!model.motionExceedsCanvas)
-                .help("Scale the base pose and every motion so the card stays inside the canvas")
-            }
-
-            if model.motionExceedsCanvas {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                        .accessibilityHidden(true)
-                    Text("Part of the card reaches past the canvas and will be cropped.")
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .font(.inspectorLabel)
-                .accessibilityElement(children: .combine)
+                .help(model.motionExceedsCanvas
+                    ? "Part of the card reaches past the canvas and will be cropped. Scale the base pose and every motion to fit."
+                    : "Scale the base pose and every motion so the card stays inside the canvas")
             }
 
             basePoseDisclosure
@@ -5006,6 +5002,22 @@ private struct StudioInspector: View {
                             .accessibilityLabel(Text(preset.title))
                     }
                 )
+            }
+
+            // Last in the section: it comes and goes while poses are
+            // dragged, and anywhere above the sliders it would shift them
+            // under the pointer.
+            if model.motionExceedsCanvas {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .accessibilityHidden(true)
+                    Text("Part of the card reaches past the canvas and will be cropped.")
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .font(.inspectorLabel)
+                .accessibilityElement(children: .combine)
             }
         }
     }

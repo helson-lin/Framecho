@@ -1,6 +1,16 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Part of the card reaches past the canvas and will be cropped. Scale the base pose and every motion to fit." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片有部分超出画布，导出时会被裁切。缩放基础姿态和所有运镜即可适配。"
+          }
+        }
+      }
+    },
     "Add a zoom at the playhead" : {
       "localizations" : {
         "zh-Hans" : {
