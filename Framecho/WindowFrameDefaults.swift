@@ -11,26 +11,33 @@
 import AppKit
 
 enum WindowFrameDefaults {
-    /// 2980 × 1880 px on a 2× Retina display.
-    static let studioSize = CGSize(width: 1490, height: 940)
+    /// 2780 × 1800 px on a 2× Retina display.
+    static let studioSize = CGSize(width: 1390, height: 900)
     static let studioMinimum = CGSize(width: 980, height: 720)
-    /// 1640 × 1220 px on a 2× Retina display.
-    static let settingsSize = CGSize(width: 820, height: 610)
+    /// 1840 × 1220 px on a 2× Retina display.
+    static let settingsSize = CGSize(width: 920, height: 610)
     static let settingsMinimum = CGSize(width: 680, height: 540)
 
-    private static let resetVersionKey = "windowFramesResetVersion"
-    /// Bump to discard saved Studio and Settings frames once more.
-    private static let resetVersion = 1
+    /// Saved frames to drop once, per window: bump a version when that
+    /// window's default size changes, so it opens at the new default after
+    /// an update. Sizes chosen afterwards are kept.
+    private static let resets: [(versionKey: String, version: Int, frameKey: (String) -> Bool)] = [
+        ("windowFramesResetVersion", 2, { $0.hasPrefix("NSWindow Frame VIDEO_EDITOR") }),
+        ("settingsWindowFrameResetVersion", 3, { $0 == "NSWindow Frame SettingsWindow" }),
+    ]
 
-    /// Drops the saved Studio and Settings frames once, so both open at
-    /// their defaults after an update; sizes chosen afterwards are kept.
     static func discardOutdatedFrames(in defaults: UserDefaults = .standard) {
-        guard defaults.integer(forKey: resetVersionKey) < resetVersion else { return }
-        for key in defaults.dictionaryRepresentation().keys
-        where key.hasPrefix("NSWindow Frame VIDEO_EDITOR") || key == "NSWindow Frame SettingsWindow" {
-            defaults.removeObject(forKey: key)
+        // Before the per-window versions, one reset covered both windows.
+        if defaults.integer(forKey: "windowFramesResetVersion") >= 1,
+           defaults.object(forKey: "settingsWindowFrameResetVersion") == nil {
+            defaults.set(1, forKey: "settingsWindowFrameResetVersion")
         }
-        defaults.set(resetVersion, forKey: resetVersionKey)
+        for reset in resets where defaults.integer(forKey: reset.versionKey) < reset.version {
+            for key in defaults.dictionaryRepresentation().keys where reset.frameKey(key) {
+                defaults.removeObject(forKey: key)
+            }
+            defaults.set(reset.version, forKey: reset.versionKey)
+        }
     }
 
     /// A restored frame smaller than the window's minimum came from an
