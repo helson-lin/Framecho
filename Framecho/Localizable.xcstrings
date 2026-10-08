@@ -1,12 +1,162 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Transcript" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文稿"
+          }
+        }
+      }
+    },
+    "Cut" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剪辑"
+          }
+        }
+      }
+    },
+    "Search Transcript" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索文稿"
+          }
+        }
+      }
+    },
+    "Search" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索"
+          }
+        }
+      }
+    },
+    "Hide Transcript" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐藏文稿"
+          }
+        }
+      }
+    },
+    "Show Transcript (⌥⌘T)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示文稿（⌥⌘T）"
+          }
+        }
+      }
+    },
+    "Hide Transcript (⌥⌘T)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐藏文稿（⌥⌘T）"
+          }
+        }
+      }
+    },
+    "Transcribe the narration to edit its captions and cut the video by its words." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "转写旁白后，即可编辑字幕文字，并按文字剪辑视频。"
+          }
+        }
+      }
+    },
+    "No captions match “%@”." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有包含“%@”的字幕。"
+          }
+        }
+      }
+    },
+    "%lld captions" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 条字幕"
+          }
+        }
+      }
+    },
+    "%lld captions · cleaned up" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 条字幕 · 已整理"
+          }
+        }
+      }
+    },
+    "Edit in Transcript" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在文稿中编辑"
+          }
+        }
+      }
+    },
+    "Edit the captions' text and cut the video by its words" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑字幕文字，并按文字剪辑视频"
+          }
+        }
+      }
+    },
     "Restore Original Captions" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "恢复原始字幕"
+          }
+        }
+      }
+    },
+    "Restore Original" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复原文"
+          }
+        }
+      }
+    },
+    "Show every word as it was transcribed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按转写原样显示所有字词"
           }
         }
       }
