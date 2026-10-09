@@ -26,6 +26,9 @@ nonisolated enum AgentTool: String, CaseIterable, Sendable {
     case updateSubtitle = "update_subtitle"
     case updateSettings = "update_settings"
     case setMusic = "set_music"
+    case addOverlay = "add_overlay"
+    case updateOverlay = "update_overlay"
+    case removeOverlay = "remove_overlay"
     case export
     case openInStudio = "open_in_studio"
 }
@@ -44,8 +47,8 @@ nonisolated enum AgentToolCatalog {
 
     A typical pass: list_recordings → get_recording → get_transcript (call transcribe first if there is \
     none) → cut_words / tighten_narration / cut → add_zoom where something small happens on screen \
-    (get_frame shows what is on screen at a time) → set_music if the user wants a soundtrack → \
-    get_recording to review → export. Make the edits the \
+    (get_frame shows what is on screen at a time) → add_overlay for a logo, QR code or screenshot \
+    the user supplies → set_music if the user wants a soundtrack → get_recording to review → export. Make the edits the \
     user asked for; don't export unless they want a file.
     """
 
@@ -268,6 +271,59 @@ nonisolated enum AgentToolCatalog {
                 ], required: ["recording"]),
                 isReadOnly: false
             )
+        case .addOverlay:
+            MCPToolDefinition(
+                name: tool.rawValue,
+                title: "Add image overlay",
+                description: "Lays an image file from this Mac (PNG, JPEG, HEIC…; transparency kept) over the video for a time range - a logo, QR code or screenshot. It sits on the canvas: it doesn't zoom with the camera and stays in frame in any aspect ratio, above the screen and below the camera bubble and captions. The file is copied into the project. Fades in and out by default.",
+                inputSchema: AgentSchema.object([
+                    "recording": AgentSchema.recording,
+                    "path": AgentSchema.string("Absolute path of the image file."),
+                    "start": AgentSchema.number("When the image appears, seconds."),
+                    "end": AgentSchema.number("When it disappears, seconds."),
+                    "timeline": AgentSchema.timeline,
+                    "position": AgentSchema.overlayPosition,
+                    "width": AgentSchema.number("Width as a share of the video width, 0.04–1. Default 0.22."),
+                    "opacity": AgentSchema.number("0–1. Default 1."),
+                    "corner_radius": AgentSchema.number("Rounding as a share of the image's shorter side, 0–0.5. Default 0."),
+                    "shadow": AgentSchema.boolean("Drop shadow. Default false."),
+                    "fade": AgentSchema.boolean("Fade in and out. Default true."),
+                ], required: ["recording", "path", "start", "end"]),
+                isReadOnly: false
+            )
+        case .updateOverlay:
+            MCPToolDefinition(
+                name: tool.rawValue,
+                title: "Update image overlay",
+                description: "Changes an image overlay's timing, position, size or look. Omitted fields stay as they are.",
+                inputSchema: AgentSchema.object([
+                    "recording": AgentSchema.recording,
+                    "id": AgentSchema.string("Overlay id from get_recording."),
+                    "start": AgentSchema.number("New start, seconds."),
+                    "end": AgentSchema.number("New end, seconds."),
+                    "timeline": AgentSchema.timeline,
+                    "position": AgentSchema.overlayPosition,
+                    "width": AgentSchema.number("Width as a share of the video width, 0.04–1."),
+                    "opacity": AgentSchema.number("0–1."),
+                    "corner_radius": AgentSchema.number("0–0.5."),
+                    "shadow": AgentSchema.boolean("Drop shadow."),
+                    "fade": AgentSchema.boolean("Fade in and out."),
+                ], required: ["recording", "id"]),
+                isReadOnly: false
+            )
+        case .removeOverlay:
+            MCPToolDefinition(
+                name: tool.rawValue,
+                title: "Remove image overlay",
+                description: "Removes one image overlay by id, or every one with `all: true`.",
+                inputSchema: AgentSchema.object([
+                    "recording": AgentSchema.recording,
+                    "id": AgentSchema.string("Overlay id from get_recording."),
+                    "all": AgentSchema.boolean("Remove every image overlay."),
+                ], required: ["recording"]),
+                isReadOnly: false,
+                isDestructive: true
+            )
         case .export:
             MCPToolDefinition(
                 name: tool.rawValue,
@@ -328,6 +384,15 @@ nonisolated enum AgentSchema {
         ["edited", "source"],
         "Which timeline the times are on: edited (after cuts and speed changes; the default) or source (the original recording)."
     )
+
+    /// A preset name or a normalized center.
+    static let overlayPosition: JSONValue = [
+        "description": "Where the image sits: a preset (top-left, top, top-right, left, center, right, bottom-left, bottom, bottom-right) - kept a margin from the edge and clear of the captions, and kept in place when the size, aspect ratio or captions change - or {x, y} for its center, normalized 0–1 with a top-left origin. Prefer presets. Default center.",
+        "oneOf": [
+            ["type": "string", "enum": .array(RecordingImageOverlayAnchor.allCases.map { .string($0.rawValue) })],
+            point,
+        ],
+    ]
 
     static let point: JSONValue = [
         "type": "object",

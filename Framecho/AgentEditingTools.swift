@@ -59,6 +59,12 @@ enum AgentEditingTools {
             return try await updateSettings(args)
         case .setMusic:
             return try await setMusic(args)
+        case .addOverlay:
+            return try await addOverlay(args)
+        case .updateOverlay:
+            return try await updateOverlay(args)
+        case .removeOverlay:
+            return try await removeOverlay(args)
         case .export:
             return try await export(args, context: context)
         case .openInStudio:
@@ -129,6 +135,7 @@ enum AgentEditingTools {
                 }),
             ],
             "music": musicJSON(model),
+            "image_overlays": .array(model.imageOverlays.map { overlayJSON($0, in: model) }),
             "transcript": [
                 "words": .int(model.transcriptWords.count),
                 "removable_fillers": .int(model.removableFillerWordCount),
@@ -170,6 +177,26 @@ enum AgentEditingTools {
             // Ducking follows the transcript's words; without one the music
             // stays at its level.
             "ducking_active": .bool(music.ducksUnderSpeech && model.canDuckBackgroundMusic),
+        ]
+    }
+
+    private static func overlayJSON(_ overlay: RecordingImageOverlay, in model: RecordingStudioModel) -> JSONValue {
+        let placement = model.imageOverlayTimeline.placement(for: overlay.id)
+        return [
+            "id": .string(overlay.id.uuidString),
+            "name": .string(overlay.displayName),
+            "source_start": .seconds(overlay.start),
+            "source_end": .seconds(overlay.end),
+            // Null once every second it covered has been cut.
+            "edited_start": .optional(placement.map { .seconds($0.editorStart) }),
+            "edited_end": .optional(placement.map { .seconds($0.editorEnd) }),
+            "position": overlay.anchor.map { .string($0.rawValue) }
+                ?? ["x": .double(overlay.center.x), "y": .double(overlay.center.y)],
+            "width": .double(overlay.width),
+            "opacity": .double(overlay.opacity),
+            "corner_radius": .double(overlay.cornerRadius),
+            "shadow": .bool(overlay.hasShadow),
+            "fade": .bool(overlay.fades),
         ]
     }
 
@@ -576,6 +603,124 @@ enum AgentEditingTools {
             if let ducks { model.backgroundMusicDucksUnderSpeech = ducks }
             try await waitForMusic(model)
             return ["music": musicJSON(model)]
+        }
+    }
+
+    private static func addOverlay(_ args: MCPArguments) async throws -> MCPToolResult {
+        let path = (try args.string("path") as NSString).expandingTildeInPath
+        let start = try args.number("start")
+        let end = try args.number("end")
+        let isSource = try usesSourceTimeline(args)
+        guard end > start else { throw MCPToolError.invalidArguments("`end` must be after `start`") }
+        guard FileManager.default.isReadableFile(atPath: path) else {
+            throw MCPToolError.invalidArguments("No readable file at \(path)")
+        }
+        let style = try OverlayStyleArguments(args)
+        return try await edit(args) { model in
+            let range = try editorRange(start, end, isSource: isSource, in: model)
+            let id: UUID
+            do {
+                id = try model.addImageOverlay(from: URL(fileURLWithPath: path), at: range.lowerBound)
+            } catch {
+                throw MCPToolError.failed(error.localizedDescription)
+            }
+            guard var overlay = model.imageOverlays.first(where: { $0.id == id }) else { return [:] }
+            overlay.start = model.sourceTime(atEditorTime: range.lowerBound)
+            overlay.end = model.sourceTime(atEditorTime: range.upperBound)
+            style.apply(to: &overlay)
+            model.updateImageOverlay(overlay)
+            guard let added = model.imageOverlays.first(where: { $0.id == id }) else { return [:] }
+            return ["overlay": overlayJSON(added, in: model)]
+        }
+    }
+
+    private static func updateOverlay(_ args: MCPArguments) async throws -> MCPToolResult {
+        let id = try uuid(args, "id")
+        let start = try args.optionalNumber("start")
+        let end = try args.optionalNumber("end")
+        let isSource = try usesSourceTimeline(args)
+        let style = try OverlayStyleArguments(args)
+        return try await edit(args) { model in
+            guard var overlay = model.imageOverlays.first(where: { $0.id == id }) else {
+                throw MCPToolError.failed("No image overlay with id \(id.uuidString). get_recording lists them.")
+            }
+            if let start { overlay.start = try sourceTime(start, isSource: isSource, in: model) }
+            if let end { overlay.end = try sourceTime(end, isSource: isSource, in: model) }
+            guard overlay.end > overlay.start else {
+                throw MCPToolError.invalidArguments("The overlay would end before it starts")
+            }
+            style.apply(to: &overlay)
+            model.updateImageOverlay(overlay)
+            guard let updated = model.imageOverlays.first(where: { $0.id == id }) else { return [:] }
+            return ["overlay": overlayJSON(updated, in: model)]
+        }
+    }
+
+    private static func removeOverlay(_ args: MCPArguments) async throws -> MCPToolResult {
+        let removesAll = try args.optionalBool("all") ?? false
+        let id = removesAll ? nil : try uuid(args, "id")
+        return try await edit(args) { model in
+            let targets = model.imageOverlays.filter { removesAll || $0.id == id }
+            guard !targets.isEmpty || removesAll else {
+                throw MCPToolError.failed("No image overlay with id \(id?.uuidString ?? ""). get_recording lists them.")
+            }
+            for overlay in targets {
+                model.removeImageOverlay(id: overlay.id)
+            }
+            return ["removed": .int(targets.count)]
+        }
+    }
+
+    /// The look-and-place arguments add_overlay and update_overlay share.
+    private struct OverlayStyleArguments {
+        var anchor: RecordingImageOverlayAnchor?
+        var center: CGPoint?
+        var width: Double?
+        var opacity: Double?
+        var cornerRadius: Double?
+        var hasShadow: Bool?
+        var fades: Bool?
+
+        init(_ args: MCPArguments) throws {
+            if let position = args.values["position"], position != .null {
+                if let name = position.stringValue {
+                    guard let anchor = RecordingImageOverlayAnchor(rawValue: name) else {
+                        let names = RecordingImageOverlayAnchor.allCases.map(\.rawValue).joined(separator: ", ")
+                        throw MCPToolError.invalidArguments("`position` must be one of: \(names), or {x, y}")
+                    }
+                    self.anchor = anchor
+                } else {
+                    center = try point(args, "position")
+                }
+            }
+            width = try args.optionalNumber("width")
+            opacity = try args.optionalNumber("opacity")
+            cornerRadius = try args.optionalNumber("corner_radius")
+            hasShadow = try args.optionalBool("shadow")
+            fades = try args.optionalBool("fade")
+            if let width, !RecordingImageOverlay.widthRange.contains(width) {
+                throw MCPToolError.invalidArguments("`width` must be between 0.04 and 1")
+            }
+            if let opacity, !(0...1).contains(opacity) {
+                throw MCPToolError.invalidArguments("`opacity` must be between 0 and 1")
+            }
+            if let cornerRadius, !RecordingImageOverlay.cornerRadiusRange.contains(cornerRadius) {
+                throw MCPToolError.invalidArguments("`corner_radius` must be between 0 and 0.5")
+            }
+        }
+
+        func apply(to overlay: inout RecordingImageOverlay) {
+            if let width { overlay.width = width }
+            if let opacity { overlay.opacity = opacity }
+            if let cornerRadius { overlay.cornerRadius = cornerRadius }
+            if let hasShadow { overlay.hasShadow = hasShadow }
+            if let fades { overlay.fades = fades }
+            if let anchor {
+                overlay.anchor = anchor
+            } else if let center {
+                overlay.anchor = nil
+                overlay.center = center
+            }
         }
     }
 
