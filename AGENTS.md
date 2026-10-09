@@ -69,7 +69,7 @@ All annotation positions/sizes are normalized to `[0, 1]` relative to the source
 - **`@Observable` macro** (Observation framework) is used for state - not `ObservableObject`/`@Published`.
 - **App sandbox is disabled** (`ENABLE_APP_SANDBOX = NO`) - the app needs screen capture permissions and direct filesystem access.
 - Screenshots are saved as lossless PNG to `NSTemporaryDirectory()` first, then optionally compressed to JPEG on export.
-- **Persisted formats** live in `~/Library/Application Support/Framecho`: `<image>.framecho` edit sidecars beside History images, `.framechorec` recording packages, and `history.json`. Exported presets are `.framechopreset` (`com.jarinhe.framecho.preset`). Files from before the rename (`.screendrop`, `.screendroprec`, `.screendroppreset`) are migrated at launch by `LegacyStorageMigration` or still read; keep that path working and never rename a persisted key or format without a migration.
+- **Persisted formats** live in `~/Library/Application Support/Framecho`: `<image>.framecho` edit sidecars beside History images, `.framechorec` recording packages (whose `assets/` folder holds the images Studio overlays, copied in at import), and `history.json`. Exported presets are `.framechopreset` (`com.jarinhe.framecho.preset`). Files from before the rename (`.screendrop`, `.screendroprec`, `.screendroppreset`) are migrated at launch by `LegacyStorageMigration` or still read; keep that path working and never rename a persisted key or format without a migration.
 
 ## Commits
 

@@ -282,7 +282,9 @@ enum RecordingSessionRenderer {
             motionTimeline: RecordingMotionTimeline.build(
                 settings: document?.motion ?? .disabled,
                 clipTimeline: clipTimeline
-            )
+            ),
+            imageOverlays: document?.imageOverlays ?? [],
+            assetsDirectory: RecordingStudioAssets.directory(in: session.directoryURL)
         )
     }
 

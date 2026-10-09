@@ -703,6 +703,16 @@ private struct StudioCanvas: View {
                         ? .subviews
                         : .all
                 )
+                // An image dropped on the picture is laid over it from the
+                // playhead.
+                .dropDestination(for: URL.self) { urls, _ in
+                    let images = urls.filter {
+                        UTType(filenameExtension: $0.pathExtension)?.conforms(to: .image) == true
+                    }
+                    guard model.isProject, !images.isEmpty else { return false }
+                    images.forEach(model.addImageOverlay(fromPickedURL:))
+                    return true
+                }
 
                 if model.activePoseAdjustment != nil {
                     StudioPoseAdjustOverlay(
@@ -950,6 +960,15 @@ private struct StudioCanvasComposition: View {
                         y: min(canvasSize.width, canvasSize.height) * 0.016 * model.style.shadow
                     )
                     .position(x: layout.cardRect.midX, y: layout.cardRect.midY)
+
+                // Over the card, under the camera and subtitles - the same
+                // order the export draws in.
+                StudioImageOverlayLayer(
+                    model: model,
+                    canvasSize: canvasSize,
+                    isInteractive: !model.isPlaying && !isEditingVideoCrop
+                        && zoomTarget == nil && model.activePoseAdjustment == nil
+                )
 
                 if model.isCameraVisible(at: model.displayTime), layout.bubbleRect.width > 0 {
                     StudioCameraBubble(model: model, layout: layout)
@@ -1836,6 +1855,172 @@ private struct StudioKeystrokeCaptionView: View {
 /// horizontally at the style's vertical position on the full canvas
 /// (background included). Geometry comes from SubtitleBarMetrics so the
 /// exporter draws the identical bar.
+/// The images over the canvas. While paused, clicking one selects it and
+/// dragging moves it; the move undoes as one step.
+private struct StudioImageOverlayLayer: View {
+    @Bindable var model: RecordingStudioModel
+    let canvasSize: CGSize
+    let isInteractive: Bool
+
+    @State private var dragBase: RecordingImageOverlay?
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            ForEach(model.imageOverlayFrames(at: model.displayTime), id: \.overlay.id) { frame in
+                overlayView(frame)
+            }
+        }
+        .frame(width: canvasSize.width, height: canvasSize.height, alignment: .topLeading)
+    }
+
+    private func overlayView(_ frame: RecordingImageOverlayTimeline.Frame) -> some View {
+        let overlay = frame.overlay
+        let rect = RecordingImageOverlayLayout.rect(
+            for: overlay,
+            canvasSize: canvasSize,
+            captionBand: model.imageOverlayCaptionBand(canvasSize: canvasSize)
+        )
+        let radius = RecordingImageOverlayLayout.cornerRadius(for: overlay, in: rect)
+        let shadow = RecordingImageOverlayLayout.shadow(canvasSize: canvasSize)
+        let isSelected = isInteractive && model.selectedImageOverlayID == overlay.id
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+
+        return Group {
+            if let image = model.imageOverlayPreviews[overlay.fileName] {
+                Image(decorative: image, scale: 1)
+                    .resizable()
+                    .interpolation(.high)
+            } else {
+                shape.fill(Color.secondary.opacity(0.25))
+            }
+        }
+        .frame(width: rect.width, height: rect.height)
+        .clipShape(shape)
+        .compositingGroup()
+        .shadow(
+            color: .black.opacity(overlay.hasShadow ? shadow.opacity : 0),
+            radius: shadow.radius / 2,
+            y: shadow.offset
+        )
+        .opacity(frame.opacity)
+        .overlay {
+            if isSelected {
+                shape
+                    .stroke(Color.accentColor, lineWidth: 1.5)
+                    .padding(-1)
+            }
+        }
+        .contentShape(shape)
+        .pointerStyle(isInteractive ? (dragBase?.id == overlay.id ? .grabActive : .grabIdle) : nil)
+        .gesture(moveGesture(for: overlay), including: isInteractive ? .all : .none)
+        .onTapGesture {
+            guard isInteractive else { return }
+            model.selectedImageOverlayID = overlay.id
+        }
+        .allowsHitTesting(isInteractive)
+        .position(x: rect.midX, y: rect.midY)
+        .accessibilityElement()
+        .accessibilityLabel(Text(overlay.displayName))
+        .accessibilityAddTraits(isSelected ? [.isImage, .isSelected] : .isImage)
+    }
+
+    private func moveGesture(for overlay: RecordingImageOverlay) -> some Gesture {
+        DragGesture(minimumDistance: 2)
+            .onChanged { value in
+                let captionBand = model.imageOverlayCaptionBand(canvasSize: canvasSize)
+                if dragBase == nil {
+                    // Held as a free placement where it was drawn, so
+                    // dragging a preset image starts from where it shows.
+                    var base = overlay
+                    base.center = RecordingImageOverlayLayout.center(
+                        for: overlay,
+                        canvasSize: canvasSize,
+                        captionBand: captionBand
+                    )
+                    base.anchor = nil
+                    dragBase = base
+                    model.selectedImageOverlayID = overlay.id
+                    model.beginImageOverlayEdit()
+                }
+                guard let dragBase, canvasSize.width > 0, canvasSize.height > 0 else { return }
+                let dragged = CGPoint(
+                    x: dragBase.center.x + value.translation.width / canvasSize.width,
+                    y: dragBase.center.y + value.translation.height / canvasSize.height
+                )
+                // Snaps to the margins and center lines; landing on a
+                // preset on both axes makes it that preset again. Hold
+                // Command to place freely.
+                let snap = NSEvent.modifierFlags.contains(.command)
+                    ? (center: dragged, anchor: nil)
+                    : RecordingImageOverlayLayout.snapped(
+                        center: dragged,
+                        for: dragBase,
+                        canvasSize: canvasSize,
+                        captionBand: captionBand,
+                        threshold: 6
+                    )
+                var moved = dragBase
+                moved.center = snap.center
+                moved.anchor = snap.anchor
+                model.updateImageOverlay(moved)
+            }
+            .onEnded { _ in
+                dragBase = nil
+                model.endImageOverlayEdit(actionName: String(localized: "Move Image"))
+            }
+    }
+}
+
+/// The nine placement presets as a small grid of the canvas, the current
+/// one filled.
+private struct StudioImageOverlayAnchorGrid: View {
+    let selected: RecordingImageOverlayAnchor?
+    let onSelect: (RecordingImageOverlayAnchor) -> Void
+
+    private let columns = Array(repeating: GridItem(.fixed(22), spacing: 4), count: 3)
+
+    var body: some View {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 4) {
+            ForEach(RecordingImageOverlayAnchor.allCases, id: \.self) { anchor in
+                Button {
+                    onSelect(anchor)
+                } label: {
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(anchor == selected ? Color.accentColor : Color.primary.opacity(0.1))
+                        .frame(width: 22, height: 14)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(anchor.title)
+                .accessibilityLabel(Text(anchor.title))
+                .accessibilityAddTraits(anchor == selected ? .isSelected : [])
+            }
+        }
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+        )
+        .fixedSize()
+    }
+}
+
+private extension RecordingImageOverlayAnchor {
+    var title: String {
+        switch self {
+        case .topLeading: String(localized: "Top Left")
+        case .top: String(localized: "Top")
+        case .topTrailing: String(localized: "Top Right")
+        case .leading: String(localized: "Left")
+        case .center: String(localized: "Center")
+        case .trailing: String(localized: "Right")
+        case .bottomLeading: String(localized: "Bottom Left")
+        case .bottom: String(localized: "Bottom")
+        case .bottomTrailing: String(localized: "Bottom Right")
+        }
+    }
+}
+
 private struct StudioSubtitleBarView: View {
     let text: String
     var karaokeLine: KaraokeTimeline.Line?
@@ -2255,6 +2440,10 @@ private struct StudioTimelineEditor: View {
                     StudioCaptionLaneBackground(isEmpty: !model.hasSubtitles)
                         .frame(height: StudioTimelineMetrics.captionLaneHeight)
                 }
+                if showsImageLane {
+                    StudioCaptionLaneBackground()
+                        .frame(height: StudioTimelineMetrics.imageLaneHeight)
+                }
                 Color.clear
                     .frame(height: StudioTimelineMetrics.clipLaneHeight)
                 if showsAudioLane {
@@ -2301,6 +2490,18 @@ private struct StudioTimelineEditor: View {
                         .frame(
                             width: scale.contentWidth,
                             height: StudioTimelineMetrics.captionLaneHeight
+                        )
+                    }
+
+                    if showsImageLane {
+                        StudioImageOverlayLane(
+                            model: model,
+                            scale: scale,
+                            visibleRange: scale.visibleRange(scrollX: scrollX)
+                        )
+                        .frame(
+                            width: scale.contentWidth,
+                            height: StudioTimelineMetrics.imageLaneHeight
                         )
                     }
 
@@ -2387,11 +2588,16 @@ private struct StudioTimelineEditor: View {
         model.backgroundMusic != nil
     }
 
+    private var showsImageLane: Bool {
+        !model.imageOverlays.isEmpty
+    }
+
     private var visibleLanes: StudioTimelineMetrics.Lanes {
         StudioTimelineMetrics.Lanes(
             audio: showsAudioLane,
             captions: showsCaptionLane,
-            music: showsMusicLane
+            music: showsMusicLane,
+            images: showsImageLane
         )
     }
 
@@ -2447,6 +2653,11 @@ private struct StudioTimelineEditor: View {
                     )
                     .frame(height: StudioTimelineMetrics.captionLaneHeight)
                 }
+            }
+
+            if showsImageLane {
+                StudioLaneHeader(title: "Images", systemImage: "photo.on.rectangle", tint: StudioImageOverlayLane.tint)
+                    .frame(height: StudioTimelineMetrics.imageLaneHeight)
             }
 
             if showsClipWaveform {
@@ -2520,6 +2731,13 @@ private struct StudioTimelineEditor: View {
                 Label("Replacement Audio…", systemImage: "music.note")
             }
             .disabled(model.replacementAudio != nil)
+
+            Button {
+                model.chooseImageOverlay()
+            } label: {
+                Label("Image…", systemImage: "photo.on.rectangle")
+            }
+            .disabled(!model.isProject)
         } label: {
             Label("Add Track", systemImage: "plus")
                 .font(.system(size: 11.5, weight: .medium))
@@ -2529,7 +2747,7 @@ private struct StudioTimelineEditor: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .disabled(!model.isLoaded)
-        .help("Add a caption or audio track")
+        .help("Add a caption, audio or image track")
     }
 
     private var clipLane: some View {
@@ -2794,12 +3012,15 @@ private struct StudioTimelineEditor: View {
 
     private var canDeleteSelection: Bool {
         model.selectedCueID != nil || model.selectedMotionCueID != nil
-            || model.selectedSubtitleCueID != nil || model.canDeleteSelectedClip
+            || model.selectedSubtitleCueID != nil || model.selectedImageOverlayID != nil
+            || model.canDeleteSelectedClip
     }
 
     private func deleteSelection() {
         if let subtitleID = model.selectedSubtitleCueID {
             model.deleteSubtitle(id: subtitleID)
+        } else if let imageID = model.selectedImageOverlayID {
+            model.removeImageOverlay(id: imageID)
         } else if let cueID = model.selectedCueID {
             model.removeZoomCue(id: cueID)
         } else if let motionCueID = model.selectedMotionCueID {
@@ -2997,6 +3218,7 @@ private enum StudioTimelineMetrics {
 
     static let audioLaneHeight: CGFloat = 22
     static let musicLaneHeight: CGFloat = 22
+    static let imageLaneHeight: CGFloat = 24
 
     /// The optional lanes on show. The audio lane appears for replacement
     /// audio and captions for narrated recordings; the video, zoom and 3D
@@ -3005,6 +3227,7 @@ private enum StudioTimelineMetrics {
         var audio: Bool
         var captions: Bool
         var music = false
+        var images = false
     }
 
     static func scrollingLanesHeight(lanes: Lanes) -> CGFloat {
@@ -3012,6 +3235,7 @@ private enum StudioTimelineMetrics {
             + (lanes.audio ? audioLaneHeight + rowSpacing : 0)
             + (lanes.captions ? captionLaneHeight + rowSpacing : 0)
             + (lanes.music ? musicLaneHeight + rowSpacing : 0)
+            + (lanes.images ? imageLaneHeight + rowSpacing : 0)
     }
 
     static func lanesHeight(lanes: Lanes) -> CGFloat {
@@ -3854,6 +4078,215 @@ private struct StudioZoomCueBlock: View {
 
 /// Frame of the caption lane, drawn behind the scroll view like the other
 /// lanes. An empty lane is dashed so it reads as a slot waiting to be used.
+/// Images over the video on the edited timeline. A block selects on a
+/// click, slides when dragged and trims from either edge; images may
+/// overlap, later ones drawing on top. Delete removes the selected image.
+private struct StudioImageOverlayLane: View {
+    static let tint = Color.orange
+
+    @Bindable var model: RecordingStudioModel
+    let scale: StudioTimelineScale
+    let visibleRange: ClosedRange<TimeInterval>
+
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Color.clear
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            guard scale.pointsPerSecond > 0 else { return }
+                            isFocused = true
+                            model.selectedImageOverlayID = nil
+                            model.pause()
+                            model.seek(to: scale.time(forX: value.location.x))
+                        }
+                )
+
+            ForEach(visiblePlacements, id: \.overlay.id) { placement in
+                StudioImageOverlayBlock(model: model, placement: placement, scale: scale) {
+                    isFocused = true
+                }
+            }
+        }
+        .focusable()
+        .focusEffectDisabled()
+        .focused($isFocused)
+        .onKeyPress(keys: [.delete, .deleteForward]) { _ in
+            guard let id = model.selectedImageOverlayID else { return .ignored }
+            model.removeImageOverlay(id: id)
+            return .handled
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Images track")
+    }
+
+    private var visiblePlacements: [RecordingImageOverlayTimeline.Placement] {
+        model.imageOverlayTimeline.placements.filter {
+            $0.editorEnd >= visibleRange.lowerBound && $0.editorStart <= visibleRange.upperBound
+        }
+    }
+}
+
+private struct StudioImageOverlayBlock: View {
+    @Bindable var model: RecordingStudioModel
+    let placement: RecordingImageOverlayTimeline.Placement
+    let scale: StudioTimelineScale
+    let takeFocus: () -> Void
+
+    private enum Edge {
+        case start
+        case end
+    }
+
+    /// Where the drag began, in source time so cuts can't shift under it.
+    @State private var dragBase: RecordingImageOverlay?
+
+    private var overlay: RecordingImageOverlay { placement.overlay }
+
+    private var isSelected: Bool {
+        model.selectedImageOverlayID == overlay.id
+    }
+
+    var body: some View {
+        let minX = scale.x(for: placement.editorStart)
+        let width = max(6, scale.x(for: placement.editorEnd) - minX - 2)
+        let isCurrent = (placement.editorStart..<placement.editorEnd).contains(model.currentTime)
+        let showsHandles = isSelected && width >= 28
+        let tint = StudioImageOverlayLane.tint
+
+        HStack(spacing: 4) {
+            if showsHandles { resizeHandle(.start) }
+            if let image = model.imageOverlayPreviews[overlay.fileName], width >= 40 {
+                Image(decorative: image, scale: 1)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(height: StudioZoomLaneMetrics.blockHeight - 6)
+                    .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))
+                    .padding(.leading, showsHandles ? 0 : 4)
+            }
+            Text(overlay.displayName)
+                .font(.system(size: 10.5, weight: .medium))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if showsHandles { resizeHandle(.end) }
+        }
+        .padding(.trailing, showsHandles ? 0 : 6)
+        .frame(width: width, height: StudioZoomLaneMetrics.blockHeight)
+        .foregroundStyle(isCurrent || isSelected ? Color.white : Color.primary.opacity(0.8))
+        .background(
+            RoundedRectangle(cornerRadius: StudioZoomLaneMetrics.blockCornerRadius, style: .continuous)
+                .fill(tint.opacity(isSelected ? 0.95 : isCurrent ? 0.85 : 0.2))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioZoomLaneMetrics.blockCornerRadius, style: .continuous)
+                .strokeBorder(tint.opacity(isCurrent || isSelected ? 0 : 0.4), lineWidth: 1)
+        )
+        .overlay {
+            if isSelected {
+                RoundedRectangle(
+                    cornerRadius: StudioZoomLaneMetrics.selectionRingCornerRadius,
+                    style: .continuous
+                )
+                    .stroke(Color.white.opacity(0.8), lineWidth: 1.5)
+                    .padding(-StudioZoomLaneMetrics.selectionRingPadding)
+            }
+        }
+        .contentShape(Rectangle())
+        .gesture(moveGesture)
+        .onTapGesture {
+            select()
+            model.pause()
+            model.seek(to: placement.editorStart)
+        }
+        .contextMenu {
+            Button("Delete Image", role: .destructive) {
+                model.removeImageOverlay(id: overlay.id)
+            }
+        }
+        .offset(x: minX + 1, y: StudioZoomLaneMetrics.blockInset)
+        .help(overlay.displayName)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(overlay.displayName))
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAction { select() }
+        .accessibilityAction(named: Text("Delete Image")) {
+            model.removeImageOverlay(id: overlay.id)
+        }
+    }
+
+    private func select() {
+        takeFocus()
+        model.selectedImageOverlayID = overlay.id
+    }
+
+    private var moveGesture: some Gesture {
+        DragGesture(minimumDistance: 3, coordinateSpace: .global)
+            .onChanged { value in
+                if dragBase == nil {
+                    dragBase = overlay
+                    select()
+                    model.pause()
+                    model.beginImageOverlayEdit()
+                }
+                guard let dragBase else { return }
+                let delta = Double(value.translation.width) * scale.secondsPerPoint
+                let editorStart = model.editorTime(forSourceTime: dragBase.start) ?? placement.editorStart
+                model.moveImageOverlay(
+                    id: dragBase.id,
+                    toStart: model.sourceTime(atEditorTime: max(0, editorStart + delta))
+                )
+            }
+            .onEnded { _ in
+                dragBase = nil
+                model.endImageOverlayEdit(actionName: String(localized: "Move Image"))
+            }
+    }
+
+    private func resizeHandle(_ edge: Edge) -> some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.001))
+            .frame(width: 10, height: StudioZoomLaneMetrics.blockHeight)
+            .overlay {
+                Capsule()
+                    .fill(Color.white.opacity(0.9))
+                    .frame(width: 2.5, height: 12)
+            }
+            .contentShape(Rectangle())
+            .pointerStyle(.frameResize(position: edge == .start ? .leading : .trailing))
+            .gesture(
+                DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                    .onChanged { value in
+                        if dragBase == nil {
+                            dragBase = overlay
+                            model.pause()
+                            model.beginImageOverlayEdit()
+                        }
+                        guard var resized = dragBase else { return }
+                        let delta = Double(value.translation.width) * scale.secondsPerPoint
+                        let minimum = RecordingImageOverlay.minimumDuration
+                        switch edge {
+                        case .start:
+                            let editorTime = (model.editorTime(forSourceTime: resized.start) ?? placement.editorStart) + delta
+                            resized.start = min(model.sourceTime(atEditorTime: max(0, editorTime)), resized.end - minimum)
+                        case .end:
+                            let editorTime = (model.editorTime(forSourceTime: resized.end) ?? placement.editorEnd) + delta
+                            resized.end = max(model.sourceTime(atEditorTime: max(0, editorTime)), resized.start + minimum)
+                        }
+                        model.updateImageOverlay(resized)
+                    }
+                    .onEnded { _ in
+                        dragBase = nil
+                        model.endImageOverlayEdit(actionName: String(localized: "Change Image Timing"))
+                    }
+            )
+            .accessibilityHidden(true)
+    }
+}
+
 private struct StudioCaptionLaneBackground: View {
     var isEmpty = false
 
@@ -4513,6 +4946,7 @@ private enum StudioInspectorTab: Hashable, CaseIterable {
     case camera
     case keystrokes
     case captions
+    case images
     case audio
 
     var title: String {
@@ -4523,6 +4957,7 @@ private enum StudioInspectorTab: Hashable, CaseIterable {
         case .camera: String(localized: "Camera")
         case .keystrokes: String(localized: "Keystrokes")
         case .captions: String(localized: "Captions")
+        case .images: String(localized: "Images")
         case .audio: String(localized: "Audio")
         }
     }
@@ -4535,6 +4970,7 @@ private enum StudioInspectorTab: Hashable, CaseIterable {
         case .camera: "video"
         case .keystrokes: "keyboard"
         case .captions: "captions.bubble"
+        case .images: "photo.on.rectangle"
         case .audio: "speaker.wave.2"
         }
     }
@@ -4599,7 +5035,7 @@ private struct StudioInspector: View {
 
     /// Whatever the timeline has selected, for scrolling its controls in.
     private var selectionKey: UUID? {
-        model.selectedCueID ?? model.selectedMotionCueID ?? model.selectedClipID
+        model.selectedCueID ?? model.selectedMotionCueID ?? model.selectedImageOverlayID ?? model.selectedClipID
     }
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
@@ -4644,6 +5080,8 @@ private struct StudioInspector: View {
                     keystrokesTab
                 case .captions:
                     captionsTab
+                case .images:
+                    imagesTab
                 case .audio:
                     audioTab
                 }
@@ -4724,6 +5162,8 @@ private struct StudioInspector: View {
             model.hasKeystrokes && model.showsKeystrokes
         case .captions:
             model.hasSubtitles && model.showsSubtitles
+        case .images:
+            !model.imageOverlays.isEmpty
         case .audio:
             model.replacementAudio != nil || model.backgroundMusic != nil || model.normalizesAudioLoudness
         }
@@ -4804,7 +5244,8 @@ private struct StudioInspector: View {
     /// marked with its lane's colour so it reads as the selected block.
     @ViewBuilder
     private var selectionSection: some View {
-        if model.selectedCue != nil || model.selectedMotionCue != nil || model.selectedClip != nil {
+        if model.selectedCue != nil || model.selectedMotionCue != nil
+            || model.selectedImageOverlay != nil || model.selectedClip != nil {
             VStack(alignment: .leading, spacing: 0) {
                 selectionControls
             }
@@ -4825,6 +5266,7 @@ private struct StudioInspector: View {
     private var selectionTint: Color {
         if model.selectedCue != nil { return .accentColor }
         if model.selectedMotionCue != nil { return StudioMotionCueBlock.tint }
+        if model.selectedImageOverlay != nil { return StudioImageOverlayLane.tint }
         return .secondary
     }
 
@@ -4867,6 +5309,10 @@ private struct StudioInspector: View {
                 }
             ) {
                 selectedMotionControls(for: selectedMotion)
+            }
+        } else if let selectedImage = model.selectedImageOverlay {
+            InspectorSection("Selected Image") {
+                selectedImageControls(for: selectedImage)
             }
         } else if let selectedClip = model.selectedClip {
             InspectorSection("Selected Clip") {
@@ -5000,6 +5446,168 @@ private struct StudioInspector: View {
         } else {
             InspectorSection("Captions") {
                 InspectorHint("Captions come from narration. Record with the microphone on to transcribe it.")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var imagesTab: some View {
+        InspectorSection(
+            title: "Images",
+            accessory: {
+                Button {
+                    model.chooseImageOverlay()
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 11, weight: .semibold))
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Add an image at the playhead")
+                .accessibilityLabel("Add Image")
+                .disabled(!model.isProject)
+            }
+        ) {
+            if model.imageOverlays.isEmpty {
+                InspectorHint("Lay a logo, QR code or screenshot over the video. Add one here, from Add Track, or drop an image on the preview.")
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(model.imageOverlays) { overlay in
+                        imageOverlayRow(overlay)
+                    }
+                }
+            }
+        }
+    }
+
+    private func imageOverlayRow(_ overlay: RecordingImageOverlay) -> some View {
+        let isSelected = model.selectedImageOverlayID == overlay.id
+        let placement = model.imageOverlayTimeline.placement(for: overlay.id)
+        return Button {
+            model.selectedImageOverlayID = overlay.id
+            if let placement {
+                model.pause()
+                model.seek(to: placement.editorStart)
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Group {
+                    if let image = model.imageOverlayPreviews[overlay.fileName] {
+                        Image(decorative: image, scale: 1)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                    } else {
+                        Image(systemName: "photo")
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .frame(width: 28, height: 20)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(overlay.displayName)
+                        .font(.inspectorLabel)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text(placement.map { imageOverlayTimeText($0) } ?? String(localized: "Cut from the video"))
+                        .font(.inspectorNumeric)
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(isSelected ? Color.primary.opacity(0.08) : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func imageOverlayTimeText(_ placement: RecordingImageOverlayTimeline.Placement) -> String {
+        let format: (TimeInterval) -> String = { seconds in
+            String(format: "%d:%04.1f", Int(seconds) / 60, seconds.truncatingRemainder(dividingBy: 60))
+        }
+        return "\(format(placement.editorStart)) – \(format(placement.editorEnd))"
+    }
+
+    private func selectedImageControls(for selected: RecordingImageOverlay) -> some View {
+        let binding: (WritableKeyPath<RecordingImageOverlay, Double>) -> Binding<CGFloat> = { keyPath in
+            Binding(
+                get: { CGFloat(selected[keyPath: keyPath]) },
+                set: { value in
+                    var updated = selected
+                    updated[keyPath: keyPath] = Double(value)
+                    model.updateImageOverlay(updated, coalesces: true)
+                }
+            )
+        }
+        return VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
+                InspectorGroupLabel("Position")
+                StudioImageOverlayAnchorGrid(selected: selected.anchor) { anchor in
+                    var updated = selected
+                    updated.anchor = anchor
+                    model.updateImageOverlay(updated)
+                }
+            }
+
+            InspectorSlider(
+                "Size",
+                value: Binding(
+                    get: { CGFloat(selected.width) },
+                    set: { width in
+                        // A preset image stays in its spot as it grows;
+                        // a free one grows around its center.
+                        var updated = selected
+                        updated.width = Double(width)
+                        model.updateImageOverlay(updated, coalesces: true)
+                    }
+                ),
+                range: CGFloat(RecordingImageOverlay.widthRange.lowerBound)...CGFloat(RecordingImageOverlay.widthRange.upperBound),
+                format: .percent()
+            )
+
+            InspectorFieldPair {
+                InspectorSlider("Opacity", value: binding(\.opacity), range: 0...1, format: .percent())
+            } trailing: {
+                InspectorSlider(
+                    "Corners",
+                    value: binding(\.cornerRadius),
+                    range: 0...CGFloat(RecordingImageOverlay.cornerRadiusRange.upperBound),
+                    format: .percent()
+                )
+            }
+
+            InspectorToggleRow(
+                "Shadow",
+                isOn: Binding(
+                    get: { selected.hasShadow },
+                    set: { hasShadow in
+                        var updated = selected
+                        updated.hasShadow = hasShadow
+                        model.updateImageOverlay(updated)
+                    }
+                )
+            )
+            InspectorToggleRow(
+                "Fade in and out",
+                isOn: Binding(
+                    get: { selected.fades },
+                    set: { fades in
+                        var updated = selected
+                        updated.fades = fades
+                        model.updateImageOverlay(updated)
+                    }
+                )
+            )
+
+            InspectorActionButton("Remove Image", systemImage: "trash", role: .destructive) {
+                model.removeImageOverlay(id: selected.id)
             }
         }
     }
@@ -6148,6 +6756,30 @@ private struct StudioAudioExportOptions: View {
 private extension RecordingStudioModel {
     /// Asks for a sound file to play instead of the recorded audio; shared by
     /// the Audio inspector and the timeline's Add Track menu.
+    func chooseImageOverlay() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.title = String(localized: "Choose an Image")
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            self?.addImageOverlay(fromPickedURL: url)
+        }
+    }
+
+    /// Adds a picked or dropped image at the playhead, reporting a file that
+    /// isn't an image instead of failing silently.
+    func addImageOverlay(fromPickedURL url: URL) {
+        do {
+            pause()
+            try addImageOverlay(from: url, at: currentTime)
+        } catch {
+            FailureAlert.present(message: String(localized: "The image couldn't be added"), error: error)
+        }
+    }
+
     func chooseReplacementAudio() {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = RecordingAudioFormat.importContentTypes

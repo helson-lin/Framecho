@@ -79,6 +79,9 @@ struct RecordingEditDocument: Codable, Equatable {
     /// Library music under the soundtrack; optional so older projects
     /// decode without any.
     var backgroundMusic: RecordingBackgroundMusic?
+    /// Images laid over the video, in stacking order; optional so older
+    /// projects decode without any.
+    var imageOverlays: [RecordingImageOverlay]?
 
     private enum CodingKeys: String, CodingKey {
         case formatVersion
@@ -111,6 +114,7 @@ struct RecordingEditDocument: Codable, Equatable {
         case normalizesAudioLoudness
         case motion
         case backgroundMusic
+        case imageOverlays
     }
 
     init(
@@ -136,7 +140,8 @@ struct RecordingEditDocument: Codable, Equatable {
         audioVolume: Double? = nil,
         normalizesAudioLoudness: Bool? = nil,
         motion: RecordingMotionSettings? = nil,
-        backgroundMusic: RecordingBackgroundMusic? = nil
+        backgroundMusic: RecordingBackgroundMusic? = nil,
+        imageOverlays: [RecordingImageOverlay]? = nil
     ) {
         self.style = StoredRecordingStudioStyle(style)
         self.zoomEnabled = zoomEnabled
@@ -170,6 +175,7 @@ struct RecordingEditDocument: Codable, Equatable {
         self.normalizesAudioLoudness = normalizesAudioLoudness
         self.motion = motion
         self.backgroundMusic = backgroundMusic
+        self.imageOverlays = imageOverlays
     }
 
     var audioExportFormatValue: RecordingAudioFormat {
@@ -258,6 +264,7 @@ struct RecordingEditDocument: Codable, Equatable {
         normalizesAudioLoudness = try container.decodeIfPresent(Bool.self, forKey: .normalizesAudioLoudness)
         motion = try container.decodeIfPresent(RecordingMotionSettings.self, forKey: .motion)
         backgroundMusic = try container.decodeIfPresent(RecordingBackgroundMusic.self, forKey: .backgroundMusic)
+        imageOverlays = try container.decodeIfPresent([RecordingImageOverlay].self, forKey: .imageOverlays)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -292,6 +299,7 @@ struct RecordingEditDocument: Codable, Equatable {
         try container.encodeIfPresent(normalizesAudioLoudness, forKey: .normalizesAudioLoudness)
         try container.encodeIfPresent(motion, forKey: .motion)
         try container.encodeIfPresent(backgroundMusic, forKey: .backgroundMusic)
+        try container.encodeIfPresent(imageOverlays, forKey: .imageOverlays)
     }
 }
 

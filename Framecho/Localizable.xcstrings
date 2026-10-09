@@ -1403,16 +1403,6 @@
         }
       }
     },
-    "Add a caption or audio track" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "添加字幕或音频轨道"
-          }
-        }
-      }
-    },
     "Add a motion block at the playhead, then shape its pose above" : {
       "localizations" : {
         "zh-Hans" : {
@@ -13575,6 +13565,226 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "编辑字幕"
+          }
+        }
+      }
+    },
+    "Images" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片"
+          }
+        }
+      }
+    },
+    "Image…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片…"
+          }
+        }
+      }
+    },
+    "Add a caption, audio or image track" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加字幕、音频或图片轨道"
+          }
+        }
+      }
+    },
+    "Images track" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片轨道"
+          }
+        }
+      }
+    },
+    "Delete Image" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除图片"
+          }
+        }
+      }
+    },
+    "Selected Image" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所选图片"
+          }
+        }
+      }
+    },
+    "Fade in and out" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "淡入淡出"
+          }
+        }
+      }
+    },
+    "Remove Image" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除图片"
+          }
+        }
+      }
+    },
+    "Add an image at the playhead" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在播放头处添加图片"
+          }
+        }
+      }
+    },
+    "Add Image" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加图片"
+          }
+        }
+      }
+    },
+    "Lay a logo, QR code or screenshot over the video. Add one here, from Add Track, or drop an image on the preview." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在视频上叠加 Logo、二维码或截图。可在这里添加，也可通过“添加轨道”，或将图片拖到预览上。"
+          }
+        }
+      }
+    },
+    "Cut from the video" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已从视频中剪掉"
+          }
+        }
+      }
+    },
+    "Top Left" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左上"
+          }
+        }
+      }
+    },
+    "Top Right" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右上"
+          }
+        }
+      }
+    },
+    "Bottom Left" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左下"
+          }
+        }
+      }
+    },
+    "Bottom Right" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右下"
+          }
+        }
+      }
+    },
+    "Choose an Image" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选取图片"
+          }
+        }
+      }
+    },
+    "The image couldn't be added" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法添加图片"
+          }
+        }
+      }
+    },
+    "Edit Image" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑图片"
+          }
+        }
+      }
+    },
+    "Move Image" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移动图片"
+          }
+        }
+      }
+    },
+    "Change Image Timing" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改图片时间"
+          }
+        }
+      }
+    },
+    "“%@” isn't an image Framecho can read." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Framecho 无法读取图片“%@”。"
           }
         }
       }

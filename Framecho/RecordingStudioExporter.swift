@@ -73,6 +73,10 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
         let usesUniformPadding: Bool
         /// 3D pose of the video card over the output timeline.
         let motionTimeline: RecordingMotionTimeline
+        /// Images laid over the canvas, and the package folder their files
+        /// live in.
+        let imageOverlays: [RecordingImageOverlay]
+        let assetsDirectory: URL?
 
         init(
             screenURL: URL,
@@ -98,7 +102,9 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             reframe: ReframeTrack? = nil,
             fitContentAspect: CGFloat? = nil,
             usesUniformPadding: Bool = false,
-            motionTimeline: RecordingMotionTimeline = .disabled
+            motionTimeline: RecordingMotionTimeline = .disabled,
+            imageOverlays: [RecordingImageOverlay] = [],
+            assetsDirectory: URL? = nil
         ) {
             self.screenURL = screenURL
             self.cameraURL = cameraURL
@@ -124,6 +130,8 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             self.fitContentAspect = fitContentAspect
             self.usesUniformPadding = usesUniformPadding
             self.motionTimeline = motionTimeline
+            self.imageOverlays = imageOverlays
+            self.assetsDirectory = assetsDirectory
         }
     }
 
@@ -382,7 +390,12 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             reframe: configuration.reframe,
             fitContentAspect: configuration.fitContentAspect,
             usesUniformPadding: configuration.usesUniformPadding,
-            motionTimeline: configuration.motionTimeline
+            motionTimeline: configuration.motionTimeline,
+            imageOverlays: RecordingImageOverlayTimeline(
+                overlays: configuration.imageOverlays,
+                clipTimeline: configuration.clipTimeline
+            ),
+            assetsDirectory: configuration.assetsDirectory
         )
 
         let screenAudioOutput = audioOutput
@@ -789,6 +802,11 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
     private let karaokeTimeline: KaraokeTimeline?
     private let reframe: ReframeTrack?
     private let motionTimeline: RecordingMotionTimeline
+    private let imageOverlays: RecordingImageOverlayTimeline
+    /// Decoded once per export at canvas resolution, keyed by file name.
+    private let overlayImages: [String: CGImage]
+    /// Where the subtitle bar sits, for overlays placed clear of it.
+    private let overlayCaptionBand: ClosedRange<CGFloat>?
     /// True when any frame tilts or moves the card. Such exports draw the
     /// card into its own layer and project it; flat ones keep the 2D path.
     private let projectsCard: Bool
@@ -837,7 +855,9 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         reframe: ReframeTrack? = nil,
         fitContentAspect: CGFloat? = nil,
         usesUniformPadding: Bool = false,
-        motionTimeline: RecordingMotionTimeline = .disabled
+        motionTimeline: RecordingMotionTimeline = .disabled,
+        imageOverlays: RecordingImageOverlayTimeline = .empty,
+        assetsDirectory: URL? = nil
     ) {
         self.canvasSize = canvasSize
         self.videoCropRect = RecordingVideoCropGeometry.normalized(videoCropRect)
@@ -860,6 +880,23 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         self.karaokeTimeline = karaokeTimeline
         self.reframe = reframe
         self.motionTimeline = motionTimeline
+        self.imageOverlays = imageOverlays
+        var overlayImages: [String: CGImage] = [:]
+        if let assetsDirectory {
+            let maxPixelSize = Int(max(canvasSize.width, canvasSize.height))
+            for placement in imageOverlays.placements where overlayImages[placement.overlay.fileName] == nil {
+                overlayImages[placement.overlay.fileName] = RecordingStudioAssets.loadImage(
+                    at: assetsDirectory.appendingPathComponent(placement.overlay.fileName),
+                    maxPixelSize: maxPixelSize
+                )
+            }
+        }
+        self.overlayImages = overlayImages
+        self.overlayCaptionBand = subtitleTimeline == nil ? nil : RecordingImageOverlayLayout.captionBand(
+            canvasSize: canvasSize,
+            verticalPosition: subtitleStyle.clampedVerticalPosition,
+            fontSize: SubtitleBarMetrics(canvasSize: canvasSize, style: subtitleStyle).fontSize
+        )
         let projectsCard = !motionTimeline.isIdentity
         self.projectsCard = projectsCard
         self.cardShadowStrength = style.shadow > 0.01 && style.background != .none ? style.shadow : 0
@@ -1051,6 +1088,8 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         // unaffected by the zoom transform, like a broadcast lower third.
         drawKeystrokeCaption(at: sourceTime, in: context)
 
+        drawImageOverlays(at: editorTime, in: context)
+
         if let cameraFrame, layout.bubbleRect.width > 0 {
             drawCameraBubble(cameraFrame, in: context)
         }
@@ -1177,6 +1216,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         try renderProjectedCard(foreground, projections: shutterProjections, into: frame.destination)
 
         try withBitmapContext(frame.destination) { context in
+            drawImageOverlays(at: frame.editorTime, in: context)
             if let cameraFrame = frame.cameraFrame, layout.bubbleRect.width > 0 {
                 drawCameraBubble(cameraFrame, in: context)
             }
@@ -1796,6 +1836,41 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         )
         CTLineDraw(line, context)
         context.restoreGState()
+    }
+
+    /// Images in canvas space, over the card and under the camera and
+    /// subtitles. A rounded or shadowed image draws in a transparency layer
+    /// so the shadow follows the clipped shape, transparent pixels included.
+    private func drawImageOverlays(at editorTime: TimeInterval, in context: CGContext) {
+        guard !imageOverlays.isEmpty else { return }
+        for frame in imageOverlays.frames(at: editorTime) {
+            guard let image = overlayImages[frame.overlay.fileName] else { continue }
+            let rect = RecordingImageOverlayLayout.rect(
+                for: frame.overlay,
+                canvasSize: canvasSize,
+                captionBand: overlayCaptionBand
+            )
+            let radius = RecordingImageOverlayLayout.cornerRadius(for: frame.overlay, in: rect)
+            context.saveGState()
+            context.setAlpha(frame.opacity)
+            if frame.overlay.hasShadow {
+                let shadow = RecordingImageOverlayLayout.shadow(canvasSize: canvasSize)
+                context.setShadow(
+                    offset: CGSize(width: 0, height: -shadow.offset),
+                    blur: shadow.radius,
+                    color: CGColor(gray: 0, alpha: shadow.opacity)
+                )
+            }
+            context.interpolationQuality = .high
+            context.beginTransparencyLayer(auxiliaryInfo: nil)
+            if radius > 0.5 {
+                context.addPath(roundedPath(for: rect, radius: radius))
+                context.clip()
+            }
+            context.draw(image, in: flipped(rect))
+            context.endTransparencyLayer()
+            context.restoreGState()
+        }
     }
 
     private func drawSubtitleBar(at time: TimeInterval, in context: CGContext) {

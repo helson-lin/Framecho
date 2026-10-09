@@ -57,6 +57,10 @@ check agent-mcp "${strict[@]}" \
   Framecho/MCPJSON.swift Framecho/MCPProtocol.swift Framecho/MCPSocket.swift \
   Framecho/RecordingClipTimeline.swift scripts/check-agent-mcp.swift
 
+check image-overlays "${strict[@]}" \
+  Framecho/RecordingClipTimeline.swift Framecho/RecordingImageOverlay.swift \
+  scripts/check-image-overlays.swift
+
 check card-motion \
   Framecho/ProjectiveHomography.swift Framecho/RecordingClipTimeline.swift \
   Framecho/RecordingCardMotion.swift scripts/check-card-motion.swift

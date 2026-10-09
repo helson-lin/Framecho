@@ -188,6 +188,24 @@ final class RecordingStudioModel {
     /// Why the last cleanup fell back to rules alone, shown with the review.
     private(set) var captionCleanupNotice: String?
     private(set) var zoomCues: [ZoomCue] = []
+    /// Images over the video, in stacking order, and where they fall on the
+    /// edited timeline.
+    private(set) var imageOverlays: [RecordingImageOverlay] = []
+    private(set) var imageOverlayTimeline = RecordingImageOverlayTimeline.empty
+    /// Preview-sized images for the canvas, keyed by asset file name.
+    private(set) var imageOverlayPreviews: [String: CGImage] = [:]
+    /// The image picked on the timeline or canvas.
+    var selectedImageOverlayID: UUID? {
+        didSet {
+            guard selectedImageOverlayID != nil else { return }
+            selectedCueID = nil
+            selectedClipID = nil
+            selectedMotionCueID = nil
+            selectedSubtitleCueID = nil
+        }
+    }
+    private var imageOverlayEditSnapshot: [RecordingImageOverlay]?
+    private var imageOverlayEditCommitTask: Task<Void, Never>?
     private(set) var viewportTimeline = ViewportTimeline.identity
     /// 3D card pose and motion cues. Edited through the motion methods so
     /// every change is undoable and rebuilds the editor-time timeline.
@@ -203,6 +221,7 @@ final class RecordingStudioModel {
             guard selectedCueID != nil else { return }
             selectedMotionCueID = nil
             selectedSubtitleCueID = nil
+            selectedImageOverlayID = nil
             // Zoom editing works on the flat picture; a pose adjustment left
             // open would hide its canvas target.
             endPoseAdjustment()
@@ -214,6 +233,7 @@ final class RecordingStudioModel {
             guard selectedClipID != nil else { return }
             selectedMotionCueID = nil
             selectedSubtitleCueID = nil
+            selectedImageOverlayID = nil
             endPoseAdjustment()
         }
     }
@@ -225,6 +245,7 @@ final class RecordingStudioModel {
             selectedCueID = nil
             selectedClipID = nil
             selectedMotionCueID = nil
+            selectedImageOverlayID = nil
         }
     }
     var timelineHoverTime: TimeInterval?
@@ -470,6 +491,15 @@ final class RecordingStudioModel {
         }
 
         lastSavedDocument = session?.loadEditDocument()
+        if let session, !isHeadless {
+            // Nothing can undo back to an image a stored document no longer
+            // uses, so its file can go. A headless model skips this: a
+            // Studio window may hold undo history that still needs it.
+            let referenced = [lastSavedDocument, session.effectiveEditDocument()]
+                .compactMap { $0?.imageOverlays }
+                .flatMap { $0.map(\.fileName) }
+            RecordingStudioAssets.removeUnused(in: session.directoryURL, keeping: Set(referenced))
+        }
         // A draft that outlived its editor means the last session ended
         // without a save - a crash, a force quit, or a Studio window that is
         // still open elsewhere. Reopen on the draft so nothing is lost; the
@@ -540,6 +570,7 @@ final class RecordingStudioModel {
         rebuildPointerTimeline()
         rebuildViewportTimeline()
         rebuildMotionTimeline()
+        rebuildImageOverlayTimeline()
         installObservers()
         isLoaded = true
         rebuildPreviewReframe()
@@ -602,6 +633,11 @@ final class RecordingStudioModel {
 
         style = document.style.value
         backgroundMusic = document.backgroundMusic
+        imageOverlays = document.imageOverlays ?? []
+        if let selectedImageOverlayID, !imageOverlays.contains(where: { $0.id == selectedImageOverlayID }) {
+            self.selectedImageOverlayID = nil
+        }
+        loadImageOverlayPreviews()
         zoomEnabled = document.zoomEnabled
         zoomCues = document.zoomCues
         motion = Self.editableMotion(document.motion)
@@ -695,6 +731,12 @@ final class RecordingStudioModel {
         reframeFocusTimeline = nil
         recordedPressTimes.removeAll()
         zoomCues.removeAll()
+        imageOverlayEditCommitTask?.cancel()
+        imageOverlayEditCommitTask = nil
+        imageOverlayEditSnapshot = nil
+        imageOverlays.removeAll()
+        imageOverlayTimeline = .empty
+        imageOverlayPreviews.removeAll()
         subtitleCues.removeAll()
         transcriptWords.removeAll()
         subtitleTimeline = .empty
@@ -879,10 +921,12 @@ final class RecordingStudioModel {
         selectedCueID = nil
         selectedClipID = nil
         selectedSubtitleCueID = nil
+        selectedImageOverlayID = nil
     }
 
     func undo() {
         commitPendingMotionEdit()
+        commitPendingImageOverlayEdit()
         guard editUndoManager.canUndo else { return }
         pause()
         editUndoManager.undo()
@@ -891,6 +935,7 @@ final class RecordingStudioModel {
 
     func redo() {
         commitPendingMotionEdit()
+        commitPendingImageOverlayEdit()
         guard editUndoManager.canRedo else { return }
         pause()
         editUndoManager.redo()
@@ -1015,6 +1060,7 @@ final class RecordingStudioModel {
         rebuildPointerTimeline()
         rebuildViewportTimeline()
         rebuildMotionTimeline()
+        rebuildImageOverlayTimeline()
 
         do {
             try rebuildScreenPlayerItem(preserving: min(max(playheadTime, 0), duration))
@@ -1858,7 +1904,8 @@ final class RecordingStudioModel {
             audioVolume: Double(audioVolume),
             normalizesAudioLoudness: normalizesAudioLoudness,
             motion: motion == .disabled ? nil : motion,
-            backgroundMusic: backgroundMusic
+            backgroundMusic: backgroundMusic,
+            imageOverlays: imageOverlays.isEmpty ? nil : imageOverlays
         )
     }
 
@@ -1999,6 +2046,7 @@ final class RecordingStudioModel {
         rebuildPointerTimeline()
         rebuildViewportTimeline()
         rebuildMotionTimeline()
+        rebuildImageOverlayTimeline()
         rebuildPreviewReframe()
         editUndoManager.removeAllActions()
         undoRevision += 1
@@ -2808,7 +2856,9 @@ final class RecordingStudioModel {
             reframe: reframe,
             fitContentAspect: fitContentAspect,
             usesUniformPadding: exportAspect == .original,
-            motionTimeline: motionTimeline
+            motionTimeline: motionTimeline,
+            imageOverlays: imageOverlays,
+            assetsDirectory: session.map { RecordingStudioAssets.directory(in: $0.directoryURL) }
         )
     }
 
@@ -3007,6 +3057,161 @@ final class RecordingStudioModel {
         exportTask = nil
         if exportState.isExporting {
             exportState = .idle
+        }
+    }
+
+    // MARK: - Image overlays
+
+    var selectedImageOverlay: RecordingImageOverlay? {
+        imageOverlays.first { $0.id == selectedImageOverlayID }
+    }
+
+    /// Copies an image into the project and lays it over the video from
+    /// `editorTime`, centered at the default size. Returns its id.
+    @discardableResult
+    func addImageOverlay(from url: URL, at editorTime: TimeInterval) throws -> UUID {
+        guard let session else {
+            throw RecordingStudioAssets.ImportError.unreadable(url.lastPathComponent)
+        }
+        let imported = try RecordingStudioAssets.importImage(from: url, into: session.directoryURL)
+        let start = sourceTime(atEditorTime: min(max(editorTime, 0), duration))
+        let end = min(sourceDuration, start + RecordingImageOverlay.defaultDuration)
+        var overlay = RecordingImageOverlay(
+            fileName: imported.fileName,
+            displayName: imported.displayName,
+            aspectRatio: imported.aspectRatio,
+            start: max(0, min(start, end - RecordingImageOverlay.minimumDuration)),
+            end: end
+        )
+        // A tall image would cover the picture at the default width; keep it
+        // to half the canvas height.
+        let canvas = basePreviewCanvasSize
+        if canvas.width > 0 {
+            let maximumWidth = 0.5 * canvas.height * imported.aspectRatio / canvas.width
+            overlay.width = max(RecordingImageOverlay.widthRange.lowerBound, min(overlay.width, maximumWidth))
+        }
+        loadImageOverlayPreview(named: overlay.fileName)
+        applyImageOverlays(imageOverlays + [overlay], actionName: String(localized: "Add Image"))
+        selectedImageOverlayID = overlay.id
+        return overlay.id
+    }
+
+    func removeImageOverlay(id: UUID) {
+        applyImageOverlays(imageOverlays.filter { $0.id != id }, actionName: String(localized: "Remove Image"))
+        if selectedImageOverlayID == id {
+            selectedImageOverlayID = nil
+        }
+    }
+
+    /// Changes an image's look, place or timing. `coalesces` folds a run of
+    /// changes - a slider drag, a canvas drag - into one undo step.
+    func updateImageOverlay(_ overlay: RecordingImageOverlay, coalesces: Bool = false) {
+        guard let index = imageOverlays.firstIndex(where: { $0.id == overlay.id }) else { return }
+        var updated = overlay.sanitized
+        updated.start = min(max(0, updated.start), max(0, sourceDuration - RecordingImageOverlay.minimumDuration))
+        updated.end = min(sourceDuration, max(updated.end, updated.start + RecordingImageOverlay.minimumDuration))
+        var next = imageOverlays
+        next[index] = updated
+        guard next != imageOverlays else { return }
+        if coalesces {
+            beginImageOverlayEdit()
+            replaceImageOverlays(next)
+            imageOverlayEditCommitTask?.cancel()
+            imageOverlayEditCommitTask = Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(600))
+                guard !Task.isCancelled else { return }
+                self?.imageOverlayEditCommitTask = nil
+                self?.endImageOverlayEdit()
+            }
+        } else if imageOverlayEditSnapshot != nil, imageOverlayEditCommitTask == nil {
+            // Inside an explicit begin/end pair, such as a timeline drag.
+            replaceImageOverlays(next)
+        } else {
+            commitPendingImageOverlayEdit()
+            applyImageOverlays(next, actionName: String(localized: "Edit Image"))
+        }
+    }
+
+    /// Slides an image along the timeline, keeping its length.
+    func moveImageOverlay(id: UUID, toStart start: TimeInterval) {
+        guard var overlay = imageOverlays.first(where: { $0.id == id }) else { return }
+        let length = overlay.duration
+        overlay.start = min(max(0, start), max(0, sourceDuration - length))
+        overlay.end = overlay.start + length
+        updateImageOverlay(overlay)
+    }
+
+    func beginImageOverlayEdit() {
+        if imageOverlayEditSnapshot == nil {
+            imageOverlayEditSnapshot = imageOverlays
+        }
+    }
+
+    func endImageOverlayEdit(actionName: String = String(localized: "Edit Image")) {
+        guard let previous = imageOverlayEditSnapshot else { return }
+        imageOverlayEditSnapshot = nil
+        guard previous != imageOverlays else { return }
+        registerUndo(actionName) { target in
+            target.applyImageOverlays(previous, actionName: actionName)
+        }
+    }
+
+    private func commitPendingImageOverlayEdit() {
+        guard let task = imageOverlayEditCommitTask else { return }
+        task.cancel()
+        imageOverlayEditCommitTask = nil
+        endImageOverlayEdit()
+    }
+
+    private func applyImageOverlays(_ overlays: [RecordingImageOverlay], actionName: String) {
+        guard overlays != imageOverlays else { return }
+        let previous = imageOverlays
+        registerUndo(actionName) { target in
+            target.applyImageOverlays(previous, actionName: actionName)
+        }
+        replaceImageOverlays(overlays)
+    }
+
+    private func replaceImageOverlays(_ overlays: [RecordingImageOverlay]) {
+        imageOverlays = overlays
+        if let selectedImageOverlayID, !overlays.contains(where: { $0.id == selectedImageOverlayID }) {
+            self.selectedImageOverlayID = nil
+        }
+        rebuildImageOverlayTimeline()
+        scheduleProjectSave()
+    }
+
+    private func rebuildImageOverlayTimeline() {
+        imageOverlayTimeline = RecordingImageOverlayTimeline(overlays: imageOverlays, clipTimeline: clipTimeline)
+    }
+
+    func imageOverlayFrames(at time: TimeInterval) -> [RecordingImageOverlayTimeline.Frame] {
+        imageOverlayTimeline.frames(at: time)
+    }
+
+    /// The subtitle bar's band on a canvas of this size while subtitles
+    /// show, which preset-placed images keep clear of. Matches the export.
+    func imageOverlayCaptionBand(canvasSize: CGSize) -> ClosedRange<CGFloat>? {
+        guard showsSubtitles, hasSubtitles else { return nil }
+        return RecordingImageOverlayLayout.captionBand(
+            canvasSize: canvasSize,
+            verticalPosition: subtitleStyle.clampedVerticalPosition,
+            fontSize: SubtitleBarMetrics(canvasSize: canvasSize, style: subtitleStyle).fontSize
+        )
+    }
+
+    private func loadImageOverlayPreviews() {
+        for overlay in imageOverlays {
+            loadImageOverlayPreview(named: overlay.fileName)
+        }
+    }
+
+    /// Decodes at a size that stays sharp on a Retina preview without
+    /// holding full-resolution photos in memory.
+    private func loadImageOverlayPreview(named fileName: String) {
+        guard imageOverlayPreviews[fileName] == nil, let session else { return }
+        if let image = RecordingStudioAssets.loadImage(named: fileName, in: session.directoryURL, maxPixelSize: 1600) {
+            imageOverlayPreviews[fileName] = image
         }
     }
 
