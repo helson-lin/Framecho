@@ -2271,6 +2271,7 @@ final class RecordingStudioModel {
             subtitleCues,
             words: transcriptWords,
             cutRanges: merged,
+            previous: clipTimeline,
             surviving: next
         )
         if updatedCues != subtitleCues {
@@ -2302,13 +2303,15 @@ final class RecordingStudioModel {
     }
 
     /// Rewrites the text of cues touched by a cut so captions stop showing
-    /// words whose audio is gone. Only touched cues are rebuilt, so manual
-    /// caption edits elsewhere survive. Words map to cues as
+    /// words whose audio is gone. Only touched cues change, and a cue the
+    /// user typed keeps their text minus the cut words (see
+    /// TranscriptCaptionText.cutting). Words map to cues as
     /// TranscriptCaptionText.wordIndices maps them.
     private static func rebuildingCueTexts(
         _ cues: [RecordingSubtitleCue],
         words: [RecordingTranscriptWord],
         cutRanges: [ClosedRange<TimeInterval>],
+        previous: RecordingClipTimeline,
         surviving timeline: RecordingClipTimeline
     ) -> [RecordingSubtitleCue] {
         guard !words.isEmpty, !cues.isEmpty else { return cues }
@@ -2320,9 +2323,13 @@ final class RecordingStudioModel {
                 $0.lowerBound < cue.end && $0.upperBound > cue.start
             }
             guard overlapsCut else { continue }
-            result[index].text = TranscriptCaptionText.text(of: groups[index]
-                .map { words[$0] }
-                .filter { timeline.editorTime(forSourceTime: $0.midpoint) != nil })
+            result[index].text = TranscriptCaptionText.cutting(
+                cue,
+                wordIndices: groups[index],
+                words: words,
+                wasShown: { previous.editorTime(forSourceTime: words[$0].midpoint) != nil },
+                isShown: { timeline.editorTime(forSourceTime: words[$0].midpoint) != nil }
+            )
         }
         return result
     }

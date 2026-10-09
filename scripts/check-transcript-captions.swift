@@ -216,6 +216,36 @@ struct TranscriptCaptionChecks {
         precondition(merged.cues[1] == three[2])
         precondition(SubtitleCueMerging.mergingIntoPrevious(three, id: three[0].id) == nil, "The first caption has nothing above")
 
+        // Cutting words from captions. Untouched captions follow their
+        // words; typed ones keep the user's text and lose only what was cut.
+        func chars(_ text: String, from start: Double) -> [RecordingTranscriptWord] {
+            text.map(String.init).enumerated().map { word($0.element, start + Double($0.offset) * 0.5) }
+        }
+        let narration = chars("我们做呃", from: 0) + [word("webcoding", 2)] + chars("。", from: 2.5)
+        let all = Array(narration.indices)
+        let fillerIndex = 3
+        func cutFiller(_ text: String) -> String {
+            TranscriptCaptionText.cutting(
+                RecordingSubtitleCue(start: 0, end: 3, text: text),
+                wordIndices: all,
+                words: narration,
+                wasShown: { _ in true },
+                isShown: { $0 != fillerIndex }
+            )
+        }
+        precondition(cutFiller(TranscriptCaptionText.text(of: narration)) == "我们做webcoding。", "A derived caption is re-derived")
+        precondition(cutFiller("我们做Vibe Coding。") == "我们做Vibe Coding。", "A typed caption without the cut word is untouched")
+        precondition(cutFiller("我们做呃 Vibe Coding。") == "我们做 Vibe Coding。", "A typed caption loses only the cut word")
+
+        // A repeated character goes where it was spoken, not at its first match.
+        let repeated = chars("的的好的", from: 0)
+        let typedRepeat = TranscriptCaptionText.removing([repeated[3]], from: "的的很好的！", alignedWith: repeated)
+        precondition(typedRepeat == "的的很好！", "Removed the third 的, got \(typedRepeat)")
+
+        // A cut opening word doesn't leave its punctuation behind.
+        let opening = chars("呃，支持", from: 0)
+        precondition(TranscriptCaptionText.removing([opening[0]], from: "呃，支持 MCP", alignedWith: opening) == "支持 MCP")
+
         print("Transcript caption checks passed.")
     }
 }

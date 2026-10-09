@@ -202,6 +202,73 @@ nonisolated enum TranscriptCaptionText {
             || cue.text == words.map(\.captionText).joined().trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// A caption's text once some of its words are cut. A caption that
+    /// still reads as its words is re-derived from the survivors; one the
+    /// user typed keeps their text, losing only the cut words it still
+    /// spells - so a cut never undoes a correction, and a filler the user
+    /// already deleted from the caption costs nothing.
+    static func cutting(
+        _ cue: RecordingSubtitleCue,
+        wordIndices indices: [Int],
+        words: [RecordingTranscriptWord],
+        wasShown: (Int) -> Bool,
+        isShown: (Int) -> Bool
+    ) -> String {
+        let before = indices.filter(wasShown)
+        if self.cue(cue, readsAs: before.map { words[$0] }) {
+            return text(of: indices.filter(isShown).map { words[$0] })
+        }
+        return removing(
+            before.filter { !isShown($0) }.map { words[$0] },
+            from: cue.text,
+            alignedWith: before.map { words[$0] }
+        )
+    }
+
+    /// How far past the last matched word the next one may start in typed
+    /// text. Enough to skip a corrected neighbor ("webcoding" typed as "Vibe
+    /// Coding"), short enough not to match the same character a clause later.
+    private static let alignmentLookahead = 12
+
+    /// Deletes `removed` from typed caption text, finding each word in
+    /// order alongside its neighbors so a repeated character is removed
+    /// where it was spoken. Words the text no longer spells are skipped.
+    static func removing(
+        _ removed: [RecordingTranscriptWord],
+        from typed: String,
+        alignedWith cueWords: [RecordingTranscriptWord]
+    ) -> String {
+        var remaining = removed
+        var cursor = typed.startIndex
+        var cuts: [Range<String.Index>] = []
+        for word in cueWords {
+            let isRemoved = remaining.first == word
+            if isRemoved { remaining.removeFirst() }
+            let token = word.captionText.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !token.isEmpty else { continue }
+            let window = typed.index(cursor, offsetBy: alignmentLookahead + token.count, limitedBy: typed.endIndex)
+                ?? typed.endIndex
+            guard let found = typed.range(of: token, options: [.caseInsensitive], range: cursor..<window) else {
+                continue
+            }
+            if isRemoved { cuts.append(found) }
+            cursor = found.upperBound
+        }
+        guard !cuts.isEmpty else { return typed }
+
+        var result = typed
+        for range in cuts.reversed() {
+            result.removeSubrange(range)
+        }
+        result = result.replacingOccurrences(of: "[ \\t]{2,}", with: " ", options: .regularExpression)
+        // A cut opening word leaves its punctuation dangling ("呃，支持").
+        let separators = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "，,、；;：:"))
+        while let first = result.unicodeScalars.first, separators.contains(first) {
+            result.removeFirst()
+        }
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// Re-derives captions that still read as their words, so captions
     /// saved with dangling punctuation pick up the tidy text. Captions the
     /// user typed are left alone.
