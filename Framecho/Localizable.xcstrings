@@ -13458,6 +13458,126 @@
           }
         }
       }
+    },
+    "Let AI agents edit recordings" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允许 AI 智能体编辑录制"
+          }
+        }
+      }
+    },
+    "Agent Access" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "智能体访问"
+          }
+        }
+      }
+    },
+    "Agents such as Claude Code connect over MCP to cut, speed up, zoom, caption and export your recordings. Their edits are saved right away and can be undone in Studio; the original footage is never changed. Only apps running under your account on this Mac can connect." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude Code 等智能体可通过 MCP 连接，对你的录制进行剪辑、变速、缩放、添加字幕和导出。它们的编辑会立即存储，并可在 Studio 中撤销；原始录像不会被改动。只有这台 Mac 上以你的账户运行的 App 才能连接。"
+          }
+        }
+      }
+    },
+    "Copy Command" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拷贝命令"
+          }
+        }
+      }
+    },
+    "Copy JSON" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拷贝 JSON"
+          }
+        }
+      }
+    },
+    "Claude Desktop, Cursor and others" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude Desktop、Cursor 等"
+          }
+        }
+      }
+    },
+    "Add the copied entry to the client’s MCP configuration." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将拷贝的条目添加到客户端的 MCP 配置中。"
+          }
+        }
+      }
+    },
+    "Connect a Client" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接客户端"
+          }
+        }
+      }
+    },
+    "The client starts Framecho in the menu bar if it isn’t running." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果 Framecho 未在运行，客户端会在菜单栏中启动它。"
+          }
+        }
+      }
+    },
+    "Ready for connections" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可以连接"
+          }
+        }
+      }
+    },
+    "Tighten Narration" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "精简旁白"
+          }
+        }
+      }
+    },
+    "Edit Caption" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑字幕"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

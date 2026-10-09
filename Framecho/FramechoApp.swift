@@ -10,7 +10,7 @@ import UniformTypeIdentifiers
 import UserNotifications
 import Carbon
 
-@main
+/// Started by `FramechoMain`, which first diverts `--mcp` launches.
 struct FramechoApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Environment(\.openWindow) var openWindow
@@ -155,10 +155,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updaterManager.start()
         RecordingRecoveryCoordinator.recoverInterruptedRecordings()
         ImageTextRecognizer.warmUpAfterUpdateIfNeeded()
+        AgentAccessServer.shared.applyPreference()
         let launchEvent = NSAppleEventManager.shared().currentAppleEvent
         let launchReason = launchEvent?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue
         let launchedInBackground = launchReason == keyAELaunchedAsLogInItem
             || launchReason == keyAELaunchedAsServiceItem
+            || CommandLine.arguments.contains(MCPStdioBridge.launchArgument)
         // Let Finder's open-file event reach its editor without also opening a
         // Library. Login/service launches keep the existing quiet menu-bar mode.
         DispatchQueue.main.async { [weak self] in

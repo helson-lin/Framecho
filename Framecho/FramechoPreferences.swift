@@ -40,6 +40,8 @@ enum FramechoPreferences {
     static let recordingTeleprompterScriptKey = "recordingTeleprompterScript"
     static let recordingTeleprompterLineCountKey = "recordingTeleprompterLineCount"
     static let revealExportInFinderKey = "revealExportInFinder"
+    /// Read by the `--mcp` bridge process too, before any UI exists.
+    nonisolated static let agentAccessEnabledKey = "agentAccessEnabled"
 
     private static let defaultCompressionQuality = 0.8
 

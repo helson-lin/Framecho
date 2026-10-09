@@ -45,7 +45,7 @@ When adding new types, assume `@MainActor` isolation by default. If a type must 
 
 App source is in `Framecho/`, flat except for `Engine/` (the annotation engine). Key flow:
 
-1. **App entry** - `FramechoApp.swift`: `@main` App struct. Creates a `MenuBarExtra`, a Settings window, and an annotation editor `WindowGroup`.
+1. **App entry** - `FramechoMain.swift` is `@main`: it diverts `--mcp` launches to the stdio bridge, then runs `FramechoApp` (`FramechoApp.swift`), which creates a `MenuBarExtra`, a Settings window, and an annotation editor `WindowGroup`.
 2. **Hotkeys** - `HotkeyManager.swift`: Registers global Carbon hotkeys (Option+1/2/3) at launch via `AppDelegate`.
 3. **Capture** - `CaptureCoordinator.swift` → `ScreenshotManager.swift`: Fullscreen uses `ScreenCaptureKit`; window/area use `/usr/sbin/screencapture` CLI.
 4. **Preview** - `PreviewPanelPresenter.swift` + `PreviewWindowView.swift`: Borderless floating `NSPanel` showing a screenshot stack. Uses `ScreenshotPreviewStack` (an `@Observable` model).
@@ -53,6 +53,7 @@ App source is in `Framecho/`, flat except for `Engine/` (the annotation engine).
 6. **Rendering** - `AnnotationRenderer.swift`: Composites annotations onto the source image at full pixel resolution using Core Graphics.
 7. **Preferences** - `FramechoPreferences.swift` + `SettingsView.swift`: `UserDefaults`-backed settings (auto-save, auto-copy, auto-compress, export directory).
 8. **Library** - `CaptureLibraryView.swift` + `CaptureLibraryModel.swift`: Single native sidebar/detail/inspector scene. `CaptureLibraryCollection.swift` reuses AppKit cells for grid/list layouts; `CaptureLibraryThumbnails.swift` bounds decoded image memory and concurrency. The model merges History metadata with recording packages by standardized package path. Existing capture storage and editable sidecars remain authoritative. `CaptureLibraryActions.swift` handles batch operations and prevents trashing captures while their editors are open.
+9. **Agent access (MCP)** - `AgentAccessServer.swift`: an MCP server for AI agents, off by default (Settings › AI). It listens on an owner-only Unix socket in Application Support (`MCPSocket.swift`); clients launch `Framecho --mcp` (`MCPStdioBridge.swift`), which relays stdio to it and starts the app in the menu bar when needed. `MCPProtocol.swift` is the transport-free JSON-RPC session. Tools are declared in `AgentToolCatalog.swift` and implemented in `AgentEditingTools.swift` on `RecordingStudioModel`: a project open in Studio is edited live through its window's model; otherwise a headless model (`isHeadless`, no drafts, not registered as an editor) is loaded for the call. Agent edits are committed with `commitProject()` immediately.
 
 ### Singletons
 

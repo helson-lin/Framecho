@@ -5,6 +5,7 @@
 //  AI settings: which language model cleans up Studio captions. Apple's
 //  on-device model needs no setup; an OpenAI-compatible endpoint takes a
 //  base URL, model and the user's own API key (kept in the Keychain).
+//  Below it, agent access (SettingsAgentAccessSection).
 //
 
 import SwiftUI
@@ -58,6 +59,8 @@ struct CaptionAISettingsPane: View {
                     .disabled(testStatus == .testing)
                 }
             }
+
+            AgentAccessSettingsSections()
         }
         .settingsFormStyle()
     }

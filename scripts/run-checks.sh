@@ -53,6 +53,10 @@ check() {
   report "$name" "✅ $(tail -n 1 "$log" | sed 's/|/\\|/g')"
 }
 
+check agent-mcp "${strict[@]}" \
+  Framecho/MCPJSON.swift Framecho/MCPProtocol.swift Framecho/MCPSocket.swift \
+  Framecho/RecordingClipTimeline.swift scripts/check-agent-mcp.swift
+
 check card-motion \
   Framecho/ProjectiveHomography.swift Framecho/RecordingClipTimeline.swift \
   Framecho/RecordingCardMotion.swift scripts/check-card-motion.swift
