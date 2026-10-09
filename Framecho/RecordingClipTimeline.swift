@@ -362,6 +362,62 @@ nonisolated struct RecordingClipTimeline: Codable, Equatable, Sendable {
         return result
     }
 
+    /// The source footage that plays during an editor-time range, one range
+    /// per clip it crosses, in playback order. The inverse of `slices`.
+    func sourceRanges(forEditorRange range: ClosedRange<TimeInterval>) -> [ClosedRange<TimeInterval>] {
+        var result: [ClosedRange<TimeInterval>] = []
+        var editorStart: TimeInterval = 0
+        for segment in segments {
+            let editorEnd = editorStart + segment.editorDuration
+            let lower = max(range.lowerBound, editorStart)
+            let upper = min(range.upperBound, editorEnd)
+            if upper > lower {
+                let sourceLower = segment.sourceStart + (lower - editorStart) * segment.speed
+                let sourceUpper = min(segment.sourceEnd, segment.sourceStart + (upper - editorStart) * segment.speed)
+                if sourceUpper > sourceLower {
+                    result.append(sourceLower...sourceUpper)
+                }
+            }
+            editorStart = editorEnd
+        }
+        return result
+    }
+
+    /// Plays everything under an editor-time range at `speed`, splitting the
+    /// clips it starts or ends inside. An edge closer than a minimum clip to
+    /// a clip boundary snaps to it rather than leaving a sliver behind.
+    func settingSpeed(_ speed: Double, forEditorRange range: ClosedRange<TimeInterval>) -> RecordingClipTimeline {
+        let clamped = min(max(speed, RecordingClipSegment.minimumSpeed), RecordingClipSegment.maximumSpeed)
+        let targets = Self.mergedRanges(sourceRanges(forEditorRange: range))
+        guard !targets.isEmpty else { return self }
+        let minimum = RecordingClipSegment.minimumDuration
+
+        var next: [RecordingClipSegment] = []
+        for segment in segments {
+            // Only edges that leave a full clip on both sides, so no footage
+            // is ever dropped for being too short to keep.
+            var edges = [segment.sourceStart]
+            for cut in targets.flatMap({ [$0.lowerBound, $0.upperBound] }).sorted()
+            where cut - edges[edges.count - 1] >= minimum && segment.sourceEnd - cut >= minimum {
+                edges.append(cut)
+            }
+            edges.append(segment.sourceEnd)
+            for index in edges.indices.dropLast() {
+                let start = edges[index]
+                let end = edges[index + 1]
+                let midpoint = (start + end) / 2
+                let isTarget = targets.contains { $0.contains(midpoint) }
+                next.append(RecordingClipSegment(
+                    id: index == 0 ? segment.id : UUID(),
+                    sourceStart: start,
+                    sourceEnd: end,
+                    speed: isTarget ? clamped : segment.speed
+                ))
+            }
+        }
+        return RecordingClipTimeline(segments: next)
+    }
+
     func isUnedited(sourceDuration: TimeInterval) -> Bool {
         guard segments.count == 1, let only = segments.first else { return false }
         return abs(only.sourceStart) < 0.000_001

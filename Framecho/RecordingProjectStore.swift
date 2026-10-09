@@ -212,10 +212,14 @@ final class StudioProjectRegistry {
     }
 
     func hasLoadedEditor(for url: URL) -> Bool {
+        loadedModel(for: url) != nil
+    }
+
+    /// The Studio window's model for a project, when one has it open.
+    func loadedModel(for url: URL) -> RecordingStudioModel? {
         let path = url.standardizedFileURL.path
-        return models.values.contains {
-            guard let model = $0.model, model.isLoaded else { return false }
-            return model.sessionURL.standardizedFileURL.path == path
+        return models.values.lazy.compactMap(\.model).first {
+            $0.isLoaded && $0.sessionURL.standardizedFileURL.path == path
         }
     }
 

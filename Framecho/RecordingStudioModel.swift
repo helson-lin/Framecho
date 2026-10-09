@@ -77,6 +77,11 @@ enum RecordingStudioShareState: Equatable {
 @Observable
 final class RecordingStudioModel {
     let sessionURL: URL
+    /// Loaded for an agent rather than a window (AgentStudioModels). It
+    /// saves after every edit, so it never writes a draft - which could
+    /// otherwise clobber the draft of a Studio window opened on the same
+    /// project meanwhile - and it never counts as an open editor.
+    let isHeadless: Bool
     private(set) var session: RecordingSession?
     private(set) var manifest: CaptureManifest?
     private(set) var pointerCapture = PointerCaptureFile()
@@ -379,8 +384,9 @@ final class RecordingStudioModel {
 
     /// Accepts either a recording session folder or a bare video file (so
     /// history items and old recordings still open, just without events).
-    init(url: URL) {
+    init(url: URL, isHeadless: Bool = false) {
         sessionURL = url
+        self.isHeadless = isHeadless
         if RecordingSession.isSessionDirectory(url) {
             session = RecordingSession(directoryURL: url)
         } else {
@@ -537,7 +543,9 @@ final class RecordingStudioModel {
         installObservers()
         isLoaded = true
         rebuildPreviewReframe()
-        loadTimelineThumbnails()
+        if !isHeadless {
+            loadTimelineThumbnails()
+        }
         // A track that isn't cached yet downloads in the background and
         // joins playback when it arrives.
         if backgroundMusic != nil, loadedBackgroundMusic == nil {
@@ -561,9 +569,13 @@ final class RecordingStudioModel {
                 // the real duration) would otherwise read as edits.
                 lastSavedDocument = currentDocument()
             }
-            session.updateProjectMetadata { $0.lastOpenedAt = Date() }
+            if !isHeadless {
+                session.updateProjectMetadata { $0.lastOpenedAt = Date() }
+            }
         }
-        StudioProjectRegistry.shared.register(self)
+        if !isHeadless {
+            StudioProjectRegistry.shared.register(self)
+        }
     }
 
     /// Copies a stored project onto the model. Shared by the initial load and
@@ -941,6 +953,17 @@ final class RecordingStudioModel {
             next,
             selectedID: id,
             playheadTime: min(currentTime, next.duration),
+            actionName: String(localized: "Change Clip Speed")
+        )
+    }
+
+    /// Plays an editor-time range at `speed`, splitting clips at its edges.
+    func setSpeed(_ speed: Double, forEditorRange range: ClosedRange<TimeInterval>) {
+        let next = clipTimeline.settingSpeed(speed, forEditorRange: range)
+        applyClipTimeline(
+            next,
+            selectedID: selectedClipID,
+            playheadTime: min(range.lowerBound, next.duration),
             actionName: String(localized: "Change Clip Speed")
         )
     }
@@ -1648,16 +1671,18 @@ final class RecordingStudioModel {
 
     /// Creates a zoom cue spanning a dragged range in the zoom lane. Times
     /// are editor time and need not be ordered.
-    func addZoomCue(fromEditorTime editorStart: TimeInterval, toEditorTime editorEnd: TimeInterval) {
+    @discardableResult
+    func addZoomCue(fromEditorTime editorStart: TimeInterval, toEditorTime editorEnd: TimeInterval) -> UUID? {
         let lowSource = clipTimeline.sourceTime(at: min(editorStart, editorEnd))
         let highSource = clipTimeline.sourceTime(at: max(editorStart, editorEnd))
         let start = min(max(0, lowSource), max(0, sourceDuration - 0.5))
         let end = max(start + 0.5, min(sourceDuration, highSource))
-        insertZoomCue(start: start, end: end)
+        return insertZoomCue(start: start, end: end)
     }
 
-    private func insertZoomCue(start: TimeInterval, end: TimeInterval) {
-        guard let span = freeSpan(from: start, preferredEnd: end) else { return }
+    @discardableResult
+    private func insertZoomCue(start: TimeInterval, end: TimeInterval) -> UUID? {
+        guard let span = freeSpan(from: start, preferredEnd: end) else { return nil }
         let hasPointerTrack = !pointerCapture.travel.isEmpty || !pointerCapture.presses.isEmpty
         let editorTime = clipTimeline.editorTime(forSourceTime: span.lowerBound) ?? currentTime
         let target = pointerTimeline.location(at: editorTime) ?? CGPoint(x: 0.5, y: 0.5)
@@ -1674,6 +1699,7 @@ final class RecordingStudioModel {
         applyZoomCues(cues, actionName: String(localized: "Add Zoom"))
         selectedCueID = cue.id
         selectedClipID = nil
+        return cue.id
     }
 
     func removeZoomCue(id: UUID) {
@@ -1809,7 +1835,7 @@ final class RecordingStudioModel {
     }
 
     /// Every edit in the editor, as a storable document.
-    private func currentDocument() -> RecordingEditDocument {
+    func currentDocument() -> RecordingEditDocument {
         RecordingEditDocument(
             style: style,
             zoomEnabled: zoomEnabled,
@@ -1848,7 +1874,7 @@ final class RecordingStudioModel {
     /// committed `edit.json`, so a crash costs nothing and Save still means
     /// something.
     private func writeDraftNow() {
-        guard isLoaded, let session else { return }
+        guard isLoaded, !isHeadless, let session else { return }
         let document = currentDocument()
         if document == lastSavedDocument {
             // Edited back to the saved state (undo, or a discard landing):
@@ -1880,24 +1906,31 @@ final class RecordingStudioModel {
     /// ⌘S. Commits the working copy to `edit.json` and clears the draft.
     @discardableResult
     func saveProject() -> Bool {
-        guard isLoaded, let session else { return false }
-        projectSaveTask?.cancel()
-        let document = currentDocument()
+        guard isLoaded, session != nil else { return false }
         do {
-            try session.writeEditDocument(document)
-            session.removeDraftDocument()
-            lastSavedDocument = document
-            hasUnsavedChanges = false
-            session.updateProjectMetadata { $0.savedAt = Date() }
-            dropStaleRender(for: document, in: session)
-            RecordingProjectStore.shared.reload()
-            flashSaveConfirmation()
+            try commitProject()
             return true
         } catch {
             FailureAlert.present(message: String(localized: "The recording project could not be saved"), error: error,
                                  detail: String(localized: "Your editor will stay open. Try saving again after resolving the problem."))
             return false
         }
+    }
+
+    /// The save itself, throwing instead of alerting so an agent's edit can
+    /// report the failure to the agent.
+    func commitProject() throws {
+        guard isLoaded, let session else { return }
+        projectSaveTask?.cancel()
+        let document = currentDocument()
+        try session.writeEditDocument(document)
+        session.removeDraftDocument()
+        lastSavedDocument = document
+        hasUnsavedChanges = false
+        session.updateProjectMetadata { $0.savedAt = Date() }
+        dropStaleRender(for: document, in: session)
+        RecordingProjectStore.shared.reload()
+        flashSaveConfirmation()
     }
 
     /// Throws away everything since the last save and returns the editor to
@@ -2259,7 +2292,7 @@ final class RecordingStudioModel {
     /// timeline and drops the cut words from any overlapping captions. Both
     /// registrations land in one undo group, so a single ⌘Z restores the
     /// footage and the caption text together.
-    private func cutSourceRanges(_ ranges: [ClosedRange<TimeInterval>], actionName: String) {
+    func cutSourceRanges(_ ranges: [ClosedRange<TimeInterval>], actionName: String) {
         let merged = RecordingClipTimeline.mergedRanges(ranges)
         guard !merged.isEmpty,
               let next = clipTimeline.removingSourceRanges(merged)?.normalized(to: sourceDuration),
