@@ -411,6 +411,16 @@
         }
       }
     },
+    "Drops to %@ while you speak" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "说话时降至 %@"
+          }
+        }
+      }
+    },
     "Lower under narration" : {
       "localizations" : {
         "zh-Hans" : {

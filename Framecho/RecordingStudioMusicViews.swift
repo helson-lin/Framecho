@@ -28,6 +28,10 @@ struct StudioBackgroundMusicControls: View {
                     format: .percent()
                 )
 
+                if let duckedLevel {
+                    InspectorHint(duckedLevel)
+                }
+
                 InspectorToggleRow(
                     "Loop to fill the video",
                     isOn: Binding(
@@ -78,6 +82,16 @@ struct StudioBackgroundMusicControls: View {
             return String(localized: "\(length) track, loops \(passes) times (crossfaded)")
         }
         return String(localized: "\(length) track, ends before the video does")
+    }
+
+    /// The level is the music's base; ducking dips below it while the
+    /// narration speaks. Saying where it dips to keeps the slider from
+    /// reading as a live meter.
+    private var duckedLevel: String? {
+        guard model.backgroundMusicDucksUnderSpeech, model.canDuckBackgroundMusic else { return nil }
+        let level = (model.backgroundMusicVolume * BackgroundMusicGainPlan.duckRatio)
+            .formatted(.percent.precision(.fractionLength(0)))
+        return String(localized: "Drops to \(level) while you speak")
     }
 
     private static func durationText(_ duration: TimeInterval) -> String {
