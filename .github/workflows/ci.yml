@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Cache Swift packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/SourcePackages
           key: spm-${{ hashFiles('Framecho.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
@@ -55,7 +55,7 @@ jobs:
 
       - name: Upload build log
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-log
           path: ${{ runner.temp }}/build.log
@@ -72,7 +72,7 @@ jobs:
 
       - name: Upload check logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: check-logs
           path: ${{ runner.temp }}/framecho-checks/logs
