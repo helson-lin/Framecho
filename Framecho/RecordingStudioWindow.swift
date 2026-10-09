@@ -5931,7 +5931,7 @@ private struct StudioInspector: View {
                 }
 
                 InspectorActionButton(
-                    model.hasRecordedAudio ? "Replace" : "Add",
+                    model.hasRecordedAudio ? "Replace Audio" : "Add Audio",
                     systemImage: "waveform.badge.plus"
                 ) {
                     pickReplacementAudio()
@@ -5960,7 +5960,7 @@ private struct StudioInspector: View {
     private var audioExportButton: some View {
         switch model.audioExportState {
         case .idle:
-            InspectorActionButton("Export…", systemImage: "arrow.down.circle") {
+            InspectorActionButton("Export Audio…", systemImage: "arrow.down.circle") {
                 isAudioExportOptionsPresented = true
             }
             .help("Export just the soundtrack of the current cut")
