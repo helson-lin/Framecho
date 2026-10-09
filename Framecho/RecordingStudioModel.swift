@@ -490,6 +490,10 @@ final class RecordingStudioModel {
             zoomEnabled = false
         } else {
             zoomCues = ZoomCueSynthesizer.cues(from: pointerCapture, duration: sourceDuration)
+            // Few people go looking for this switch, so new recordings start
+            // with it on. Saved projects keep what they stored - one from
+            // before the setting existed stays off, so it exports unchanged.
+            normalizesAudioLoudness = true
             if let defaultPreset = RecordingStudioStylePresetStore.shared.activePreset {
                 style = defaultPreset.value
                 appliedStylePresetID = defaultPreset.id
