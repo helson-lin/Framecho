@@ -4542,7 +4542,8 @@ private enum StudioInspectorTab: Hashable, CaseIterable {
 
 /// One page of the inspector's rail. The open page is a solid block in the
 /// label color, so it reads in light and dark without leaning on the
-/// accent; a dot marks pages whose effect is in the video.
+/// accent; a dot marks pages whose effect is in the video, and the
+/// tooltip says so, since a bare dot has to be learned.
 private struct StudioInspectorRailButton: View {
     let tab: StudioInspectorTab
     let isSelected: Bool
@@ -4574,7 +4575,7 @@ private struct StudioInspectorRailButton: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
-        .help(tab.title)
+        .help(isInUse ? String(localized: "\(tab.title) · In use in this video") : tab.title)
         .accessibilityLabel(Text(tab.title))
         .accessibilityValue(isInUse ? Text("On") : Text(verbatim: ""))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
