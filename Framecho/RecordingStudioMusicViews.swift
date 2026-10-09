@@ -75,7 +75,7 @@ struct StudioBackgroundMusicControls: View {
         let length = Self.durationText(music.duration)
         let passes = plan.passes.count
         if passes > 1 {
-            return String(localized: "\(length) track, plays \(passes) times with crossfades")
+            return String(localized: "\(length) track, loops \(passes) times (crossfaded)")
         }
         return String(localized: "\(length) track, ends before the video does")
     }

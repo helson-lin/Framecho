@@ -241,12 +241,12 @@
         }
       }
     },
-    "%@ track, plays %lld times with crossfades" : {
+    "%@ track, loops %lld times (crossfaded)" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "曲长 %1$@，交叉淡化循环 %2$lld 次"
+            "value" : "曲长 %1$@，已循环 %2$lld 次（交叉淡化）"
           }
         }
       }
