@@ -1,0 +1,49 @@
+---
+import { getRelativeLocaleUrl } from 'astro:i18n';
+import icon from '../assets/icon.png';
+import { Image } from 'astro:assets';
+import { ui, type Locale } from '../i18n/ui';
+import { links } from '../site';
+
+interface Props {
+  lang: Locale;
+}
+
+const { lang } = Astro.props;
+const t = ui[lang].nav;
+const languages: { locale: Locale; label: string }[] = [
+  { locale: 'zh', label: '中文' },
+  { locale: 'en', label: 'EN' },
+];
+---
+
+<header class="nav" id="nav">
+  <div class="wrap">
+    <a class="brand" href="#top"><Image src={icon} alt="" width={60} height={60} loading="eager" />Framecho</a>
+    <nav class="nav-links">
+      <a href="#editor">{t.editor}</a>
+      <a href="#studio">{t.studio}</a>
+      <a href="#library">{t.library}</a>
+      <a href="#agents">{t.agents}</a>
+      <a href="#privacy">{t.privacy}</a>
+    </nav>
+    <div class="nav-cta">
+      <div class="lang-switch" role="group" aria-label={t.language}>
+        {
+          languages.map(({ locale, label }) => (
+            <a
+              href={getRelativeLocaleUrl(locale)}
+              hreflang={ui[locale].htmlLang}
+              lang={ui[locale].htmlLang}
+              aria-current={locale === lang ? 'page' : undefined}
+            >
+              {label}
+            </a>
+          ))
+        }
+      </div>
+      <a class="btn btn-ghost" href={links.repo}>GitHub</a>
+      <a class="btn btn-primary" href={links.download}>{t.download}</a>
+    </div>
+  </div>
+</header>

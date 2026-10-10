@@ -1,0 +1,37 @@
+---
+import { ui, type Locale } from '../i18n/ui';
+
+interface Props {
+  lang: Locale;
+}
+
+const t = ui[Astro.props.lang].privacy;
+---
+
+<section class="sec" id="privacy">
+  <div class="wrap">
+    <div class="kicker reveal">{t.kicker}</div>
+    <h2 class="reveal" set:html={t.titleHtml} />
+    <div class="privacy">
+      {
+        t.tiles.map((tile, i) => (
+          <div class="tile reveal">
+            <div class="big">
+              {tile.big}
+              <small>{tile.small}</small>
+            </div>
+            <h3>{tile.title}</h3>
+            <p>{tile.body}</p>
+            {i === 2 && (
+              <div class="cloud-stack">
+                <span>Workers</span>
+                <span>R2</span>
+                <span>D1</span>
+              </div>
+            )}
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>

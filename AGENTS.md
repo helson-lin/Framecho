@@ -29,7 +29,7 @@ No Xcode test target exists. Automated verification is:
 - **`scripts/run-checks.sh`** - compiles each standalone check in `scripts/` against the production sources it exercises and runs it. Add new checks there: the script fails if a `scripts/check-*.swift` isn't run by it or listed in its `not_run` (where `check-editor-cancellation.swift` sits, as it needs a fixture from the motion-blur benchmark). To make code checkable, keep its logic in files that compile without the app (see the `nonisolated` geometry, permission and timeline files the checks use).
 - **`go test ./cmd/...`** for the release tool.
 
-CI (`.github/workflows/ci.yml`) runs all three on pull requests and pushes to `main`, using Xcode 27.1 on GitHub's `xcode-27` runner image (beta), and can be started by hand on any branch. Pushes touching only `appcast.xml`, docs or Markdown are skipped. Each check's result appears in the job summary; on failure the logs are uploaded as `check-logs`.
+CI (`.github/workflows/ci.yml`) runs all three on pull requests and pushes to `main`, using Xcode 27.1 on GitHub's `xcode-27` runner image (beta), and can be started by hand on any branch. Pushes touching only `appcast.xml`, docs, Markdown or `website/` are skipped. Each check's result appears in the job summary; on failure the logs are uploaded as `check-logs`.
 
 ## Swift concurrency settings
 
@@ -92,3 +92,9 @@ To release, run `go run ./cmd/framecho-release -build -set-version <x.y.z> -set-
 ```bash
 xcrun notarytool store-credentials framecho-notary --apple-id <apple-id> --team-id 64S5F787T9
 ```
+
+## Website
+
+The landing page is an Astro site in `website/` (run `npm install`, then `npm run dev`, `npm run build` or `npm run check` there), served at https://getframecho.com (set `SITE_URL` to build for another origin). Chinese is served from `/` and English from `/en/`; all copy, including the FAQ, is in `website/src/i18n/ui.ts`, keyed identically for both locales. The version, minimum macOS, release date and DMG size come from the newest item in `appcast.xml` (read from GitHub when only `website/` is deployed), but the release note beside the version in `hero.release` is written by hand, so update it when releasing. Screenshots live in `website/src/assets` and come in light and dark pairs (and, for Studio, Chinese and English); `ShotSwitch.astro` stacks a set and adds the toggles.
+
+For search engines and AI assistants, every page carries canonical and `hreflang` links, Open Graph tags and a JSON-LD graph (`src/seo.ts`: the app, the site and the FAQ, built from the same copy as the page), and the build emits `sitemap-index.xml`, `robots.txt` and `llms.txt` (a plain-text summary generated from the copy). The Open Graph images in `public/og/` are rendered with the macOS system fonts by `npm run og`; rerun it after changing the headline or the hero screenshot. The favicon is `public/favicon.svg`, drawn for 16 px rather than taken from the app icon (whose pale tile vanishes on a light tab bar); `npm run icons` renders `favicon.ico` and `apple-touch-icon.png` from it.

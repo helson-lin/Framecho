@@ -1,0 +1,78 @@
+---
+import { Image } from 'astro:assets';
+import ShotSwitch from './ShotSwitch.astro';
+import annotations from '../assets/annotations.webp';
+import editorLight from '../assets/editor-light.webp';
+import editorDark from '../assets/editor-dark.webp';
+import editorEnLight from '../assets/editor-en-light.webp';
+import editorEnDark from '../assets/editor-en-dark.webp';
+import { ui, type Locale } from '../i18n/ui';
+
+interface Props {
+  lang: Locale;
+}
+
+const { lang } = Astro.props;
+const t = ui[lang].editor;
+const shortcuts = ['I', 'N', 'R', 'F', 'P', 'B', 'M'];
+// The hero already shows the editor in the page's language; show the other one here, beside "Bilingual".
+const [light, dark] = lang === 'zh' ? [editorEnLight, editorEnDark] : [editorLight, editorDark];
+---
+
+<section class="sec" id="editor">
+  <div class="wrap">
+    <div class="editor-head">
+      <div class="reveal">
+        <div class="kicker">{t.kicker}</div>
+        <h2 set:html={t.titleHtml} />
+      </div>
+      <p class="sec-lede reveal" set:html={t.ledeHtml} />
+    </div>
+
+    <figure class="annot-shot reveal">
+      <Image
+        src={annotations}
+        alt={t.annotationsAlt}
+        widths={[640, 960, 1280, 1600, annotations.width]}
+        sizes="(min-width: 1228px) 1180px, calc(100vw - 48px)"
+      />
+    </figure>
+
+    <div class="tool-legend reveal" role="list" aria-label={t.legendLabel}>
+      {
+        t.tools.map((name, i) => (
+          <span role="listitem">
+            <i>{name}</i>
+            <kbd>{shortcuts[i]}</kbd>
+          </span>
+        ))
+      }
+    </div>
+
+    <div class="split rev">
+      <div class="reveal">
+        <h3 class="split-title" set:html={t.splitTitleHtml} />
+        <ul class="feat-list">
+          {
+            t.features.map((feature) => (
+              <li>
+                <b>{feature.key}</b>
+                <span set:html={feature.valueHtml} />
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+      <ShotSwitch
+        class="split-media reveal"
+        locale={lang}
+        mode="light"
+        sizes="(min-width: 900px) 640px, calc(100vw - 48px)"
+        shots={[
+          { src: light, alt: t.splitAlt.light, mode: 'light' },
+          { src: dark, alt: t.splitAlt.dark, mode: 'dark' },
+        ]}
+      />
+    </div>
+  </div>
+</section>

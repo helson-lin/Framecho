@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- The app icon's viewfinder, drawn bold enough to read at 16 px on light and dark tab bars. -->
+  <rect width="64" height="64" rx="15" fill="#ff5a36"/>
+  <g fill="none" stroke="#fff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M15 27v-7a5 5 0 0 1 5-5h7"/>
+    <path d="M37 15h7a5 5 0 0 1 5 5v7"/>
+    <path d="M49 37v7a5 5 0 0 1-5 5h-7"/>
+    <path d="M27 49h-7a5 5 0 0 1-5-5v-7"/>
+  </g>
+</svg>

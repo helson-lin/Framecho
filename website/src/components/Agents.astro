@@ -1,0 +1,25 @@
+---
+import { ui, type Locale } from '../i18n/ui';
+
+interface Props {
+  lang: Locale;
+}
+
+const t = ui[Astro.props.lang].agents;
+const tools = ['transcribe', 'cut_words', 'tighten_narration', 'add_zoom', 'set_card', 'set_music', 'export'];
+---
+
+<section class="sec" id="agents">
+  <div class="wrap agents">
+    <div class="reveal">
+      <div class="kicker">{t.kicker}</div>
+      <h2 set:html={t.titleHtml} />
+      <p class="sec-lede" set:html={t.ledeHtml} />
+      <div class="chips">{tools.map((tool) => <code>{tool}</code>)}</div>
+    </div>
+    <figure class="term reveal" aria-label={t.terminalLabel}>
+      <div class="term-bar"><i></i><i></i><i></i><span>{t.example}</span></div>
+      <pre set:html={t.terminalHtml} />
+    </figure>
+  </div>
+</section>

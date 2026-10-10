@@ -1,0 +1,62 @@
+---
+import ShotSwitch from './ShotSwitch.astro';
+import editorLight from '../assets/editor-light.webp';
+import editorDark from '../assets/editor-dark.webp';
+import editorEnLight from '../assets/editor-en-light.webp';
+import editorEnDark from '../assets/editor-en-dark.webp';
+import { ui, type Locale } from '../i18n/ui';
+import { links, minimumMacOS, version } from '../site';
+
+interface Props {
+  lang: Locale;
+}
+
+const { lang } = Astro.props;
+const t = ui[lang].hero;
+// Each page leads with the editor in its own language.
+const [light, dark] = lang === 'zh' ? [editorLight, editorDark] : [editorEnLight, editorEnDark];
+---
+
+<section class="hero">
+  <div class="wrap">
+    <a class="eyebrow reveal" href={links.releases}><b>v{version}</b>{t.release} →</a>
+    <h1 class="reveal" set:html={t.titleHtml} />
+    <p class="lede reveal">{t.lede}</p>
+    <div class="hero-ctas reveal">
+      <a class="btn btn-accent btn-lg" href={links.download}>
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M16.37 12.62c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.77-3.32-1.8-1.41-.14-2.76.83-3.47.83-.72 0-1.82-.81-2.99-.79-1.54.02-2.96.9-3.75 2.27-1.6 2.78-.41 6.89 1.15 9.14.76 1.1 1.67 2.34 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.38 0 1.77.74 2.98.72 1.24-.02 2.02-1.12 2.77-2.23.88-1.28 1.24-2.52 1.26-2.59-.03-.01-2.4-.92-2.42-3.65ZM14.1 5.86c.63-.77 1.06-1.83.94-2.89-.91.04-2.02.61-2.67 1.37-.58.67-1.1 1.76-.96 2.8 1.02.08 2.06-.52 2.69-1.28Z"></path>
+        </svg>
+        {t.download}
+      </a>
+      <a class="btn btn-ghost btn-lg" href="#editor">{t.explore}</a>
+    </div>
+    <div class="hero-meta reveal">
+      {
+        t.facts(minimumMacOS).map((fact) => (
+          <span>
+            <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M6.4 11.2 3.2 8l1.1-1.1 2.1 2.1 5.3-5.3L12.8 4.8z" /></svg>
+            {fact}
+          </span>
+        ))
+      }
+    </div>
+
+    <ShotSwitch
+      class="hero-shot vf reveal"
+      locale={lang}
+      mode="light"
+      priority
+      sizes="(min-width: 1128px) 1080px, calc(100vw - 48px)"
+      shots={[
+        { src: light, alt: t.alt.light, mode: 'light' },
+        { src: dark, alt: t.alt.dark, mode: 'dark' },
+      ]}
+    >
+      <span class="vf-b"></span>
+      <span class="tag tag-1"><i>●</i>{t.tags[0]}</span>
+      <span class="tag tag-2"><i>●</i>{t.tags[1]}</span>
+      <span class="tag tag-3"><i>●</i>{t.tags[2]}</span>
+    </ShotSwitch>
+  </div>
+</section>

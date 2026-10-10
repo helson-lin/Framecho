@@ -1,0 +1,29 @@
+---
+import { ui, type Locale } from '../i18n/ui';
+import { faqAnswers } from '../seo';
+
+interface Props {
+  lang: Locale;
+}
+
+const { lang } = Astro.props;
+const t = ui[lang].faq;
+const items = faqAnswers(lang);
+---
+
+<section class="sec" id="faq">
+  <div class="wrap">
+    <div class="kicker reveal">{t.kicker}</div>
+    <h2 class="reveal" set:html={t.titleHtml} />
+    <dl class="faq reveal">
+      {
+        items.map(({ question, answer }) => (
+          <div class="faq-item">
+            <dt>{question}</dt>
+            <dd>{answer}</dd>
+          </div>
+        ))
+      }
+    </dl>
+  </div>
+</section>

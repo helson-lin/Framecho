@@ -1,0 +1,84 @@
+---
+import ShotSwitch from './ShotSwitch.astro';
+import libraryLight from '../assets/library-light.webp';
+import libraryDark from '../assets/library-dark.webp';
+import { ui, type Locale } from '../i18n/ui';
+
+interface Props {
+  lang: Locale;
+}
+
+const { lang } = Astro.props;
+const t = ui[lang].library;
+---
+
+<section class="sec" id="library">
+  <div class="wrap">
+    <div class="kicker reveal">{t.kicker}</div>
+    <h2 class="reveal" set:html={t.titleHtml} />
+    <div class="bento">
+      <div class="tile t-lib reveal">
+        <h3>{t.library.title}</h3>
+        <p>{t.library.body}</p>
+        <ShotSwitch
+          locale={lang}
+          mode="light"
+          sizes="(min-width: 900px) 760px, calc(100vw - 108px)"
+          shots={[
+            { src: libraryLight, alt: t.library.alt.light, mode: 'light' },
+            { src: libraryDark, alt: t.library.alt.dark, mode: 'dark' },
+          ]}
+        />
+      </div>
+
+      <div class="tile t-pin reveal">
+        <h3>{t.pin.title}</h3>
+        <p>{t.pin.body}</p>
+        <div class="pin-demo" aria-hidden="true">
+          <div class="pin-card a"><div class="ttl">{t.pin.cards[0]}</div><div class="bar"></div><div class="bar s"></div></div>
+          <div class="pin-card b vf">
+            <span class="vf-b"></span>
+            <div class="ttl">{t.pin.cards[1]}</div><div class="bar"></div><div class="bar"></div><div class="bar s"></div>
+          </div>
+          <div class="opacity"><i></i>70%</div>
+        </div>
+      </div>
+
+      <div class="tile t-ocr reveal">
+        <h3>{t.ocr.title}</h3>
+        <p>{t.ocr.body}</p>
+        <div class="ocr-demo vf" aria-hidden="true">
+          <span class="vf-b"></span>
+          <span class="sel">{t.ocr.lines[0]}</span><br /><span class="sel">{t.ocr.lines[1]}</span>
+          <span class="copied">{t.ocr.copied}</span>
+        </div>
+      </div>
+
+      <div class="tile t-zh reveal">
+        <h3>{t.cjk.title}</h3>
+        <p>{t.cjk.body}</p>
+        <div class="zh-demo" aria-hidden="true" lang="zh-CN"><span>截</span><span>图</span><span>Aa</span></div>
+      </div>
+
+      <div class="tile t-redact reveal">
+        <h3>{t.redact.title}</h3>
+        <p>{t.redact.body}</p>
+        <div class="redact-demo" aria-hidden="true">
+          {
+            t.redact.rows.map((row) => (
+              <div class="rd">
+                <span>{row.key}</span>
+                {row.kind === 'blur' ? (
+                  <span class="v blur"><span>{row.value}</span></span>
+                ) : (
+                  <span class="v pixel"><span>{row.value}</span><canvas></canvas></span>
+                )}
+                <span class="m">{row.label}</span>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

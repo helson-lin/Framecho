@@ -1,0 +1,158 @@
+---
+import '../styles/global.css';
+import { getAbsoluteLocaleUrl } from 'astro:i18n';
+import { getImage } from 'astro:assets';
+import { ui, type Locale } from '../i18n/ui';
+import { structuredData } from '../seo';
+import editorLight from '../assets/editor-light.webp';
+import editorEnLight from '../assets/editor-en-light.webp';
+import studioDark from '../assets/studio-dark.webp';
+import libraryLight from '../assets/library-light.webp';
+
+interface Props {
+  lang: Locale;
+}
+
+const { lang } = Astro.props;
+const t = ui[lang];
+const locales = Object.keys(ui) as Locale[];
+const ogLocale = { zh: 'zh_CN', en: 'en_US' } as const;
+
+// `site` is always set in astro.config.mjs, so every URL here is absolute.
+const site = Astro.site!;
+const siteUrl = new URL('/', site).href;
+const pageUrl = getAbsoluteLocaleUrl(lang);
+const ogImage = new URL(`/og/${lang}.png`, site).href;
+const screenshots = await Promise.all(
+  [lang === 'zh' ? editorLight : editorEnLight, studioDark, libraryLight].map(async (src) => {
+    const image = await getImage({ src, width: 1600, format: 'webp' });
+    return new URL(image.src, site).href;
+  }),
+);
+const jsonLd = structuredData({ lang, pageUrl, siteUrl, ogImage, screenshots });
+---
+
+<!doctype html>
+<html lang={t.htmlLang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{t.meta.title}</title>
+    <meta name="description" content={t.meta.description} />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="author" content="helson-lin" />
+    <meta name="theme-color" content="#f5f3ef" />
+    <link rel="canonical" href={pageUrl} />
+    {locales.map((l) => <link rel="alternate" hreflang={ui[l].htmlLang} href={getAbsoluteLocaleUrl(l)} />)}
+    <link rel="alternate" hreflang="x-default" href={getAbsoluteLocaleUrl('zh')} />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Framecho" />
+    <meta property="og:url" content={pageUrl} />
+    <meta property="og:title" content={t.meta.title} />
+    <meta property="og:description" content={t.meta.description} />
+    <meta property="og:locale" content={ogLocale[lang]} />
+    {locales.filter((l) => l !== lang).map((l) => <meta property="og:locale:alternate" content={ogLocale[l]} />)}
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={t.seo.ogImageAlt} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={t.meta.title} />
+    <meta name="twitter:description" content={t.meta.description} />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image:alt" content={t.seo.ogImageAlt} />
+
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd).replace(/</g, '\\u003c')} />
+    <script is:inline>document.documentElement.classList.add('js');</script>
+  </head>
+  <body>
+    <slot />
+
+    <script>
+      const nav = document.getElementById('nav');
+      addEventListener('scroll', () => nav?.classList.toggle('scrolled', scrollY > 8), { passive: true });
+
+      // Light / dark and language toggles on screenshots.
+      document.querySelectorAll<HTMLElement>('.appearance').forEach((group) => {
+        const shot = group.closest<HTMLElement>('.appearance-shot');
+        if (!shot) return;
+        const key = group.dataset.key as 'mode' | 'lang';
+        const buttons = group.querySelectorAll<HTMLButtonElement>('button');
+        group.addEventListener('click', (event) => {
+          const button = (event.target as Element).closest('button');
+          if (!button) return;
+          shot.dataset[key] = button.dataset[key];
+          buttons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset[key] === shot.dataset[key])));
+        });
+      });
+
+      // Real mosaic: render the text, average it into blocks and paint each block its mean color.
+      function pixelate() {
+        const dpr = devicePixelRatio || 1;
+        const block = 6;
+        document.querySelectorAll<HTMLElement>('.redact-demo .v.pixel').forEach((box) => {
+          const source = box.querySelector('span');
+          const canvas = box.querySelector('canvas');
+          const w = box.clientWidth;
+          const h = box.clientHeight;
+          if (!source || !canvas || !w || !h) return;
+          const text = getComputedStyle(source);
+          const area = getComputedStyle(box);
+          const full = document.createElement('canvas');
+          full.width = Math.round(w * dpr);
+          full.height = Math.round(h * dpr);
+          const f = full.getContext('2d', { willReadFrequently: true })!;
+          f.scale(dpr, dpr);
+          f.fillStyle = area.backgroundColor;
+          f.fillRect(0, 0, w, h);
+          f.fillStyle = text.color;
+          f.font = `${text.fontWeight} ${text.fontSize} ${text.fontFamily}`;
+          f.textBaseline = 'middle';
+          f.fillText(source.textContent ?? '', parseFloat(area.paddingLeft), h / 2);
+          const pixels = f.getImageData(0, 0, full.width, full.height).data;
+          const step = Math.round(block * dpr);
+          canvas.width = full.width;
+          canvas.height = full.height;
+          const c = canvas.getContext('2d')!;
+          for (let y = 0; y < full.height; y += step) {
+            for (let x = 0; x < full.width; x += step) {
+              let r = 0, g = 0, b = 0, n = 0;
+              for (let yy = y; yy < Math.min(y + step, full.height); yy++) {
+                for (let xx = x; xx < Math.min(x + step, full.width); xx++) {
+                  const i = (yy * full.width + xx) * 4;
+                  r += pixels[i]; g += pixels[i + 1]; b += pixels[i + 2]; n++;
+                }
+              }
+              c.fillStyle = `rgb(${(r / n) | 0},${(g / n) | 0},${(b / n) | 0})`;
+              c.fillRect(x, y, step, step);
+            }
+          }
+        });
+      }
+      document.fonts.ready.then(pixelate);
+      addEventListener('resize', pixelate);
+
+      // Fade sections in as they scroll into view.
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            entry.target.classList.add('in');
+            observer.unobserve(entry.target);
+          }
+        },
+        { rootMargin: '0px 0px -8% 0px' },
+      );
+      document.querySelectorAll<HTMLElement>('.reveal').forEach((el, i) => {
+        el.style.transitionDelay = (el.closest('.hero, .keys, .bento, .privacy') ? (i % 4) * 70 : 0) + 'ms';
+        observer.observe(el);
+      });
+    </script>
+  </body>
+</html>
