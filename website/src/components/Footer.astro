@@ -1,0 +1,21 @@
+---
+import { ui, type Locale } from '../i18n/ui';
+import { links } from '../site';
+
+interface Props {
+  lang: Locale;
+}
+
+const t = ui[Astro.props.lang].footer;
+---
+
+<footer>
+  <div class="wrap">
+    <span set:html={t.creditHtml(links.screendrop)} />
+    <nav>
+      <a href={links.repo}>GitHub</a>
+      <a href={links.issues}>{t.issues}</a>
+      <a href={links.worker}>{t.worker}</a>
+    </nav>
+  </div>
+</footer>

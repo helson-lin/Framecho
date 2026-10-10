@@ -1,0 +1,73 @@
+---
+// A screenshot shown in light or dark appearance, and optionally in either interface language,
+// with toggles to switch between them. Every variant is stacked in one grid cell and cross-faded.
+import type { ImageMetadata } from 'astro';
+import { Image } from 'astro:assets';
+import { ui, type Locale } from '../i18n/ui';
+
+type Mode = 'light' | 'dark';
+
+interface Shot {
+  src: ImageMetadata;
+  alt: string;
+  mode: Mode;
+  lang?: Locale;
+}
+
+interface Props {
+  shots: Shot[];
+  /** Page locale, for the toggle labels. */
+  locale: Locale;
+  mode: Mode;
+  /** Initial interface language; only used when the shots come in both languages. */
+  lang?: Locale;
+  sizes: string;
+  /** Load the initially visible variant eagerly, for screenshots above the fold. */
+  priority?: boolean;
+  class?: string;
+}
+
+const { shots, locale, mode, lang = locale, sizes, priority = false, class: className } = Astro.props;
+const t = ui[locale].shot;
+const hasLang = shots.some((shot) => shot.lang);
+const isVisible = (shot: Shot) => shot.mode === mode && (!shot.lang || shot.lang === lang);
+const widthsFor = (src: ImageMetadata) => [640, 960, 1280, 1600, src.width].filter((w, i, all) => w <= src.width && all.indexOf(w) === i);
+---
+
+<figure class:list={['appearance-shot', className]} data-mode={mode} data-lang={hasLang ? lang : undefined}>
+  <slot />
+  {
+    shots.map((shot) => (
+      <Image
+        src={shot.src}
+        alt={shot.alt}
+        class:list={[`is-${shot.mode}`, shot.lang && `is-${shot.lang}`]}
+        widths={widthsFor(shot.src)}
+        sizes={sizes}
+        loading={priority && isVisible(shot) ? 'eager' : 'lazy'}
+        fetchpriority={priority && isVisible(shot) ? 'high' : undefined}
+      />
+    ))
+  }
+  <div class="shot-controls">
+    {
+      hasLang && (
+        <div class="appearance" role="group" aria-label={t.language} data-key="lang">
+          <button type="button" data-lang="zh" aria-pressed={lang === 'zh' ? 'true' : 'false'} lang="zh-CN">中文</button>
+          <button type="button" data-lang="en" aria-pressed={lang === 'en' ? 'true' : 'false'} lang="en">EN</button>
+        </div>
+      )
+    }
+    <div class="appearance" role="group" aria-label={t.appearance} data-key="mode">
+      <button type="button" data-mode="light" aria-pressed={mode === 'light' ? 'true' : 'false'}>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="3"></circle>
+          <path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1"></path>
+        </svg>{t.light}
+      </button>
+      <button type="button" data-mode="dark" aria-pressed={mode === 'dark' ? 'true' : 'false'}>
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M13.5 10.2A5.8 5.8 0 0 1 5.8 2.5a5.8 5.8 0 1 0 7.7 7.7Z"></path></svg>{t.dark}
+      </button>
+    </div>
+  </div>
+</figure>

@@ -1,0 +1,28 @@
+---
+import { ui, type Locale } from '../i18n/ui';
+
+interface Props {
+  lang: Locale;
+}
+
+const t = ui[Astro.props.lang].rail;
+---
+
+<section class="rail">
+  <div class="wrap">
+    <div class="rail-head reveal">
+      <div class="kicker">{t.kicker}</div>
+      <p>{t.note}</p>
+    </div>
+    <div class="keys reveal">
+      {
+        t.keys.map((label, i) => (
+          <div class="key">
+            <div class="k"><kbd>⌥</kbd><kbd>{i + 1}</kbd></div>
+            <span>{label}</span>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>

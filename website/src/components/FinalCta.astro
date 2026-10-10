@@ -1,0 +1,25 @@
+---
+import { Image } from 'astro:assets';
+import icon from '../assets/icon.png';
+import { ui, type Locale } from '../i18n/ui';
+import { links, minimumMacOS, version } from '../site';
+
+interface Props {
+  lang: Locale;
+}
+
+const t = ui[Astro.props.lang].final;
+---
+
+<section class="final">
+  <div class="wrap">
+    <Image class="final-icon reveal" src={icon} alt={t.iconAlt} width={256} height={256} />
+    <h2 class="reveal" set:html={t.titleHtml} />
+    <p class="sec-lede reveal">{t.lede}</p>
+    <div class="hero-ctas reveal">
+      <a class="btn btn-accent btn-lg" href={links.download}>{t.download}</a>
+      <a class="btn btn-ghost btn-lg" href={links.releases}>{t.releases}</a>
+    </div>
+    <div class="hero-meta reveal" style="margin-top:20px"><span>{t.meta(version, minimumMacOS)}</span></div>
+  </div>
+</section>

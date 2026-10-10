@@ -1,0 +1,37 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Nav from './Nav.astro';
+import Hero from './Hero.astro';
+import Shortcuts from './Shortcuts.astro';
+import Flow from './Flow.astro';
+import Editor from './Editor.astro';
+import Studio from './Studio.astro';
+import Library from './Library.astro';
+import Agents from './Agents.astro';
+import Privacy from './Privacy.astro';
+import FinalCta from './FinalCta.astro';
+import Footer from './Footer.astro';
+import type { Locale } from '../i18n/ui';
+
+interface Props {
+  lang: Locale;
+}
+
+const { lang } = Astro.props;
+---
+
+<Layout lang={lang}>
+  <Nav lang={lang} />
+  <main id="top">
+    <Hero lang={lang} />
+    <Shortcuts lang={lang} />
+    <Flow lang={lang} />
+    <Editor lang={lang} />
+    <Studio lang={lang} />
+    <Library lang={lang} />
+    <Agents lang={lang} />
+    <Privacy lang={lang} />
+    <FinalCta lang={lang} />
+  </main>
+  <Footer lang={lang} />
+</Layout>

@@ -92,3 +92,7 @@ To release, run `go run ./cmd/framecho-release -build -set-version <x.y.z> -set-
 ```bash
 xcrun notarytool store-credentials framecho-notary --apple-id <apple-id> --team-id 64S5F787T9
 ```
+
+## Website
+
+The landing page is an Astro site in `website/` (run `npm install`, then `npm run dev`, `npm run build` or `npm run check` there). Chinese is served from `/` and English from `/en/`; all copy is in `website/src/i18n/ui.ts`, keyed identically for both locales. The version and minimum macOS shown on the page are read from `Framecho.xcodeproj` at build time, but the release note beside the version in `hero.release` is written by hand, so update it when releasing. Screenshots live in `website/src/assets` and come in light and dark pairs (and, for Studio, Chinese and English); `ShotSwitch.astro` stacks a set and adds the toggles. Set `SITE_URL` when building for deployment so canonical and `hreflang` links are emitted.
