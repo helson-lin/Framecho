@@ -198,6 +198,7 @@ final class RecordingStudioModel {
     var selectedImageOverlayID: UUID? {
         didSet {
             guard selectedImageOverlayID != nil else { return }
+            selectedTitleCard = nil
             selectedCueID = nil
             selectedClipID = nil
             selectedMotionCueID = nil
@@ -206,6 +207,33 @@ final class RecordingStudioModel {
     }
     private var imageOverlayEditSnapshot: [RecordingImageOverlay]?
     private var imageOverlayEditCommitTask: Task<Void, Never>?
+    /// Cards before and after the video in the final program.
+    private(set) var introCard: RecordingTitleCard?
+    private(set) var outroCard: RecordingTitleCard?
+    /// The card the preview is playing or resting on; nil on the video.
+    private(set) var cardPlayback: RecordingProgramTimeline.CardFrame?
+    /// The card picked on the timeline.
+    var selectedTitleCard: RecordingTitleCard.Placement? {
+        didSet {
+            guard selectedTitleCard != nil else { return }
+            selectedCueID = nil
+            selectedClipID = nil
+            selectedMotionCueID = nil
+            selectedSubtitleCueID = nil
+            selectedImageOverlayID = nil
+        }
+    }
+    @ObservationIgnored private var cardClockTask: Task<Void, Never>?
+    private var titleCardEditSnapshot: (intro: RecordingTitleCard?, outro: RecordingTitleCard?)?
+    private var titleCardEditCommitTask: Task<Void, Never>?
+    @ObservationIgnored private var titleCardImageCache: [RecordingTitleCard.Placement: TitleCardRender] = [:]
+
+    private struct TitleCardRender {
+        var card: RecordingTitleCard
+        var background: AnnotationBackgroundStyle
+        var pixelSize: CGSize
+        var layers: RecordingTitleCardLayers?
+    }
     private(set) var viewportTimeline = ViewportTimeline.identity
     /// 3D card pose and motion cues. Edited through the motion methods so
     /// every change is undoable and rebuilds the editor-time timeline.
@@ -219,6 +247,7 @@ final class RecordingStudioModel {
     var selectedCueID: UUID? {
         didSet {
             guard selectedCueID != nil else { return }
+            selectedTitleCard = nil
             selectedMotionCueID = nil
             selectedSubtitleCueID = nil
             selectedImageOverlayID = nil
@@ -231,6 +260,7 @@ final class RecordingStudioModel {
     var selectedClipID: UUID? {
         didSet {
             guard selectedClipID != nil else { return }
+            selectedTitleCard = nil
             selectedMotionCueID = nil
             selectedSubtitleCueID = nil
             selectedImageOverlayID = nil
@@ -242,6 +272,7 @@ final class RecordingStudioModel {
     var selectedSubtitleCueID: UUID? {
         didSet {
             guard selectedSubtitleCueID != nil else { return }
+            selectedTitleCard = nil
             selectedCueID = nil
             selectedClipID = nil
             selectedMotionCueID = nil
@@ -340,7 +371,7 @@ final class RecordingStudioModel {
             narrationTracks: tracks.filter { !musicIDs.contains($0.trackID) },
             narrationVolume: Double(audioVolume),
             musicTracks: musicTracks,
-            plan: loadedBackgroundMusic.flatMap(backgroundMusicPlan(for:)),
+            plan: loadedBackgroundMusic.flatMap { backgroundMusicPlan(for: $0) },
             normalization: normalizesAudioLoudness ? audioNormalization : nil
         )
     }
@@ -495,9 +526,9 @@ final class RecordingStudioModel {
             // Nothing can undo back to an image a stored document no longer
             // uses, so its file can go. A headless model skips this: a
             // Studio window may hold undo history that still needs it.
-            let referenced = [lastSavedDocument, session.effectiveEditDocument()]
-                .compactMap { $0?.imageOverlays }
-                .flatMap { $0.map(\.fileName) }
+            let documents = [lastSavedDocument, session.effectiveEditDocument()].compactMap { $0 }
+            let referenced = documents.flatMap { ($0.imageOverlays ?? []).map(\.fileName) }
+                + documents.flatMap { [$0.introCard?.imageFileName, $0.outroCard?.imageFileName].compactMap { $0 } }
             RecordingStudioAssets.removeUnused(in: session.directoryURL, keeping: Set(referenced))
         }
         // A draft that outlived its editor means the last session ended
@@ -634,6 +665,9 @@ final class RecordingStudioModel {
         style = document.style.value
         backgroundMusic = document.backgroundMusic
         imageOverlays = document.imageOverlays ?? []
+        introCard = document.introCard
+        outroCard = document.outroCard
+        cardPlayback = nil
         if let selectedImageOverlayID, !imageOverlays.contains(where: { $0.id == selectedImageOverlayID }) {
             self.selectedImageOverlayID = nil
         }
@@ -737,6 +771,13 @@ final class RecordingStudioModel {
         imageOverlays.removeAll()
         imageOverlayTimeline = .empty
         imageOverlayPreviews.removeAll()
+        cardClockTask?.cancel()
+        cardClockTask = nil
+        cardPlayback = nil
+        titleCardEditCommitTask?.cancel()
+        titleCardEditCommitTask = nil
+        titleCardEditSnapshot = nil
+        titleCardImageCache.removeAll()
         subtitleCues.removeAll()
         transcriptWords.removeAll()
         subtitleTimeline = .empty
@@ -769,8 +810,24 @@ final class RecordingStudioModel {
             hoverPreviewTime = nil
         }
         guard duration >= RecordingClipSegment.minimumDuration else { return }
+        if let card = cardPlayback {
+            // Resting at the end of the outro means the program is over:
+            // play it again from the top.
+            let program = programTimeline
+            if card.placement == .outro, card.time >= program.outroDuration - 0.05 {
+                seek(to: 0)
+            } else {
+                runCardClock(card.placement, from: card.time)
+                return
+            }
+        }
         if currentTime < 0 || currentTime >= duration - 0.05 {
             seek(to: 0)
+        }
+        // Playing from the very start plays the program from its intro.
+        if introCard != nil, currentTime <= 0.001 {
+            runCardClock(.intro, from: 0)
+            return
         }
         isPlaying = true
         screenPlayer.play()
@@ -780,11 +837,18 @@ final class RecordingStudioModel {
     func pause() {
         guard isPlaying else { return }
         isPlaying = false
+        cardClockTask?.cancel()
+        cardClockTask = nil
         screenPlayer.pause()
         cameraPlayer.pause()
     }
 
     func seek(to time: TimeInterval) {
+        if cardPlayback != nil || cardClockTask != nil {
+            cardClockTask?.cancel()
+            cardClockTask = nil
+            cardPlayback = nil
+        }
         let clamped = min(max(time, 0), max(duration, 0))
         currentTime = clamped
         updateActiveTranscriptWord()
@@ -832,13 +896,7 @@ final class RecordingStudioModel {
                 if self.isPlaying {
                     let seconds = time.seconds
                     if seconds >= self.duration - 0.001 {
-                        self.pause()
-                        self.currentTime = self.duration
-                        self.screenPlayer.seek(
-                            to: CMTime(seconds: self.duration, preferredTimescale: 600),
-                            toleranceBefore: .zero,
-                            toleranceAfter: .zero
-                        )
+                        self.finishVideoPlayback()
                         return
                     }
                     self.currentTime = seconds
@@ -851,6 +909,26 @@ final class RecordingStudioModel {
         installEndObserver()
     }
 
+    /// The video has played to its end: rest on its last frame, or go on
+    /// into the outro. Both the time observer and the end notification
+    /// land here, so a second call is a no-op.
+    private func finishVideoPlayback() {
+        guard isPlaying, cardClockTask == nil, cardPlayback == nil else { return }
+        screenPlayer.pause()
+        cameraPlayer.pause()
+        currentTime = duration
+        screenPlayer.seek(
+            to: CMTime(seconds: duration, preferredTimescale: 600),
+            toleranceBefore: .zero,
+            toleranceAfter: .zero
+        )
+        if outroCard != nil {
+            runCardClock(.outro, from: 0)
+        } else {
+            isPlaying = false
+        }
+    }
+
     private func installEndObserver() {
         if let endObserver {
             NotificationCenter.default.removeObserver(endObserver)
@@ -861,10 +939,7 @@ final class RecordingStudioModel {
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self else { return }
-                self.isPlaying = false
-                self.cameraPlayer.pause()
-                self.currentTime = self.duration
+                self?.finishVideoPlayback()
             }
         }
     }
@@ -922,11 +997,13 @@ final class RecordingStudioModel {
         selectedClipID = nil
         selectedSubtitleCueID = nil
         selectedImageOverlayID = nil
+        selectedTitleCard = nil
     }
 
     func undo() {
         commitPendingMotionEdit()
         commitPendingImageOverlayEdit()
+        commitPendingTitleCardEdit()
         guard editUndoManager.canUndo else { return }
         pause()
         editUndoManager.undo()
@@ -936,6 +1013,7 @@ final class RecordingStudioModel {
     func redo() {
         commitPendingMotionEdit()
         commitPendingImageOverlayEdit()
+        commitPendingTitleCardEdit()
         guard editUndoManager.canRedo else { return }
         pause()
         editUndoManager.redo()
@@ -1905,7 +1983,9 @@ final class RecordingStudioModel {
             normalizesAudioLoudness: normalizesAudioLoudness,
             motion: motion == .disabled ? nil : motion,
             backgroundMusic: backgroundMusic,
-            imageOverlays: imageOverlays.isEmpty ? nil : imageOverlays
+            imageOverlays: imageOverlays.isEmpty ? nil : imageOverlays,
+            introCard: introCard,
+            outroCard: outroCard
         )
     }
 
@@ -2851,14 +2931,17 @@ final class RecordingStudioModel {
             audioVolume: Double(audioVolume),
             normalizesAudioLoudness: normalizesAudioLoudness,
             backgroundMusic: loadedBackgroundMusic.flatMap { music in
-                backgroundMusicPlan(for: music).map { BackgroundMusicExport(url: music.url, plan: $0) }
+                backgroundMusicPlan(for: music, program: programTimeline)
+                    .map { BackgroundMusicExport(url: music.url, plan: $0) }
             },
             reframe: reframe,
             fitContentAspect: fitContentAspect,
             usesUniformPadding: exportAspect == .original,
             motionTimeline: motionTimeline,
             imageOverlays: imageOverlays,
-            assetsDirectory: session.map { RecordingStudioAssets.directory(in: $0.directoryURL) }
+            assetsDirectory: session.map { RecordingStudioAssets.directory(in: $0.directoryURL) },
+            introCard: introCard,
+            outroCard: outroCard
         )
     }
 
@@ -3215,11 +3298,228 @@ final class RecordingStudioModel {
         }
     }
 
+    // MARK: - Intro and outro cards
+
+    /// The final program around the edit: intro, video, outro.
+    var programTimeline: RecordingProgramTimeline {
+        RecordingProgramTimeline(intro: introCard, videoDuration: duration, outro: outroCard)
+    }
+
+    func titleCard(_ placement: RecordingTitleCard.Placement) -> RecordingTitleCard? {
+        placement == .intro ? introCard : outroCard
+    }
+
+    /// Adds a fresh text card and selects it. An outro starts with a
+    /// sign-off; an intro starts blank, ready for a title.
+    func addTitleCard(_ placement: RecordingTitleCard.Placement) {
+        guard titleCard(placement) == nil else { return }
+        setTitleCard(
+            RecordingTitleCard(title: placement == .outro ? String(localized: "Thanks for watching") : ""),
+            for: placement
+        )
+        selectedTitleCard = placement
+    }
+
+    /// Where the timeline's playhead sits, in edit time: negative inside
+    /// the intro, past the end inside the outro.
+    var timelinePlayheadTime: TimeInterval {
+        guard let card = cardPlayback else { return currentTime }
+        switch card.placement {
+        case .intro: return card.time - programTimeline.introDuration
+        case .outro: return duration + card.time
+        }
+    }
+
+    /// A seek from the timeline, which reaches into the cards: before zero
+    /// parks on the intro, past the end on the outro.
+    func seekTimeline(to time: TimeInterval) {
+        let program = programTimeline
+        if time < 0, program.introDuration > 0 {
+            seek(to: 0)
+            cardPlayback = program.card(at: max(0, program.introDuration + time))
+        } else if time > duration, program.outroDuration > 0 {
+            seek(to: duration)
+            cardPlayback = program.card(at: program.introDuration + duration + min(time - duration, program.outroDuration))
+        } else {
+            seek(to: time)
+        }
+    }
+
+    /// Adds, changes or (with nil) removes a card. `coalesces` folds typing
+    /// and slider drags into one undo step.
+    func setTitleCard(_ card: RecordingTitleCard?, for placement: RecordingTitleCard.Placement, coalesces: Bool = false) {
+        var card = card
+        if let duration = card?.clampedDuration {
+            card?.duration = duration
+        }
+        let next = placement == .intro ? (intro: card, outro: outroCard) : (intro: introCard, outro: card)
+        guard next.intro != introCard || next.outro != outroCard else { return }
+        let actionName = card == nil
+            ? String(localized: "Remove Card")
+            : titleCard(placement) == nil ? String(localized: "Add Card") : String(localized: "Edit Card")
+        if coalesces {
+            if titleCardEditSnapshot == nil {
+                titleCardEditSnapshot = (introCard, outroCard)
+            }
+            replaceTitleCards(intro: next.intro, outro: next.outro)
+            titleCardEditCommitTask?.cancel()
+            titleCardEditCommitTask = Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(600))
+                guard !Task.isCancelled else { return }
+                self?.titleCardEditCommitTask = nil
+                self?.commitTitleCardEdit(actionName: actionName)
+            }
+        } else {
+            commitPendingTitleCardEdit()
+            applyTitleCards(intro: next.intro, outro: next.outro, actionName: actionName)
+        }
+    }
+
+    /// Copies an image into the project and makes the card show it.
+    func setTitleCardImage(from url: URL, for placement: RecordingTitleCard.Placement) throws {
+        guard let session else {
+            throw RecordingStudioAssets.ImportError.unreadable(url.lastPathComponent)
+        }
+        let imported = try RecordingStudioAssets.importImage(from: url, into: session.directoryURL)
+        var card = titleCard(placement) ?? RecordingTitleCard()
+        card.kind = .image
+        card.imageFileName = imported.fileName
+        card.imageDisplayName = imported.displayName
+        setTitleCard(card, for: placement)
+    }
+
+    /// Plays one card in the preview, from its start.
+    func playTitleCard(_ placement: RecordingTitleCard.Placement) {
+        guard titleCard(placement) != nil else { return }
+        pause()
+        seek(to: placement == .intro ? 0 : duration)
+        runCardClock(placement, from: 0)
+    }
+
+    private func commitPendingTitleCardEdit() {
+        guard let task = titleCardEditCommitTask else { return }
+        task.cancel()
+        titleCardEditCommitTask = nil
+        commitTitleCardEdit(actionName: String(localized: "Edit Card"))
+    }
+
+    private func commitTitleCardEdit(actionName: String) {
+        guard let previous = titleCardEditSnapshot else { return }
+        titleCardEditSnapshot = nil
+        guard previous.intro != introCard || previous.outro != outroCard else { return }
+        registerUndo(actionName) { target in
+            target.applyTitleCards(intro: previous.intro, outro: previous.outro, actionName: actionName)
+        }
+    }
+
+    private func applyTitleCards(intro: RecordingTitleCard?, outro: RecordingTitleCard?, actionName: String) {
+        guard intro != introCard || outro != outroCard else { return }
+        let previous = (intro: introCard, outro: outroCard)
+        registerUndo(actionName) { target in
+            target.applyTitleCards(intro: previous.intro, outro: previous.outro, actionName: actionName)
+        }
+        replaceTitleCards(intro: intro, outro: outro)
+    }
+
+    private func replaceTitleCards(intro: RecordingTitleCard?, outro: RecordingTitleCard?) {
+        introCard = intro
+        outroCard = outro
+        if let selectedTitleCard, titleCard(selectedTitleCard) == nil {
+            self.selectedTitleCard = nil
+        }
+        if let card = cardPlayback, titleCard(card.placement) == nil {
+            cardClockTask?.cancel()
+            cardClockTask = nil
+            cardPlayback = nil
+            if isPlaying { pause() }
+        }
+        scheduleProjectSave()
+    }
+
+    /// Runs the preview through a card on a wall clock - the video player
+    /// waits at its first or last frame - then hands on: an intro to the
+    /// video, an outro to rest on its last frame.
+    private func runCardClock(_ placement: RecordingTitleCard.Placement, from start: TimeInterval) {
+        guard let card = titleCard(placement) else { return }
+        cardClockTask?.cancel()
+        isPlaying = true
+        let cardDuration = card.clampedDuration
+        let began = ContinuousClock.now - .milliseconds(Int(start * 1000))
+        updateCardPlayback(placement, at: start)
+        cardClockTask = Task { [weak self] in
+            while !Task.isCancelled {
+                let elapsed = (ContinuousClock.now - began) / .seconds(1)
+                guard let self else { return }
+                if elapsed >= cardDuration {
+                    self.finishCard(placement)
+                    return
+                }
+                self.updateCardPlayback(placement, at: elapsed)
+                try? await Task.sleep(for: .milliseconds(16))
+            }
+        }
+    }
+
+    private func updateCardPlayback(_ placement: RecordingTitleCard.Placement, at time: TimeInterval) {
+        let program = programTimeline
+        let programTime = placement == .intro ? time : program.introDuration + program.videoDuration + time
+        cardPlayback = program.card(at: programTime)
+    }
+
+    private func finishCard(_ placement: RecordingTitleCard.Placement) {
+        cardClockTask = nil
+        switch placement {
+        case .intro:
+            cardPlayback = nil
+            currentTime = 0
+            movePlayers(to: 0)
+            screenPlayer.play()
+            syncCameraPlayback()
+        case .outro:
+            updateCardPlayback(.outro, at: programTimeline.outroDuration)
+            isPlaying = false
+        }
+    }
+
+    /// The card's layers for the preview at `pixelSize`, made by the same
+    /// code as the export and kept until the card or background changes.
+    func titleCardLayers(_ placement: RecordingTitleCard.Placement, pixelSize: CGSize) -> RecordingTitleCardLayers? {
+        guard let card = titleCard(placement) else { return nil }
+        if let cached = titleCardImageCache[placement],
+           cached.card == card, cached.background == style.background, cached.pixelSize == pixelSize {
+            return cached.layers
+        }
+        let layers = RecordingTitleCardRenderer.layers(
+            card,
+            canvasSize: pixelSize,
+            background: style.background,
+            assetsDirectory: session.map { RecordingStudioAssets.directory(in: $0.directoryURL) }
+        )
+        titleCardImageCache[placement] = TitleCardRender(
+            card: card, background: style.background, pixelSize: pixelSize, layers: layers
+        )
+        return layers
+    }
+
+    /// Parks the preview on a card where its parts have all arrived, for
+    /// looking at it while editing it.
+    func showTitleCard(_ placement: RecordingTitleCard.Placement) {
+        guard let card = titleCard(placement) else { return }
+        pause()
+        let settled = min(
+            RecordingTitleCardMotion.settleTime,
+            card.clampedDuration - RecordingProgramTimeline.transition(for: card.clampedDuration)
+        )
+        seekTimeline(to: placement == .intro
+            ? settled - programTimeline.introDuration
+            : duration + max(settled, RecordingProgramTimeline.transition(for: card.clampedDuration)))
+    }
+
     // MARK: - Background music
 
     /// The music's level over the cut, for the timeline's music lane.
     var backgroundMusicTimelinePlan: BackgroundMusicGainPlan? {
-        loadedBackgroundMusic.flatMap(backgroundMusicPlan(for:))
+        loadedBackgroundMusic.flatMap { backgroundMusicPlan(for: $0) }
     }
 
     /// Ducking needs the narration's words; without a transcript the music
@@ -3288,15 +3588,23 @@ final class RecordingStudioModel {
 
     /// How the loaded track sits under this cut: its level, fades, and dips
     /// under the narration's words.
-    private func backgroundMusicPlan(for music: LoadedBackgroundMusic) -> BackgroundMusicGainPlan? {
+    /// The music's plan over the edit, or with `program` over the whole
+    /// program, cards included, as the export lays it.
+    private func backgroundMusicPlan(
+        for music: LoadedBackgroundMusic,
+        program: RecordingProgramTimeline? = nil
+    ) -> BackgroundMusicGainPlan? {
         guard let settings = backgroundMusic, settings.trackID == music.trackID else { return nil }
         let timeline = clipTimeline
+        let offset = program?.introDuration ?? 0
         let speech = settings.ducksUnderSpeech
-            ? BackgroundMusicGainPlan.speechRanges(words: transcriptWords) { timeline.editorTime(forSourceTime: $0) }
+            ? BackgroundMusicGainPlan.speechRanges(words: transcriptWords) {
+                timeline.editorTime(forSourceTime: $0).map { $0 + offset }
+            }
             : []
         return BackgroundMusicGainPlan(
             musicDuration: music.duration,
-            videoDuration: duration,
+            videoDuration: program?.duration ?? duration,
             volume: settings.clampedVolume,
             speech: speech,
             loops: settings.loops,

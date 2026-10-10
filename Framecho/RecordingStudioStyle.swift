@@ -82,6 +82,10 @@ struct RecordingEditDocument: Codable, Equatable {
     /// Images laid over the video, in stacking order; optional so older
     /// projects decode without any.
     var imageOverlays: [RecordingImageOverlay]?
+    /// Title or image cards before and after the video; optional so older
+    /// projects decode without them.
+    var introCard: RecordingTitleCard?
+    var outroCard: RecordingTitleCard?
 
     private enum CodingKeys: String, CodingKey {
         case formatVersion
@@ -115,6 +119,8 @@ struct RecordingEditDocument: Codable, Equatable {
         case motion
         case backgroundMusic
         case imageOverlays
+        case introCard
+        case outroCard
     }
 
     init(
@@ -141,7 +147,9 @@ struct RecordingEditDocument: Codable, Equatable {
         normalizesAudioLoudness: Bool? = nil,
         motion: RecordingMotionSettings? = nil,
         backgroundMusic: RecordingBackgroundMusic? = nil,
-        imageOverlays: [RecordingImageOverlay]? = nil
+        imageOverlays: [RecordingImageOverlay]? = nil,
+        introCard: RecordingTitleCard? = nil,
+        outroCard: RecordingTitleCard? = nil
     ) {
         self.style = StoredRecordingStudioStyle(style)
         self.zoomEnabled = zoomEnabled
@@ -176,6 +184,8 @@ struct RecordingEditDocument: Codable, Equatable {
         self.motion = motion
         self.backgroundMusic = backgroundMusic
         self.imageOverlays = imageOverlays
+        self.introCard = introCard
+        self.outroCard = outroCard
     }
 
     var audioExportFormatValue: RecordingAudioFormat {
@@ -265,6 +275,8 @@ struct RecordingEditDocument: Codable, Equatable {
         motion = try container.decodeIfPresent(RecordingMotionSettings.self, forKey: .motion)
         backgroundMusic = try container.decodeIfPresent(RecordingBackgroundMusic.self, forKey: .backgroundMusic)
         imageOverlays = try container.decodeIfPresent([RecordingImageOverlay].self, forKey: .imageOverlays)
+        introCard = try container.decodeIfPresent(RecordingTitleCard.self, forKey: .introCard)
+        outroCard = try container.decodeIfPresent(RecordingTitleCard.self, forKey: .outroCard)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -300,6 +312,8 @@ struct RecordingEditDocument: Codable, Equatable {
         try container.encodeIfPresent(motion, forKey: .motion)
         try container.encodeIfPresent(backgroundMusic, forKey: .backgroundMusic)
         try container.encodeIfPresent(imageOverlays, forKey: .imageOverlays)
+        try container.encodeIfPresent(introCard, forKey: .introCard)
+        try container.encodeIfPresent(outroCard, forKey: .outroCard)
     }
 }
 

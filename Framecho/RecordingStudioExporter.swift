@@ -77,6 +77,10 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
         /// live in.
         let imageOverlays: [RecordingImageOverlay]
         let assetsDirectory: URL?
+        /// Cards played before and after the video. The background music in
+        /// `backgroundMusic` is planned over the whole program.
+        let introCard: RecordingTitleCard?
+        let outroCard: RecordingTitleCard?
 
         init(
             screenURL: URL,
@@ -104,7 +108,9 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             usesUniformPadding: Bool = false,
             motionTimeline: RecordingMotionTimeline = .disabled,
             imageOverlays: [RecordingImageOverlay] = [],
-            assetsDirectory: URL? = nil
+            assetsDirectory: URL? = nil,
+            introCard: RecordingTitleCard? = nil,
+            outroCard: RecordingTitleCard? = nil
         ) {
             self.screenURL = screenURL
             self.cameraURL = cameraURL
@@ -132,6 +138,8 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             self.motionTimeline = motionTimeline
             self.imageOverlays = imageOverlays
             self.assetsDirectory = assetsDirectory
+            self.introCard = introCard
+            self.outroCard = outroCard
         }
     }
 
@@ -211,6 +219,17 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             start: exportStartTime,
             duration: CMTime(seconds: clipTimeline.duration, preferredTimescale: 600)
         )
+        // Intro + video + outro. The screen reader still covers only the
+        // video; the cards hold its end frames and the sound moves along.
+        let program = RecordingProgramTimeline(
+            intro: configuration.introCard,
+            videoDuration: clipTimeline.duration,
+            outro: configuration.outroCard
+        )
+        let programTimeRange = CMTimeRange(
+            start: exportStartTime,
+            duration: CMTime(seconds: program.duration, preferredTimescale: 600)
+        )
 
         let canvasSize = Self.deliveredCanvasSize(
             source: configuration.canvasSize,
@@ -249,20 +268,23 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             } else {
                 normalization = nil
             }
-            if let music = configuration.backgroundMusic,
+            if configuration.backgroundMusic != nil || program.hasCards,
                let mixed = try await Self.makeMusicMixReader(
-                   music: music,
+                   music: configuration.backgroundMusic,
                    replacementURL: configuration.audioReplacementURL,
                    screenAudioTracks: audioTracks,
                    narrationVolume: configuration.audioVolume,
                    normalization: normalization,
-                   timeRange: exportTimeRange
+                   timeRange: exportTimeRange,
+                   narrationStart: CMTime(seconds: program.introDuration, preferredTimescale: 600),
+                   programRange: programTimeRange
                ) {
                 // Narration and music meet in one composition so a single
-                // mix output sums them, exactly as playback hears them.
+                // mix output sums them, exactly as playback hears them; the
+                // narration starts after any intro card.
                 replacementReader = mixed.reader
                 audioOutput = mixed.output
-            } else if let replacementURL = configuration.audioReplacementURL {
+            } else if !program.hasCards, let replacementURL = configuration.audioReplacementURL {
                 let replacementAsset = AVURLAsset(url: replacementURL)
                 let replacementTracks = try await replacementAsset.loadTracks(withMediaType: .audio)
                 if !replacementTracks.isEmpty {
@@ -282,7 +304,7 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
                     replacementReader = reader
                     audioOutput = output
                 }
-            } else if !audioTracks.isEmpty {
+            } else if !program.hasCards, !audioTracks.isEmpty {
                 let output = AVAssetReaderAudioMixOutput(
                     audioTracks: audioTracks,
                     audioSettings: nil
@@ -395,7 +417,9 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
                 overlays: configuration.imageOverlays,
                 clipTimeline: configuration.clipTimeline
             ),
-            assetsDirectory: configuration.assetsDirectory
+            assetsDirectory: configuration.assetsDirectory,
+            introCard: configuration.introCard,
+            outroCard: configuration.outroCard
         )
 
         let screenAudioOutput = audioOutput
@@ -409,6 +433,7 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
                 compositor: compositor,
                 cameraFeed: cameraFeed,
                 clipTimeline: clipTimeline,
+                program: program,
                 timing: timing,
                 cancelFlag: cancelFlag,
                 progress: progress
@@ -450,6 +475,7 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
         compositor: StudioFrameCompositor,
         cameraFeed: CameraFrameFeed?,
         clipTimeline: RecordingClipTimeline,
+        program: RecordingProgramTimeline,
         timing: RecordingExportTiming,
         cancelFlag: CancelFlag,
         progress: @escaping @Sendable (Double) -> Void
@@ -461,8 +487,9 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
         // the last click). Each tick re-renders the newest source frame at
         // or before it; only writing on source arrivals would hold the last
         // zoomed frame through the move and then visibly jump.
-        let duration = clipTimeline.duration
-        let frameCount = timing.frameCount(for: duration)
+        // The output clock runs over the whole program; each tick maps onto
+        // the edit timeline, held at its ends while a card shows.
+        let frameCount = timing.frameCount(for: program.duration)
 
         var decodeSeconds = 0.0
         func nextSourceFrame() -> (buffer: CVPixelBuffer, time: TimeInterval)? {
@@ -511,7 +538,9 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
 
         for frame in 0..<frameCount {
             if cancelFlag.isCancelled { throw ExportError.cancelled }
-            let editorTime = timing.time(forFrame: frame)
+            let programTime = timing.time(forFrame: frame)
+            let editorTime = program.editorTime(at: programTime)
+            let card = program.card(at: programTime)
             guard let location = clipTimeline.location(at: editorTime) else { break }
             let sourceTime = location.sourceTime
 
@@ -544,7 +573,7 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             }
 
             let cameraBuffer = cameraFeed?.latestFrame(at: sourceTime)
-            let nextTime = timing.time(forFrame: frame + 1)
+            let nextTime = program.editorTime(at: timing.time(forFrame: frame + 1))
             let sourceRepeats = (pending == nil || pending!.time > nextTime)
                 && clipTimeline.location(at: nextTime)?.segmentID == location.segmentID
             let renderStart = CFAbsoluteTimeGetCurrent()
@@ -554,6 +583,7 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
                 editorTime: editorTime,
                 sourceTime: sourceTime,
                 sourceRepeatsOnNextFrame: sourceRepeats,
+                card: card,
                 into: destinationBuffer
             )
             renderSeconds += CFAbsoluteTimeGetCurrent() - renderStart
@@ -596,19 +626,22 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
     /// Nil when the music file can't be read, so the export goes ahead
     /// without it rather than failing.
     private static func makeMusicMixReader(
-        music: BackgroundMusicExport,
+        music: BackgroundMusicExport?,
         replacementURL: URL?,
         screenAudioTracks: [AVAssetTrack],
         narrationVolume: Double,
         normalization: RecordingAudioNormalization.Measurement?,
-        timeRange: CMTimeRange
+        timeRange: CMTimeRange,
+        narrationStart: CMTime = .zero,
+        programRange: CMTimeRange? = nil
     ) async throws -> (reader: AVAssetReader, output: AVAssetReaderAudioMixOutput)? {
-        let musicAsset = AVURLAsset(url: music.url)
-        guard let musicSource = try await musicAsset.loadTracks(withMediaType: .audio).first,
-              music.plan.length > 0 else {
-            return nil
+        // The asset is held for the whole function: a track only weakly
+        // references its asset, and inserting from an orphaned one fails.
+        let musicAsset = music.map { AVURLAsset(url: $0.url) }
+        var musicSource: AVAssetTrack?
+        if let music, let musicAsset, music.plan.length > 0 {
+            musicSource = try await musicAsset.loadTracks(withMediaType: .audio).first
         }
-        let musicRange = try await musicSource.load(.timeRange)
         let composition = AVMutableComposition()
         var narrationTracks: [AVAssetTrack] = []
         func addNarration(_ track: AVAssetTrack, range: CMTimeRange) throws {
@@ -617,7 +650,7 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
                       withMediaType: .audio,
                       preferredTrackID: kCMPersistentTrackID_Invalid
                   ) else { return }
-            try compositionTrack.insertTimeRange(range, of: track, at: .zero)
+            try compositionTrack.insertTimeRange(range, of: track, at: narrationStart)
             narrationTracks.append(compositionTrack)
         }
 
@@ -634,16 +667,26 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             }
         }
 
-        let musicTracks = try BackgroundMusicMixer.addingMusic(
-            from: musicSource,
-            sourceRange: musicRange,
-            plan: music.plan,
-            to: composition
-        )
-        guard !musicTracks.isEmpty else { return nil }
+        var musicTracks: [AVMutableCompositionTrack] = []
+        if let music, let musicSource {
+            musicTracks = try BackgroundMusicMixer.addingMusic(
+                from: musicSource,
+                sourceRange: try await musicSource.load(.timeRange),
+                plan: music.plan,
+                to: composition
+            )
+        }
+        // Ends after the inserts, so the optimizer can't release it early.
+        withExtendedLifetime(musicAsset) {}
+        let hasCards = narrationStart > .zero || (programRange.map { $0 != timeRange } ?? false)
+        // Without cards, music that couldn't be laid in leaves the export
+        // to the plain soundtrack paths. With them the narration still has
+        // to move, so this composition carries it alone.
+        if musicTracks.isEmpty, !hasCards { return nil }
+        if musicTracks.isEmpty, narrationTracks.isEmpty { return nil }
 
         let reader = try AVAssetReader(asset: composition)
-        reader.timeRange = timeRange
+        reader.timeRange = programRange ?? timeRange
         let output = AVAssetReaderAudioMixOutput(
             audioTracks: narrationTracks + musicTracks,
             audioSettings: nil
@@ -652,7 +695,7 @@ nonisolated final class RecordingStudioExporter: @unchecked Sendable {
             narrationTracks: narrationTracks,
             narrationVolume: narrationVolume,
             musicTracks: musicTracks,
-            plan: music.plan,
+            plan: music?.plan,
             normalization: normalization
         )
         output.alwaysCopiesSampleData = false
@@ -807,6 +850,9 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
     private let overlayImages: [String: CGImage]
     /// Where the subtitle bar sits, for overlays placed clear of it.
     private let overlayCaptionBand: ClosedRange<CGFloat>?
+    /// The intro and outro cards, taken apart into layers once at canvas
+    /// size and animated per frame.
+    private let cardLayers: [RecordingTitleCard.Placement: (layers: RecordingTitleCardLayers, card: RecordingTitleCard)]
     /// True when any frame tilts or moves the card. Such exports draw the
     /// card into its own layer and project it; flat ones keep the 2D path.
     private let projectsCard: Bool
@@ -857,7 +903,9 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         usesUniformPadding: Bool = false,
         motionTimeline: RecordingMotionTimeline = .disabled,
         imageOverlays: RecordingImageOverlayTimeline = .empty,
-        assetsDirectory: URL? = nil
+        assetsDirectory: URL? = nil,
+        introCard: RecordingTitleCard? = nil,
+        outroCard: RecordingTitleCard? = nil
     ) {
         self.canvasSize = canvasSize
         self.videoCropRect = RecordingVideoCropGeometry.normalized(videoCropRect)
@@ -892,6 +940,18 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
             }
         }
         self.overlayImages = overlayImages
+        var cardLayers: [RecordingTitleCard.Placement: (layers: RecordingTitleCardLayers, card: RecordingTitleCard)] = [:]
+        for (placement, card) in [(RecordingTitleCard.Placement.intro, introCard), (.outro, outroCard)] {
+            guard let card,
+                  let layers = RecordingTitleCardRenderer.layers(
+                      card,
+                      canvasSize: canvasSize,
+                      background: style.background,
+                      assetsDirectory: assetsDirectory
+                  ) else { continue }
+            cardLayers[placement] = (layers, card)
+        }
+        self.cardLayers = cardLayers
         self.overlayCaptionBand = subtitleTimeline == nil ? nil : RecordingImageOverlayLayout.captionBand(
             canvasSize: canvasSize,
             verticalPosition: subtitleStyle.clampedVerticalPosition,
@@ -928,6 +988,8 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         fileprivate let cameraFrame: CVPixelBuffer?
         fileprivate let editorTime: TimeInterval
         fileprivate let sourceTime: TimeInterval
+        /// A card over the held video frame, during an intro or outro.
+        fileprivate let card: RecordingProgramTimeline.CardFrame?
         fileprivate let sampleRects: [CGRect]
         fileprivate let shouldCacheScreen: Bool
         /// Set when the previous frame leaves this exact screen layer in the
@@ -948,6 +1010,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         editorTime: TimeInterval,
         sourceTime: TimeInterval,
         sourceRepeatsOnNextFrame: Bool,
+        card: RecordingProgramTimeline.CardFrame? = nil,
         into destination: CVPixelBuffer
     ) -> PendingFrame {
         let sampleRects = timing.screenSampleRects(at: editorTime) { time in
@@ -965,6 +1028,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
                 cameraFrame: cameraFrame,
                 editorTime: editorTime,
                 sourceTime: sourceTime,
+                card: card,
                 sampleRects: sampleRects,
                 shouldCacheScreen: false,
                 plansRestore: false,
@@ -1000,6 +1064,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
             cameraFrame: cameraFrame,
             editorTime: editorTime,
             sourceTime: sourceTime,
+            card: card,
             sampleRects: sampleRects,
             shouldCacheScreen: shouldCacheScreen,
             plansRestore: plansRestore,
@@ -1097,6 +1162,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         // The subtitle bar lives in canvas space - over the background too,
         // not just the card - and above everything else, camera included.
         drawSubtitleBar(at: sourceTime, in: context)
+        drawTitleCard(frame.card, in: context)
     }
 
     /// Motion blur by temporal supersampling: while the virtual camera is
@@ -1221,6 +1287,7 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
                 drawCameraBubble(cameraFrame, in: context)
             }
             drawSubtitleBar(at: frame.sourceTime, in: context)
+            drawTitleCard(frame.card, in: context)
         }
     }
 
@@ -1838,6 +1905,26 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
         context.restoreGState()
     }
 
+    /// An intro or outro card over everything, at its crossfade strength.
+    private func drawTitleCard(_ frame: RecordingProgramTimeline.CardFrame?, in context: CGContext) {
+        guard let frame, frame.opacity > 0.001, let entry = cardLayers[frame.placement] else { return }
+        context.saveGState()
+        context.setAlpha(frame.opacity)
+        // One layer, so the crossfade fades the card as a whole rather than
+        // each of its parts on its own.
+        context.beginTransparencyLayer(auxiliaryInfo: nil)
+        context.interpolationQuality = .high
+        RecordingTitleCardRenderer.draw(
+            entry.layers,
+            at: frame.time,
+            cardDuration: entry.card.clampedDuration,
+            animates: entry.card.animatesIn,
+            in: context
+        )
+        context.endTransparencyLayer()
+        context.restoreGState()
+    }
+
     /// Images in canvas space, over the card and under the camera and
     /// subtitles. A rounded or shadowed image draws in a transparency layer
     /// so the shadow follows the clipped shape, transparent pixels included.
@@ -2096,64 +2183,12 @@ nonisolated private final class StudioFrameCompositor: @unchecked Sendable {
             return nil
         }
         context.interpolationQuality = .high
-        let canvasRect = CGRect(origin: .zero, size: canvasSize)
-
-        switch style.background {
-        case .none:
-            context.setFillColor(CGColor(gray: 0.04, alpha: 1))
-            context.fill(canvasRect)
-        case .solid(let color):
-            context.setFillColor(CGColor(
-                colorSpace: colorSpace,
-                components: [color.red, color.green, color.blue, color.alpha]
-            ) ?? CGColor(gray: 0, alpha: 1))
-            context.fill(canvasRect)
-        case .gradient(let gradient):
-            let cgColors = gradient.colors.map { color in
-                CGColor(
-                    colorSpace: colorSpace,
-                    components: [color.red, color.green, color.blue, color.alpha]
-                ) ?? CGColor(gray: 0, alpha: 1)
-            }
-            if let cgGradient = CGGradient(
-                colorsSpace: colorSpace,
-                colors: cgColors as CFArray,
-                locations: nil
-            ) {
-                // UnitPoint has a top-left origin; the context is bottom-up.
-                let start = CGPoint(
-                    x: gradient.startPoint.x * canvasSize.width,
-                    y: canvasSize.height - gradient.startPoint.y * canvasSize.height
-                )
-                let end = CGPoint(
-                    x: gradient.endPoint.x * canvasSize.width,
-                    y: canvasSize.height - gradient.endPoint.y * canvasSize.height
-                )
-                context.drawLinearGradient(cgGradient, start: start, end: end, options: [
-                    .drawsBeforeStartLocation,
-                    .drawsAfterEndLocation
-                ])
-            }
-        case .customWallpaper(let wallpaper):
-            if let source = CGImageSourceCreateWithURL(wallpaper.url as CFURL, nil),
-               let image = CGImageSourceCreateImageAtIndex(source, 0, [
-                   kCGImageSourceShouldCache: false
-               ] as CFDictionary) {
-                let imageSize = CGSize(width: image.width, height: image.height)
-                let scale = max(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height)
-                let fillSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
-                let fillRect = CGRect(
-                    x: (canvasSize.width - fillSize.width) / 2,
-                    y: (canvasSize.height - fillSize.height) / 2,
-                    width: fillSize.width,
-                    height: fillSize.height
-                )
-                context.draw(image, in: fillRect)
-            } else {
-                context.setFillColor(CGColor(gray: 0.04, alpha: 1))
-                context.fill(canvasRect)
-            }
-        }
+        RecordingStudioBackdrop.drawBackground(
+            style.background,
+            in: context,
+            canvasSize: canvasSize,
+            colorSpace: colorSpace
+        )
 
         // Card shadow: static, so it lives in the backdrop. The filled shape
         // is fully covered by video pixels every frame.

@@ -61,6 +61,10 @@ check image-overlays "${strict[@]}" \
   Framecho/RecordingClipTimeline.swift Framecho/RecordingImageOverlay.swift \
   scripts/check-image-overlays.swift
 
+check title-cards "${strict[@]}" \
+  Framecho/RecordingClipTimeline.swift Framecho/RecordingImageOverlay.swift \
+  Framecho/RecordingTitleCard.swift scripts/check-title-cards.swift
+
 check card-motion \
   Framecho/ProjectiveHomography.swift Framecho/RecordingClipTimeline.swift \
   Framecho/RecordingCardMotion.swift scripts/check-card-motion.swift

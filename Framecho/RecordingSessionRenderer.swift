@@ -209,14 +209,22 @@ enum RecordingSessionRenderer {
            let track = music.track,
            let url = BackgroundMusicCatalog.cachedFileIfPresent(for: track),
            let loaded = await LoadedBackgroundMusic.load(trackID: track.id, url: url) {
+            // Planned over the whole program, so it plays under the cards.
+            let program = RecordingProgramTimeline(
+                intro: document?.introCard,
+                videoDuration: clipTimeline.duration,
+                outro: document?.outroCard
+            )
             let speech = music.ducksUnderSpeech
-                ? BackgroundMusicGainPlan.speechRanges(words: words) { clipTimeline.editorTime(forSourceTime: $0) }
+                ? BackgroundMusicGainPlan.speechRanges(words: words) {
+                    clipTimeline.editorTime(forSourceTime: $0).map { $0 + program.introDuration }
+                }
                 : []
             backgroundMusic = BackgroundMusicExport(
                 url: url,
                 plan: BackgroundMusicGainPlan(
                     musicDuration: loaded.duration,
-                    videoDuration: clipTimeline.duration,
+                    videoDuration: program.duration,
                     volume: music.clampedVolume,
                     speech: speech,
                     loops: music.loops,
@@ -284,7 +292,9 @@ enum RecordingSessionRenderer {
                 clipTimeline: clipTimeline
             ),
             imageOverlays: document?.imageOverlays ?? [],
-            assetsDirectory: RecordingStudioAssets.directory(in: session.directoryURL)
+            assetsDirectory: RecordingStudioAssets.directory(in: session.directoryURL),
+            introCard: document?.introCard,
+            outroCard: document?.outroCard
         )
     }
 

@@ -877,6 +877,7 @@ private struct StudioCanvasComposition: View {
     @Bindable var model: RecordingStudioModel
     let canvasSize: CGSize
     let isEditingVideoCrop: Bool
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         let layout = RecordingStudioLayout.make(
@@ -981,6 +982,28 @@ private struct StudioCanvasComposition: View {
                         style: model.subtitleStyle,
                         canvasSize: canvasSize
                     )
+                }
+
+                // An intro or outro card covers everything, fading over the
+                // video's held first or last frame - the export's image.
+                if let frame = model.cardPlayback,
+                   let card = model.titleCard(frame.placement),
+                   let layers = model.titleCardLayers(
+                       frame.placement,
+                       pixelSize: CGSize(
+                           width: (canvasSize.width * displayScale).rounded(),
+                           height: (canvasSize.height * displayScale).rounded()
+                       )
+                   ) {
+                    StudioTitleCardView(
+                        layers: layers,
+                        time: frame.time,
+                        card: card,
+                        canvasSize: canvasSize,
+                        displayScale: displayScale
+                    )
+                    .opacity(frame.opacity)
+                    .allowsHitTesting(false)
                 }
 
                 if let zoomTarget {
@@ -1971,6 +1994,361 @@ private struct StudioImageOverlayLayer: View {
     }
 }
 
+/// A card in the preview: its layers, each where the shared motion puts it
+/// at `time`, so the preview animates exactly as the export does.
+private struct StudioTitleCardView: View {
+    let layers: RecordingTitleCardLayers
+    let time: TimeInterval
+    let card: RecordingTitleCard
+    let canvasSize: CGSize
+    let displayScale: CGFloat
+
+    var body: some View {
+        let duration = card.clampedDuration
+        let animates = card.animatesIn
+        ZStack(alignment: .topLeading) {
+            if let background = layers.background {
+                let state = RecordingTitleCardMotion.state(of: .background, at: time, cardDuration: duration, animates: animates)
+                Image(decorative: background, scale: displayScale)
+                    .resizable()
+                    .frame(width: canvasSize.width, height: canvasSize.height)
+                    .scaleEffect(state.scale)
+            }
+            ForEach(layers.elements.indices, id: \.self) { index in
+                let element = layers.elements[index]
+                let state = RecordingTitleCardMotion.state(of: element.part, at: time, cardDuration: duration, animates: animates)
+                let rect = CGRect(
+                    x: element.rect.minX / displayScale,
+                    y: element.rect.minY / displayScale,
+                    width: element.rect.width / displayScale,
+                    height: element.rect.height / displayScale
+                )
+                Image(decorative: element.image, scale: displayScale)
+                    .resizable()
+                    .frame(width: rect.width, height: rect.height)
+                    .mask(alignment: element.revealEdge.alignment) {
+                        Rectangle().frame(
+                            width: element.revealEdge.isHorizontal ? rect.width * state.reveal : rect.width,
+                            height: element.revealEdge == .top ? rect.height * state.reveal : rect.height
+                        )
+                    }
+                    .scaleEffect(state.scale)
+                    .opacity(state.opacity)
+                    .position(x: rect.midX, y: rect.midY + canvasSize.height * state.offset)
+            }
+        }
+        .frame(width: canvasSize.width, height: canvasSize.height, alignment: .topLeading)
+        .clipped()
+    }
+}
+
+private extension Optional where Wrapped == RecordingTitleCardLayers.RevealEdge {
+    var alignment: Alignment {
+        switch self {
+        case .leading: .leading
+        case .trailing: .trailing
+        case .top: .top
+        case nil: .center
+        }
+    }
+
+    var isHorizontal: Bool {
+        self == .leading || self == .trailing
+    }
+}
+
+/// The ready-made layouts, each drawn as a tiny card.
+private struct StudioTitleCardLayoutPicker: View {
+    let selected: RecordingTitleCard.Layout?
+    let onSelect: (RecordingTitleCard.Layout) -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(RecordingTitleCard.Layout.allCases, id: \.self) { layout in
+                Button {
+                    onSelect(layout)
+                } label: {
+                    VStack(spacing: 3) {
+                        thumbnail(layout)
+                            .frame(width: 44, height: 26)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                    .fill(Color.primary.opacity(0.06))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                    .strokeBorder(layout == selected ? Color.accentColor : Color.primary.opacity(0.12),
+                                                  lineWidth: layout == selected ? 1.5 : 1)
+                            )
+                        Text(layout.title)
+                            .font(.system(size: 9.5))
+                            .foregroundStyle(layout == selected ? .primary : .secondary)
+                            .lineLimit(1)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(layout.title))
+                .accessibilityAddTraits(layout == selected ? .isSelected : [])
+            }
+        }
+    }
+
+    /// A sketch of where the layout puts the text.
+    @ViewBuilder
+    private func thumbnail(_ layout: RecordingTitleCard.Layout) -> some View {
+        let ink = Color.primary.opacity(0.55)
+        switch layout {
+        case .centered:
+            VStack(spacing: 2) {
+                Capsule().fill(ink).frame(width: 20, height: 3)
+                Capsule().fill(ink.opacity(0.5)).frame(width: 14, height: 2)
+            }
+        case .lowerThird:
+            HStack(spacing: 2) {
+                Capsule().fill(ink).frame(width: 1.5, height: 8)
+                VStack(alignment: .leading, spacing: 2) {
+                    Capsule().fill(ink).frame(width: 14, height: 2.5)
+                    Capsule().fill(ink.opacity(0.5)).frame(width: 10, height: 2)
+                }
+            }
+            .padding(2)
+            .background(RoundedRectangle(cornerRadius: 2).fill(ink.opacity(0.15)))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+            .padding(3)
+        case .hero:
+            VStack(alignment: .leading, spacing: 2) {
+                Capsule().fill(ink).frame(width: 26, height: 5)
+                Capsule().fill(ink).frame(width: 6, height: 1.5)
+                Capsule().fill(ink.opacity(0.5)).frame(width: 16, height: 2)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.leading, 4)
+        case .editorial:
+            VStack(alignment: .leading, spacing: 2) {
+                Capsule().fill(ink).frame(width: 18, height: 3.5)
+                Capsule().fill(ink).frame(width: 6, height: 1.5)
+                Capsule().fill(ink.opacity(0.5)).frame(width: 12, height: 2)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(4)
+        }
+    }
+}
+
+private extension RecordingTitleCard.Layout {
+    var title: String {
+        switch self {
+        case .centered: String(localized: "Centered")
+        case .lowerThird: String(localized: "Lower Third")
+        case .hero: String(localized: "Hero")
+        case .editorial: String(localized: "Editorial")
+        }
+    }
+}
+
+private extension RecordingTitleCard.Accent {
+    var title: String {
+        switch self {
+        case .none: String(localized: "None")
+        case .line: String(localized: "Line")
+        case .bar: String(localized: "Bar")
+        }
+    }
+}
+
+/// An intro or outro card on the video lane, as long as the card plays.
+/// Clicking selects it and parks the playhead on it. Cards sit fixed at the
+/// ends of the video, so dragging - the block or its inner edge, which
+/// shows a handle on hover - changes the length rather than moving it.
+private struct StudioTitleCardBlock: View {
+    static let tint = Color.purple
+
+    let placement: RecordingTitleCard.Placement
+    let card: RecordingTitleCard
+    let width: CGFloat
+    let secondsPerPoint: Double
+    @Bindable var model: RecordingStudioModel
+
+    /// The length and scale when the drag began. The scale is held because
+    /// the card's own length changes it mid-drag, which would otherwise
+    /// make the edge run away from the pointer.
+    @State private var dragBase: (duration: TimeInterval, secondsPerPoint: Double)?
+    @State private var isHovering = false
+
+    private var isSelected: Bool {
+        model.selectedTitleCard == placement
+    }
+
+    var body: some View {
+        let isActive = model.cardPlayback?.placement == placement
+        let isDragging = dragBase != nil
+        let tint = Self.tint
+        let title = placement == .intro ? String(localized: "Intro") : String(localized: "Outro")
+        let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
+        let showsHandle = (isSelected || isHovering || isDragging) && width >= 28
+
+        HStack(spacing: 0) {
+            if placement == .outro { resizeHandle(isVisible: showsHandle) }
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Image(systemName: card.kind == .image ? "photo" : "textformat")
+                        .font(.system(size: 9, weight: .semibold))
+                    Text(verbatim: "\(title) · \(String(format: "%.1f", card.clampedDuration))s")
+                        .font(.system(size: 10, weight: .semibold))
+                        .monospacedDigit()
+                }
+                Text(card.kind == .image ? (card.imageDisplayName ?? "") : card.title)
+                    .font(.system(size: 10))
+                    .opacity(0.8)
+            }
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 4)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            if placement == .intro { resizeHandle(isVisible: showsHandle) }
+        }
+        .frame(width: max(0, width - 2))
+        .frame(maxHeight: .infinity)
+        .foregroundStyle(isSelected || isActive ? Color.white : Color.primary.opacity(0.85))
+        .background(shape.fill(tint.opacity(isSelected ? 0.95 : isActive ? 0.8 : isHovering ? 0.3 : 0.22)))
+        .overlay(shape.strokeBorder(tint.opacity(isSelected || isActive ? 0 : 0.45), lineWidth: 1))
+        .overlay {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .stroke(Color.white.opacity(0.8), lineWidth: 1.5)
+                    .padding(-1.5)
+            }
+        }
+        .contentShape(shape)
+        .onHover { isHovering = $0 }
+        .gesture(lengthGesture)
+        .onTapGesture {
+            select()
+        }
+        .contextMenu {
+            Button(placement == .intro ? "Play Intro" : "Play Outro") {
+                model.playTitleCard(placement)
+            }
+            Divider()
+            Button("Remove Card", role: .destructive) {
+                model.setTitleCard(nil, for: placement)
+            }
+        }
+        .padding(.horizontal, 1)
+        .help("Drag to change the length")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(title))
+        .accessibilityValue(Text(verbatim: "\(String(format: "%.1f", card.clampedDuration)) s"))
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAdjustableAction { direction in
+            var updated = card
+            updated.duration = card.clampedDuration + (direction == .increment ? 0.5 : -0.5)
+            model.setTitleCard(updated, for: placement)
+        }
+    }
+
+    private func select() {
+        model.selectedTitleCard = placement
+        model.showTitleCard(placement)
+    }
+
+    /// Dragging toward the video's middle lengthens the card - right for
+    /// the intro, left for the outro - one undo step per drag.
+    private var lengthGesture: some Gesture {
+        DragGesture(minimumDistance: 2, coordinateSpace: .global)
+            .onChanged { value in
+                if dragBase == nil {
+                    dragBase = (card.clampedDuration, secondsPerPoint)
+                    model.selectedTitleCard = placement
+                    model.pause()
+                }
+                guard let dragBase else { return }
+                let delta = Double(value.translation.width) * dragBase.secondsPerPoint
+                var updated = card
+                updated.duration = min(
+                    max(dragBase.duration + (placement == .intro ? delta : -delta), RecordingTitleCard.durationRange.lowerBound),
+                    RecordingTitleCard.durationRange.upperBound
+                )
+                model.setTitleCard(updated, for: placement, coalesces: true)
+            }
+            .onEnded { _ in
+                dragBase = nil
+            }
+    }
+
+    /// The inner edge, the one that meets the video.
+    private func resizeHandle(isVisible: Bool) -> some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.001))
+            .frame(width: 12)
+            .overlay {
+                Capsule()
+                    .fill(Color.white.opacity(0.9))
+                    .frame(width: 2.5, height: 14)
+                    .opacity(isVisible ? 1 : 0)
+            }
+            .contentShape(Rectangle())
+            .pointerStyle(.frameResize(position: placement == .intro ? .trailing : .leading))
+            .gesture(lengthGesture)
+            .accessibilityHidden(true)
+    }
+}
+
+private extension RecordingCardColor {
+    init(_ color: Color) {
+        let rgb = NSColor(color).usingColorSpace(.sRGB) ?? .white
+        self.init(red: Double(rgb.redComponent), green: Double(rgb.greenComponent), blue: Double(rgb.blueComponent))
+    }
+
+    var swiftUIColor: Color {
+        Color(.sRGB, red: red, green: green, blue: blue)
+    }
+}
+
+private extension RecordingTitleCard.FontStyle {
+    var design: Font.Design {
+        switch self {
+        case .system: .default
+        case .rounded: .rounded
+        case .serif: .serif
+        case .monospaced: .monospaced
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .system: String(localized: "System")
+        case .rounded: String(localized: "Rounded")
+        case .serif: String(localized: "Serif")
+        case .monospaced: String(localized: "Monospaced")
+        }
+    }
+}
+
+private extension RecordingTitleCard.FontWeight {
+    var title: String {
+        switch self {
+        case .regular: String(localized: "Regular")
+        case .medium: String(localized: "Medium")
+        case .semibold: String(localized: "Semibold")
+        case .bold: String(localized: "Bold")
+        case .heavy: String(localized: "Heavy")
+        }
+    }
+}
+
+private extension InspectorValueFormat {
+    static let seconds = InspectorValueFormat(
+        multiplier: 1,
+        fractionDigits: 1,
+        suffix: " s",
+        showsPositiveSign: false,
+        step: 0.1,
+        acceptedSuffixes: ["seconds", "second", "sec", "s"]
+    )
+}
+
 /// The nine placement presets as a small grid of the canvas, the current
 /// one filled.
 private struct StudioImageOverlayAnchorGrid: View {
@@ -2368,7 +2746,9 @@ private struct StudioTimelineEditor: View {
         StudioTimelineScale(
             viewportWidth: viewportWidth,
             duration: model.duration,
-            zoom: zoom
+            zoom: zoom,
+            leadIn: model.programTimeline.introDuration,
+            tail: model.programTimeline.outroDuration
         )
     }
 
@@ -2392,15 +2772,18 @@ private struct StudioTimelineEditor: View {
             let scale = StudioTimelineScale(
                 viewportWidth: max(proxy.size.width, 1),
                 duration: model.duration,
-                zoom: zoom
+                zoom: zoom,
+                leadIn: model.programTimeline.introDuration,
+                tail: model.programTimeline.outroDuration
             )
 
             VStack(spacing: StudioTimelineMetrics.rowSpacing) {
                 Color.clear
                     .frame(height: StudioTimelineMetrics.playheadLaneHeight)
 
+                // Labels read as time in the finished video, cards included.
                 StudioTimelineRuler(
-                    duration: model.duration,
+                    duration: scale.programDuration,
                     pointsPerSecond: scale.pointsPerSecond,
                     scrollX: scrollX
                 )
@@ -2410,12 +2793,12 @@ private struct StudioTimelineEditor: View {
             }
             .overlay {
                 StudioTimelinePlayhead(
-                    time: model.currentTime,
+                    time: model.timelinePlayheadTime,
                     scale: scale,
                     scrollX: scrollX
                 ) { time in
                     model.pause()
-                    model.seek(to: time)
+                    model.seekTimeline(to: time)
                 }
             }
             .onChange(of: proxy.size.width, initial: true) { _, width in
@@ -2425,7 +2808,8 @@ private struct StudioTimelineEditor: View {
         }
         .frame(height: StudioTimelineMetrics.lanesHeight(lanes: visibleLanes))
         .onChange(of: model.duration) { _, _ in clampZoom() }
-        .onChange(of: model.currentTime) { _, time in followPlayhead(to: time) }
+        .onChange(of: model.programTimeline.duration) { _, _ in clampZoom() }
+        .onChange(of: model.timelinePlayheadTime) { _, time in followPlayhead(to: time) }
     }
 
     /// The two lanes that carry real edit targets live in a horizontal scroll
@@ -2505,11 +2889,35 @@ private struct StudioTimelineEditor: View {
                         )
                     }
 
-                    clipLane
-                        .frame(
-                            width: scale.contentWidth,
-                            height: StudioTimelineMetrics.clipLaneHeight
-                        )
+                    // The cards bracket the video: the clip lane spans only
+                    // the edit, with each card's block in its own time.
+                    HStack(spacing: 0) {
+                        if let intro = model.introCard {
+                            StudioTitleCardBlock(
+                                placement: .intro,
+                                card: intro,
+                                width: scale.videoMinX,
+                                secondsPerPoint: scale.secondsPerPoint,
+                                model: model
+                            )
+                        }
+                        clipLane
+                            .frame(width: scale.videoWidth)
+                        if let outro = model.outroCard {
+                            StudioTitleCardBlock(
+                                placement: .outro,
+                                card: outro,
+                                width: max(0, scale.contentWidth - scale.videoMinX - scale.videoWidth),
+                                secondsPerPoint: scale.secondsPerPoint,
+                                model: model
+                            )
+                        }
+                    }
+                    .frame(
+                        width: scale.contentWidth,
+                        height: StudioTimelineMetrics.clipLaneHeight,
+                        alignment: .leading
+                    )
 
                     if showsAudioLane {
                         Color.clear
@@ -2738,6 +3146,22 @@ private struct StudioTimelineEditor: View {
                 Label("Image…", systemImage: "photo.on.rectangle")
             }
             .disabled(!model.isProject)
+
+            Divider()
+
+            Button {
+                model.addTitleCard(.intro)
+            } label: {
+                Label("Intro Card", systemImage: "rectangle.lefthalf.inset.filled")
+            }
+            .disabled(model.introCard != nil)
+
+            Button {
+                model.addTitleCard(.outro)
+            } label: {
+                Label("Outro Card", systemImage: "rectangle.righthalf.inset.filled")
+            }
+            .disabled(model.outroCard != nil)
         } label: {
             Label("Add Track", systemImage: "plus")
                 .font(.system(size: 11.5, weight: .medium))
@@ -2747,7 +3171,7 @@ private struct StudioTimelineEditor: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .disabled(!model.isLoaded)
-        .help("Add a caption, audio or image track")
+        .help("Add a caption, audio or image track, or an intro or outro card")
     }
 
     private var clipLane: some View {
@@ -2840,9 +3264,9 @@ private struct StudioTimelineEditor: View {
     /// Zoom buttons keep the playhead pinned when it is on screen, so the
     /// scale grows around the edit point rather than the viewport middle.
     private var buttonZoomAnchor: TimeInterval {
-        let x = scale.x(for: model.currentTime)
+        let x = scale.x(for: model.timelinePlayheadTime)
         if x >= scrollX, x <= scrollX + viewportWidth {
-            return model.currentTime
+            return model.timelinePlayheadTime
         }
         return scale.time(forX: scrollX + viewportWidth / 2)
     }
@@ -3013,7 +3437,7 @@ private struct StudioTimelineEditor: View {
     private var canDeleteSelection: Bool {
         model.selectedCueID != nil || model.selectedMotionCueID != nil
             || model.selectedSubtitleCueID != nil || model.selectedImageOverlayID != nil
-            || model.canDeleteSelectedClip
+            || model.selectedTitleCard != nil || model.canDeleteSelectedClip
     }
 
     private func deleteSelection() {
@@ -3021,6 +3445,8 @@ private struct StudioTimelineEditor: View {
             model.deleteSubtitle(id: subtitleID)
         } else if let imageID = model.selectedImageOverlayID {
             model.removeImageOverlay(id: imageID)
+        } else if let placement = model.selectedTitleCard {
+            model.setTitleCard(nil, for: placement)
         } else if let cueID = model.selectedCueID {
             model.removeZoomCue(id: cueID)
         } else if let motionCueID = model.selectedMotionCueID {
@@ -3290,6 +3716,10 @@ private struct StudioAudioLane: View {
             let contentEnd = scale.x(for: scale.duration) - scrollX
             var path = Path()
             var x = -scrollX.truncatingRemainder(dividingBy: Self.barPitch)
+            // Bars start where the video does, after any intro card.
+            while x + scrollX < scale.videoMinX {
+                x += Self.barPitch
+            }
             while x < min(size.width, contentEnd) {
                 let startTime = scale.time(forX: x + scrollX)
                 let endTime = scale.time(forX: x + scrollX + Self.barPitch)
@@ -3459,15 +3889,34 @@ private struct StudioTimelineScale: Equatable {
     static let maximumContentWidth: CGFloat = 100_000
 
     var viewportWidth: CGFloat
+    /// The edited video's length. Times passed in and out are edit times,
+    /// as every lane uses them; the intro card sits before zero and the
+    /// outro after `duration`.
     var duration: TimeInterval
     var zoom: Double
+    var leadIn: TimeInterval = 0
+    var tail: TimeInterval = 0
+
+    /// The whole program on the timeline: intro, video, outro.
+    var programDuration: TimeInterval {
+        leadIn + duration + tail
+    }
 
     var contentWidth: CGFloat {
         max(viewportWidth, viewportWidth * CGFloat(zoom))
     }
 
     var pointsPerSecond: CGFloat {
-        duration > 0 ? contentWidth / CGFloat(duration) : 0
+        programDuration > 0 ? contentWidth / CGFloat(programDuration) : 0
+    }
+
+    /// Where the video starts and how wide it is, between the cards.
+    var videoMinX: CGFloat {
+        CGFloat(leadIn) * pointsPerSecond
+    }
+
+    var videoWidth: CGFloat {
+        CGFloat(duration) * pointsPerSecond
     }
 
     var secondsPerPoint: Double {
@@ -3479,22 +3928,24 @@ private struct StudioTimelineScale: Equatable {
     }
 
     var maxZoom: Double {
-        guard duration > 0, viewportWidth > 1 else { return 1 }
+        guard programDuration > 0, viewportWidth > 1 else { return 1 }
         let widest = min(
             Self.maximumContentWidth,
-            Self.maximumPointsPerSecond * CGFloat(duration)
+            Self.maximumPointsPerSecond * CGFloat(programDuration)
         )
         return max(1, Double(widest / viewportWidth))
     }
 
     func x(for time: TimeInterval) -> CGFloat {
-        guard duration > 0 else { return 0 }
-        return CGFloat(min(max(time, 0), duration)) * pointsPerSecond
+        guard programDuration > 0 else { return 0 }
+        return CGFloat(min(max(time, -leadIn), duration + tail) + leadIn) * pointsPerSecond
     }
 
+    /// The edit time under a point: negative over the intro card, past
+    /// `duration` over the outro.
     func time(forX x: CGFloat) -> TimeInterval {
         guard pointsPerSecond > 0 else { return 0 }
-        return min(max(Double(x / pointsPerSecond), 0), duration)
+        return min(max(Double(x / pointsPerSecond) - leadIn, -leadIn), duration + tail)
     }
 
     /// Editor time span currently on screen, padded a little so lane content
@@ -3790,7 +4241,8 @@ private struct StudioZoomLane: View {
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
                             guard scale.pointsPerSecond > 0 else { return }
-                            let time = scale.time(forX: value.location.x)
+                            // Zooms live on the video, never over a card.
+                            let time = min(max(scale.time(forX: value.location.x), 0), model.duration)
 
                             if dragStartTime == nil {
                                 model.pause()
@@ -3803,7 +4255,7 @@ private struct StudioZoomLane: View {
                                    < Self.dragCreateThreshold {
                                 // Still within click tolerance: scrub the
                                 // playhead, same as a plain click always has.
-                                model.seek(to: time)
+                                model.seekTimeline(to: scale.time(forX: value.location.x))
                                 return
                             }
 
@@ -4101,7 +4553,7 @@ private struct StudioImageOverlayLane: View {
                             isFocused = true
                             model.selectedImageOverlayID = nil
                             model.pause()
-                            model.seek(to: scale.time(forX: value.location.x))
+                            model.seekTimeline(to: scale.time(forX: value.location.x))
                         }
                 )
 
@@ -4387,7 +4839,7 @@ private struct StudioCaptionLane: View {
                             isFocused = true
                             model.selectedSubtitleCueID = nil
                             model.pause()
-                            model.seek(to: scale.time(forX: value.location.x))
+                            model.seekTimeline(to: scale.time(forX: value.location.x))
                         }
                 )
 
@@ -4619,7 +5071,8 @@ private struct StudioMotionLane: View {
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
                             guard scale.pointsPerSecond > 0 else { return }
-                            let time = scale.time(forX: value.location.x)
+                            // Motion lives on the video, never over a card.
+                            let time = min(max(scale.time(forX: value.location.x), 0), model.duration)
 
                             if dragStartTime == nil {
                                 model.pause()
@@ -4630,7 +5083,7 @@ private struct StudioMotionLane: View {
                             if pendingMotionRange == nil,
                                abs(value.location.x - scale.x(for: startTime))
                                    < Self.dragCreateThreshold {
-                                model.seek(to: time)
+                                model.seekTimeline(to: scale.time(forX: value.location.x))
                                 return
                             }
 
@@ -4947,6 +5400,7 @@ private enum StudioInspectorTab: Hashable, CaseIterable {
     case keystrokes
     case captions
     case images
+    case cards
     case audio
 
     var title: String {
@@ -4958,6 +5412,7 @@ private enum StudioInspectorTab: Hashable, CaseIterable {
         case .keystrokes: String(localized: "Keystrokes")
         case .captions: String(localized: "Captions")
         case .images: String(localized: "Images")
+        case .cards: String(localized: "Intro & Outro")
         case .audio: String(localized: "Audio")
         }
     }
@@ -4971,6 +5426,7 @@ private enum StudioInspectorTab: Hashable, CaseIterable {
         case .keystrokes: "keyboard"
         case .captions: "captions.bubble"
         case .images: "photo.on.rectangle"
+        case .cards: "rectangle.on.rectangle"
         case .audio: "speaker.wave.2"
         }
     }
@@ -5082,6 +5538,8 @@ private struct StudioInspector: View {
                     captionsTab
                 case .images:
                     imagesTab
+                case .cards:
+                    cardsTab
                 case .audio:
                     audioTab
                 }
@@ -5099,6 +5557,11 @@ private struct StudioInspector: View {
         .onChange(of: model.activePoseAdjustment) { _, target in
             if target != nil {
                 selectedTab = .motion
+            }
+        }
+        .onChange(of: model.selectedTitleCard) { _, placement in
+            if placement != nil {
+                selectedTab = .cards
             }
         }
         .onChange(of: selectedTab) { _, _ in
@@ -5164,6 +5627,8 @@ private struct StudioInspector: View {
             model.hasSubtitles && model.showsSubtitles
         case .images:
             !model.imageOverlays.isEmpty
+        case .cards:
+            model.introCard != nil || model.outroCard != nil
         case .audio:
             model.replacementAudio != nil || model.backgroundMusic != nil || model.normalizesAudioLoudness
         }
@@ -5446,6 +5911,308 @@ private struct StudioInspector: View {
         } else {
             InspectorSection("Captions") {
                 InspectorHint("Captions come from narration. Record with the microphone on to transcribe it.")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var cardsTab: some View {
+        titleCardSection(.intro)
+        InspectorSectionDivider()
+        titleCardSection(.outro)
+    }
+
+    private func titleCardSection(_ placement: RecordingTitleCard.Placement) -> some View {
+        let card = model.titleCard(placement)
+        return InspectorSection(
+            title: placement == .intro ? "Intro" : "Outro",
+            accessory: {
+                InspectorToggle(
+                    placement == .intro ? "Show intro card" : "Show outro card",
+                    isOn: Binding(
+                        get: { card != nil },
+                        set: { isOn in
+                            if isOn {
+                                model.addTitleCard(placement)
+                            } else {
+                                model.setTitleCard(nil, for: placement)
+                            }
+                        }
+                    )
+                )
+            }
+        ) {
+            if let card {
+                titleCardControls(card, placement: placement)
+            } else {
+                InspectorHint(placement == .intro
+                    ? "A few seconds of title or image before the video, on the project's background."
+                    : "A few seconds of title or image after the video, such as where to find more.")
+            }
+        }
+    }
+
+    private func titleCardControls(_ card: RecordingTitleCard, placement: RecordingTitleCard.Placement) -> some View {
+        // Editing a card shows it, settled, so each change is visible.
+        let update: (RecordingTitleCard, Bool) -> Void = {
+            model.setTitleCard($0, for: placement, coalesces: $1)
+            if model.cardPlayback?.placement != placement || model.isPlaying {
+                model.showTitleCard(placement)
+            }
+        }
+        return VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+            InspectorSegmented(
+                options: RecordingTitleCard.Kind.allCases,
+                isSelected: { $0 == card.kind },
+                onTap: { kind in
+                    if kind == .image, card.imageFileName == nil {
+                        model.chooseTitleCardImage(for: placement)
+                    } else {
+                        var updated = card
+                        updated.kind = kind
+                        update(updated, false)
+                    }
+                },
+                label: { kind in
+                    Text(kind == .text ? "Text" : "Image").font(.inspectorSegment)
+                }
+            )
+
+            switch card.kind {
+            case .text:
+                TextField(
+                    "Title",
+                    text: Binding(get: { card.title }, set: { var updated = card; updated.title = $0; update(updated, true) }),
+                    axis: .vertical
+                )
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(1...3)
+                TextField(
+                    "Tagline",
+                    text: Binding(get: { card.subtitle }, set: { var updated = card; updated.subtitle = $0; update(updated, true) }),
+                    axis: .vertical
+                )
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(1...3)
+
+                titleCardTextStyleControls(card, update: update)
+            case .image:
+                HStack(spacing: 8) {
+                    Text(card.imageDisplayName ?? String(localized: "No image"))
+                        .font(.inspectorLabel)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button("Choose…") {
+                        model.chooseTitleCardImage(for: placement)
+                    }
+                    .controlSize(.small)
+                }
+                InspectorSegmented(
+                    options: RecordingTitleCard.ImageFit.allCases,
+                    isSelected: { $0 == card.imageFit },
+                    onTap: { fit in
+                        var updated = card
+                        updated.imageFit = fit
+                        update(updated, false)
+                    },
+                    label: { fit in
+                        Text(fit == .fill ? "Fill" : "Fit").font(.inspectorSegment)
+                    }
+                )
+            }
+
+            titleCardBackgroundControl(card, update: update)
+
+            InspectorToggleRow(
+                "Animate in",
+                isOn: Binding(
+                    get: { card.animatesIn },
+                    set: { var updated = card; updated.animatesIn = $0; update(updated, false) }
+                )
+            )
+
+            InspectorSlider(
+                "Duration",
+                value: Binding(
+                    get: { CGFloat(card.clampedDuration) },
+                    set: { var updated = card; updated.duration = Double($0); update(updated, true) }
+                ),
+                range: CGFloat(RecordingTitleCard.durationRange.lowerBound)...CGFloat(RecordingTitleCard.durationRange.upperBound),
+                format: .seconds
+            )
+
+            InspectorActionButton(placement == .intro ? "Play Intro" : "Play Outro", systemImage: "play.fill") {
+                model.playTitleCard(placement)
+            }
+        }
+    }
+
+    /// Font, weight, sizes, color, placement and shadow of a text card.
+    private func titleCardTextStyleControls(
+        _ card: RecordingTitleCard,
+        update: @escaping (RecordingTitleCard, Bool) -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: InspectorMetrics.rowSpacing) {
+            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
+                InspectorGroupLabel("Layout")
+                StudioTitleCardLayoutPicker(selected: RecordingTitleCard.Layout.matching(card)) { layout in
+                    var updated = card
+                    layout.apply(to: &updated)
+                    update(updated, false)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
+                InspectorGroupLabel("Font")
+                InspectorSegmented(
+                    options: RecordingTitleCard.FontStyle.allCases,
+                    isSelected: { $0 == card.fontStyle },
+                    onTap: { style in
+                        var updated = card
+                        updated.fontStyle = style
+                        update(updated, false)
+                    },
+                    label: { style in
+                        Text(verbatim: "Aa")
+                            .font(.system(size: 12, weight: .semibold, design: style.design))
+                            .help(style.title)
+                            .accessibilityLabel(Text(style.title))
+                    }
+                )
+            }
+
+            InspectorRow("Weight") {
+                Picker("Weight", selection: Binding(
+                    get: { card.titleWeight },
+                    set: { var updated = card; updated.titleWeight = $0; update(updated, false) }
+                )) {
+                    ForEach(RecordingTitleCard.FontWeight.allCases, id: \.self) { weight in
+                        Text(weight.title).tag(weight)
+                    }
+                }
+                .labelsHidden()
+                .controlSize(.small)
+                .fixedSize()
+            }
+
+            InspectorFieldPair {
+                InspectorSlider(
+                    "Title",
+                    value: Binding(
+                        get: { CGFloat(card.clampedTitleScale) },
+                        set: { var updated = card; updated.titleScale = Double($0); update(updated, true) }
+                    ),
+                    range: CGFloat(RecordingTitleCard.textScaleRange.lowerBound)...CGFloat(RecordingTitleCard.textScaleRange.upperBound),
+                    format: .percent()
+                )
+            } trailing: {
+                InspectorSlider(
+                    "Tagline",
+                    value: Binding(
+                        get: { CGFloat(card.clampedSubtitleScale) },
+                        set: { var updated = card; updated.subtitleScale = Double($0); update(updated, true) }
+                    ),
+                    range: CGFloat(RecordingTitleCard.textScaleRange.lowerBound)...CGFloat(RecordingTitleCard.textScaleRange.upperBound),
+                    format: .percent()
+                )
+            }
+
+            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
+                InspectorGroupLabel("Position")
+                StudioImageOverlayAnchorGrid(selected: card.textPosition) { position in
+                    var updated = card
+                    updated.textPosition = position
+                    update(updated, false)
+                }
+            }
+
+            InspectorRow("Text color") {
+                HStack(spacing: 8) {
+                    InspectorSegmented(
+                        options: [false, true],
+                        isSelected: { $0 == (card.textColor != nil) },
+                        onTap: { isCustom in
+                            var updated = card
+                            updated.textColor = isCustom ? (card.textColor ?? RecordingCardColor(red: 1, green: 1, blue: 1)) : nil
+                            update(updated, false)
+                        },
+                        label: { isCustom in
+                            Text(isCustom ? "Custom" : "Auto").font(.inspectorSegment)
+                        }
+                    )
+                    if let textColor = card.textColor {
+                        ColorPicker("Text color", selection: Binding(
+                            get: { textColor.swiftUIColor },
+                            set: { var updated = card; updated.textColor = RecordingCardColor($0); update(updated, true) }
+                        ), supportsOpacity: false)
+                        .labelsHidden()
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: InspectorMetrics.groupLabelSpacing) {
+                InspectorGroupLabel("Accent")
+                InspectorSegmented(
+                    options: RecordingTitleCard.Accent.allCases,
+                    isSelected: { $0 == card.accent },
+                    onTap: { accent in
+                        var updated = card
+                        updated.accent = accent
+                        update(updated, false)
+                    },
+                    label: { accent in
+                        Text(accent.title).font(.inspectorSegment)
+                    }
+                )
+            }
+
+            InspectorToggleRow(
+                "Text panel",
+                isOn: Binding(
+                    get: { card.hasTextPanel },
+                    set: { var updated = card; updated.hasTextPanel = $0; update(updated, false) }
+                )
+            )
+
+            InspectorToggleRow(
+                "Text shadow",
+                isOn: Binding(
+                    get: { card.hasTextShadow },
+                    set: { var updated = card; updated.hasTextShadow = $0; update(updated, false) }
+                )
+            )
+        }
+    }
+
+    /// The project's background or a plain color behind the card.
+    private func titleCardBackgroundControl(
+        _ card: RecordingTitleCard,
+        update: @escaping (RecordingTitleCard, Bool) -> Void
+    ) -> some View {
+        InspectorRow("Background") {
+            HStack(spacing: 8) {
+                InspectorSegmented(
+                    options: [false, true],
+                    isSelected: { $0 == (card.backgroundColor != nil) },
+                    onTap: { isColor in
+                        var updated = card
+                        updated.backgroundColor = isColor
+                            ? (card.backgroundColor ?? RecordingCardColor(red: 0.07, green: 0.07, blue: 0.09))
+                            : nil
+                        update(updated, false)
+                    },
+                    label: { isColor in
+                        Text(isColor ? "Color" : "Project").font(.inspectorSegment)
+                    }
+                )
+                if let backgroundColor = card.backgroundColor {
+                    ColorPicker("Background", selection: Binding(
+                        get: { backgroundColor.swiftUIColor },
+                        set: { var updated = card; updated.backgroundColor = RecordingCardColor($0); update(updated, true) }
+                    ), supportsOpacity: false)
+                    .labelsHidden()
+                }
             }
         }
     }
@@ -6756,6 +7523,23 @@ private struct StudioAudioExportOptions: View {
 private extension RecordingStudioModel {
     /// Asks for a sound file to play instead of the recorded audio; shared by
     /// the Audio inspector and the timeline's Add Track menu.
+    func chooseTitleCardImage(for placement: RecordingTitleCard.Placement) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.title = String(localized: "Choose an Image")
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                try self?.setTitleCardImage(from: url, for: placement)
+            } catch {
+                FailureAlert.present(message: String(localized: "The image couldn't be added"), error: error)
+            }
+        }
+    }
+
     func chooseImageOverlay() {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.image]

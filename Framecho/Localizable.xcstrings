@@ -13589,16 +13589,6 @@
         }
       }
     },
-    "Add a caption, audio or image track" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "添加字幕、音频或图片轨道"
-          }
-        }
-      }
-    },
     "Images track" : {
       "localizations" : {
         "zh-Hans" : {
@@ -13785,6 +13775,416 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Framecho 无法读取图片“%@”。"
+          }
+        }
+      }
+    },
+    "Intro & Outro" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "片头与片尾"
+          }
+        }
+      }
+    },
+    "Intro" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "片头"
+          }
+        }
+      }
+    },
+    "Outro" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "片尾"
+          }
+        }
+      }
+    },
+    "Show intro card" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示片头卡"
+          }
+        }
+      }
+    },
+    "Show outro card" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示片尾卡"
+          }
+        }
+      }
+    },
+    "Thanks for watching" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "感谢观看"
+          }
+        }
+      }
+    },
+    "A few seconds of title or image before the video, on the project's background." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在视频前显示几秒钟的标题或图片，背景沿用项目背景。"
+          }
+        }
+      }
+    },
+    "A few seconds of title or image after the video, such as where to find more." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在视频后显示几秒钟的标题或图片，例如告诉观众去哪里了解更多。"
+          }
+        }
+      }
+    },
+    "Tagline" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "副标题"
+          }
+        }
+      }
+    },
+    "No image" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无图片"
+          }
+        }
+      }
+    },
+    "Choose…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选取…"
+          }
+        }
+      }
+    },
+    "Play Intro" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放片头"
+          }
+        }
+      }
+    },
+    "Play Outro" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放片尾"
+          }
+        }
+      }
+    },
+    "Remove Card" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除卡片"
+          }
+        }
+      }
+    },
+    "Add Card" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加卡片"
+          }
+        }
+      }
+    },
+    "Edit Card" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑卡片"
+          }
+        }
+      }
+    },
+    "Intro Card" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "片头卡"
+          }
+        }
+      }
+    },
+    "Outro Card" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "片尾卡"
+          }
+        }
+      }
+    },
+    "Add a caption, audio or image track, or an intro or outro card" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加字幕、音频或图片轨道，或片头片尾卡"
+          }
+        }
+      }
+    },
+    "Drag to change the length" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动以更改时长"
+          }
+        }
+      }
+    },
+    "Font" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字体"
+          }
+        }
+      }
+    },
+    "Weight" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字重"
+          }
+        }
+      }
+    },
+    "Text color" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文字颜色"
+          }
+        }
+      }
+    },
+    "Text shadow" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文字阴影"
+          }
+        }
+      }
+    },
+    "Rounded" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圆体"
+          }
+        }
+      }
+    },
+    "Serif" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "衬线"
+          }
+        }
+      }
+    },
+    "Monospaced" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等宽"
+          }
+        }
+      }
+    },
+    "Regular" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "常规"
+          }
+        }
+      }
+    },
+    "Semibold" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "半粗"
+          }
+        }
+      }
+    },
+    "Bold" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "粗体"
+          }
+        }
+      }
+    },
+    "Heavy" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "特粗"
+          }
+        }
+      }
+    },
+    "Layout" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "版式"
+          }
+        }
+      }
+    },
+    "Accent" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "强调线"
+          }
+        }
+      }
+    },
+    "Text panel" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文字底板"
+          }
+        }
+      }
+    },
+    "Animate in" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "入场动画"
+          }
+        }
+      }
+    },
+    "Centered" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "居中"
+          }
+        }
+      }
+    },
+    "Lower Third" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下三分之一"
+          }
+        }
+      }
+    },
+    "Hero" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大标题"
+          }
+        }
+      }
+    },
+    "Editorial" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "杂志"
+          }
+        }
+      }
+    },
+    "Line" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "横线"
+          }
+        }
+      }
+    },
+    "Bar" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "竖条"
           }
         }
       }
