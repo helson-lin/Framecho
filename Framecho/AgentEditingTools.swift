@@ -65,6 +65,14 @@ enum AgentEditingTools {
             return try await updateOverlay(args)
         case .removeOverlay:
             return try await removeOverlay(args)
+        case .setCard:
+            return try await setCard(args)
+        case .removeCard:
+            let placement = try cardPlacement(args)
+            return try await edit(args) { model in
+                model.setTitleCard(nil, for: placement)
+                return [:]
+            }
         case .export:
             return try await export(args, context: context)
         case .openInStudio:
@@ -109,6 +117,11 @@ enum AgentEditingTools {
             "open_in_studio": .bool(!model.isHeadless),
             "source_duration": .seconds(model.sourceDuration),
             "edited_duration": .seconds(model.duration),
+            "final_duration": .seconds(model.programTimeline.duration),
+            "cards": [
+                "intro": cardJSON(model.introCard),
+                "outro": cardJSON(model.outroCard),
+            ],
             "video": ["width": .int(Int(model.videoSize.width)), "height": .int(Int(model.videoSize.height))],
             "has_audio": .bool(model.hasRecordedAudio),
             "has_microphone": .bool(model.canTranscribe),
@@ -198,6 +211,35 @@ enum AgentEditingTools {
             "shadow": .bool(overlay.hasShadow),
             "fade": .bool(overlay.fades),
         ]
+    }
+
+    private static func cardJSON(_ card: RecordingTitleCard?) -> JSONValue {
+        guard let card else { return .null }
+        var json: [String: JSONValue] = [
+            "type": .string(card.kind.rawValue),
+            "duration": .seconds(card.clampedDuration),
+        ]
+        switch card.kind {
+        case .text:
+            json["title"] = .string(card.title)
+            json["subtitle"] = .string(card.subtitle)
+            json["font"] = .string(card.fontStyle.rawValue)
+            json["weight"] = .string(card.titleWeight.rawValue)
+            json["title_size"] = .double(card.clampedTitleScale)
+            json["subtitle_size"] = .double(card.clampedSubtitleScale)
+            json["text_color"] = .string(card.textColor?.hex ?? "auto")
+            json["position"] = .string(card.textPosition.rawValue)
+            json["text_shadow"] = .bool(card.hasTextShadow)
+            json["layout"] = .optional(RecordingTitleCard.Layout.matching(card).map { .string($0.agentName) })
+            json["accent"] = .string(card.accent.rawValue)
+            json["text_panel"] = .bool(card.hasTextPanel)
+        case .image:
+            json["image"] = .optional(card.imageDisplayName.map { .string($0) })
+            json["fit"] = .string(card.imageFit.rawValue)
+        }
+        json["background"] = .string(card.backgroundColor?.hex ?? "project")
+        json["animate"] = .bool(card.animatesIn)
+        return .object(json)
     }
 
     private static func clips(of model: RecordingStudioModel) -> [JSONValue] {
@@ -671,6 +713,97 @@ enum AgentEditingTools {
         }
     }
 
+    private static func cardPlacement(_ args: MCPArguments) throws -> RecordingTitleCard.Placement {
+        guard let name = try args.optionalChoice("card", in: ["intro", "outro"]),
+              let placement = RecordingTitleCard.Placement(rawValue: name) else {
+            throw MCPToolError.invalidArguments("`card` must be intro or outro")
+        }
+        return placement
+    }
+
+    private static func setCard(_ args: MCPArguments) async throws -> MCPToolResult {
+        let placement = try cardPlacement(args)
+        let kind = try args.optionalChoice("type", in: ["text", "image"]).flatMap(RecordingTitleCard.Kind.init(rawValue:))
+        let title = try args.optionalString("title")
+        let subtitle = try args.optionalString("subtitle")
+        let path = try args.optionalString("path").map { ($0 as NSString).expandingTildeInPath }
+        let fit = try args.optionalChoice("fit", in: ["fill", "fit"]).flatMap(RecordingTitleCard.ImageFit.init(rawValue:))
+        let duration = try args.optionalNumber("duration")
+        if let duration, !RecordingTitleCard.durationRange.contains(duration) {
+            throw MCPToolError.invalidArguments("`duration` must be between 1 and 10 seconds")
+        }
+        let font = try args.optionalChoice("font", in: RecordingTitleCard.FontStyle.allCases.map(\.rawValue))
+            .flatMap(RecordingTitleCard.FontStyle.init(rawValue:))
+        let weight = try args.optionalChoice("weight", in: RecordingTitleCard.FontWeight.allCases.map(\.rawValue))
+            .flatMap(RecordingTitleCard.FontWeight.init(rawValue:))
+        let position = try args.optionalChoice("position", in: RecordingImageOverlayAnchor.allCases.map(\.rawValue))
+            .flatMap(RecordingImageOverlayAnchor.init(rawValue:))
+        let titleSize = try args.optionalNumber("title_size")
+        let subtitleSize = try args.optionalNumber("subtitle_size")
+        for (key, value) in [("title_size", titleSize), ("subtitle_size", subtitleSize)] {
+            if let value, !RecordingTitleCard.textScaleRange.contains(value) {
+                throw MCPToolError.invalidArguments("`\(key)` must be between 0.5 and 2")
+            }
+        }
+        let textShadow = try args.optionalBool("text_shadow")
+        let layout = try args.optionalChoice("layout", in: RecordingTitleCard.Layout.allCases.map(\.agentName))
+            .flatMap { name in RecordingTitleCard.Layout.allCases.first { $0.agentName == name } }
+        let accent = try args.optionalChoice("accent", in: RecordingTitleCard.Accent.allCases.map(\.rawValue))
+            .flatMap(RecordingTitleCard.Accent.init(rawValue:))
+        let textPanel = try args.optionalBool("text_panel")
+        let animates = try args.optionalBool("animate")
+        /// nil: unchanged; .some(nil): back to the default.
+        func color(_ key: String, defaultName: String) throws -> RecordingCardColor?? {
+            guard let value = try args.optionalString(key) else { return nil }
+            if value.lowercased() == defaultName { return .some(nil) }
+            guard let color = RecordingCardColor(hex: value) else {
+                throw MCPToolError.invalidArguments("`\(key)` must be #RRGGBB or \"\(defaultName)\"")
+            }
+            return .some(color)
+        }
+        let textColor = try color("text_color", defaultName: "auto")
+        let background = try color("background", defaultName: "project")
+        if let path, !FileManager.default.isReadableFile(atPath: path) {
+            throw MCPToolError.invalidArguments("No readable file at \(path)")
+        }
+        return try await edit(args) { model in
+            if let path {
+                do {
+                    try model.setTitleCardImage(from: URL(fileURLWithPath: path), for: placement)
+                } catch {
+                    throw MCPToolError.failed(error.localizedDescription)
+                }
+            }
+            var card = model.titleCard(placement) ?? RecordingTitleCard()
+            if let kind { card.kind = kind } else if path != nil { card.kind = .image }
+            if card.kind == .image, card.imageFileName == nil {
+                throw MCPToolError.invalidArguments("An image card needs `path`")
+            }
+            if let title { card.title = title }
+            if let subtitle { card.subtitle = subtitle }
+            if let fit { card.imageFit = fit }
+            if let duration { card.duration = duration }
+            // The layout first, so the fields after it fine-tune it.
+            layout?.apply(to: &card)
+            if let accent { card.accent = accent }
+            if let textPanel { card.hasTextPanel = textPanel }
+            if let animates { card.animatesIn = animates }
+            if let font { card.fontStyle = font }
+            if let weight { card.titleWeight = weight }
+            if let titleSize { card.titleScale = titleSize }
+            if let subtitleSize { card.subtitleScale = subtitleSize }
+            if let position { card.textPosition = position }
+            if let textShadow { card.hasTextShadow = textShadow }
+            if let textColor { card.textColor = textColor }
+            if let background { card.backgroundColor = background }
+            model.setTitleCard(card, for: placement)
+            return [
+                "card": cardJSON(model.titleCard(placement)),
+                "final_duration": .seconds(model.programTimeline.duration),
+            ]
+        }
+    }
+
     /// The look-and-place arguments add_overlay and update_overlay share.
     private struct OverlayStyleArguments {
         var anchor: RecordingImageOverlayAnchor?
@@ -961,5 +1094,17 @@ final class AgentStudioModels {
         }
         entries[key] = nil
         entry.model.teardown()
+    }
+}
+
+private extension RecordingTitleCard.Layout {
+    /// The name agents use: kebab-case, like the other enum arguments.
+    var agentName: String {
+        switch self {
+        case .centered: "centered"
+        case .lowerThird: "lower-third"
+        case .hero: "hero"
+        case .editorial: "editorial"
+        }
     }
 }

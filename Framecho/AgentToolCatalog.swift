@@ -29,6 +29,8 @@ nonisolated enum AgentTool: String, CaseIterable, Sendable {
     case addOverlay = "add_overlay"
     case updateOverlay = "update_overlay"
     case removeOverlay = "remove_overlay"
+    case setCard = "set_card"
+    case removeCard = "remove_card"
     case export
     case openInStudio = "open_in_studio"
 }
@@ -48,7 +50,8 @@ nonisolated enum AgentToolCatalog {
     A typical pass: list_recordings → get_recording → get_transcript (call transcribe first if there is \
     none) → cut_words / tighten_narration / cut → add_zoom where something small happens on screen \
     (get_frame shows what is on screen at a time) → add_overlay for a logo, QR code or screenshot \
-    the user supplies → set_music if the user wants a soundtrack → get_recording to review → export. Make the edits the \
+    the user supplies → set_card for an intro or outro → set_music if the user wants a soundtrack → \
+    get_recording to review → export. Make the edits the \
     user asked for; don't export unless they want a file.
     """
 
@@ -72,7 +75,7 @@ nonisolated enum AgentToolCatalog {
             MCPToolDefinition(
                 name: tool.rawValue,
                 title: "Get recording",
-                description: "The recording's full edit state: clips (what survives the cuts, with source and edited times and speed), zooms, captions, display settings, and the style presets and aspect ratios available.",
+                description: "The recording's full edit state: final_duration (with intro and outro cards), clips (what survives the cuts, with source and edited times and speed), zooms, captions, display settings, and the style presets and aspect ratios available.",
                 inputSchema: AgentSchema.object(["recording": AgentSchema.recording], required: ["recording"]),
                 isReadOnly: true
             )
@@ -321,6 +324,50 @@ nonisolated enum AgentToolCatalog {
                     "id": AgentSchema.string("Overlay id from get_recording."),
                     "all": AgentSchema.boolean("Remove every image overlay."),
                 ], required: ["recording"]),
+                isReadOnly: false,
+                isDestructive: true
+            )
+        case .setCard:
+            MCPToolDefinition(
+                name: tool.rawValue,
+                title: "Set intro or outro card",
+                description: "Adds or changes the card shown before (intro) or after (outro) the video: a title and subtitle on the project's background, or an image file from this Mac. Cards sit outside the edit - edited times, cuts, zooms and captions are unchanged - and crossfade with the video; the music plays under them. Omitted fields keep their current values.",
+                inputSchema: AgentSchema.object([
+                    "recording": AgentSchema.recording,
+                    "card": AgentSchema.choice(["intro", "outro"], "Which card."),
+                    "type": AgentSchema.choice(["text", "image"], "Text card or image card. Default text for a new card."),
+                    "title": AgentSchema.string("Title of a text card. Keep it short."),
+                    "subtitle": AgentSchema.string("Smaller line under the title."),
+                    "path": AgentSchema.string("Absolute path of the image file, for an image card."),
+                    "fit": AgentSchema.choice(["fill", "fit"], "fill covers the frame, cropping; fit shows the whole image on the background. Default fit."),
+                    "duration": AgentSchema.number("Seconds on screen, 1–10. Default 3."),
+                    "font": AgentSchema.choice(RecordingTitleCard.FontStyle.allCases.map(\.rawValue), "Design of the system font, which covers every script. Default system."),
+                    "weight": AgentSchema.choice(RecordingTitleCard.FontWeight.allCases.map(\.rawValue), "Title weight. Default bold."),
+                    "title_size": AgentSchema.number("Title size as a multiple of the default, 0.5–2."),
+                    "subtitle_size": AgentSchema.number("Subtitle size as a multiple of the default, 0.5–2."),
+                    "text_color": AgentSchema.string("#RRGGBB, or \"auto\" for black or white to suit the background. Default auto."),
+                    "position": AgentSchema.choice(RecordingImageOverlayAnchor.allCases.map(\.rawValue), "Where the text block sits; left and right positions align the text to that side. Default center."),
+                    "text_shadow": AgentSchema.boolean("Soft shadow behind the text, for photo backgrounds."),
+                    "background": AgentSchema.string("#RRGGBB for a plain color, or \"project\" for the project's background. Default project."),
+                    "layout": AgentSchema.choice(
+                        ["centered", "lower-third", "hero", "editorial"],
+                        "A ready-made arrangement, applied before the other fields so they can adjust it: centered; lower-third (bottom left, bar, panel); hero (large heavy title at the left, line); editorial (serif, top left, line)."
+                    ),
+                    "accent": AgentSchema.choice(RecordingTitleCard.Accent.allCases.map(\.rawValue), "A rule in the text color: a line between title and subtitle, or a bar beside the text."),
+                    "text_panel": AgentSchema.boolean("A translucent panel behind the text."),
+                    "animate": AgentSchema.boolean("Ease the parts in - background push-in, title and subtitle rising in turn. Default true."),
+                ], required: ["recording", "card"]),
+                isReadOnly: false
+            )
+        case .removeCard:
+            MCPToolDefinition(
+                name: tool.rawValue,
+                title: "Remove intro or outro card",
+                description: "Removes the intro or outro card.",
+                inputSchema: AgentSchema.object([
+                    "recording": AgentSchema.recording,
+                    "card": AgentSchema.choice(["intro", "outro"], "Which card."),
+                ], required: ["recording", "card"]),
                 isReadOnly: false,
                 isDestructive: true
             )
