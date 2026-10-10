@@ -53,6 +53,10 @@ enum AgentEditingTools {
             return try await updateZoom(args)
         case .removeZoom:
             return try await removeZoom(args)
+        case .addMotion:
+            return try await addMotion(args)
+        case .removeMotion:
+            return try await removeMotion(args)
         case .updateSubtitle:
             return try await updateSubtitle(args)
         case .setCaptions:
@@ -133,6 +137,7 @@ enum AgentEditingTools {
                 "enabled": .bool(model.zoomEnabled),
                 "zooms": .array(model.zoomCues.filter { !$0.isImplicit }.map { zoomJSON($0, in: model) }),
             ],
+            "motion": .array(model.motion.cues.sorted { $0.start < $1.start }.map { motionJSON($0, in: model) }),
             "captions": [
                 "shown": .bool(model.showsSubtitles),
                 "captions": .array(model.subtitleCues.map { cue in
@@ -270,6 +275,19 @@ enum AgentEditingTools {
             "mode": .string(zoomModeName(cue.anchorMode)),
             "follows_pointer": .bool(cue.anchorMode != .pinnedAnchor),
             "focus": ["x": .double(cue.pinnedPoint.x), "y": .double(cue.pinnedPoint.y)],
+            "enabled": .bool(cue.isEnabled),
+        ]
+    }
+
+    private static func motionJSON(_ cue: RecordingMotionCue, in model: RecordingStudioModel) -> JSONValue {
+        let slices = model.clipTimeline.slices(overlapping: cue.start, sourceEnd: cue.end)
+        return [
+            "id": .string(cue.id.uuidString),
+            "preset": .optional(cue.preset.map { .string($0.agentName) }),
+            "source_start": .seconds(cue.start),
+            "source_end": .seconds(cue.end),
+            "edited_start": .optional(slices.first.map { .seconds($0.editorStart) }),
+            "edited_end": .optional(slices.last.map { .seconds($0.editorEnd) }),
             "enabled": .bool(cue.isEnabled),
         ]
     }
@@ -548,6 +566,41 @@ enum AgentEditingTools {
         model.beginZoomCueEdit()
         model.updateZoomCue(cue)
         model.endZoomCueEdit()
+    }
+
+    private static func addMotion(_ args: MCPArguments) async throws -> MCPToolResult {
+        let presetName = try args.optionalChoice("preset", in: RecordingMotionPreset.allCases.map(\.agentName))
+        guard let preset = RecordingMotionPreset.allCases.first(where: { $0.agentName == presetName }) else {
+            throw MCPToolError.invalidArguments("`preset` is required")
+        }
+        let start = try args.number("start")
+        let end = try args.number("end")
+        let isSource = try usesSourceTimeline(args)
+        guard end > start else { throw MCPToolError.invalidArguments("`end` must be after `start`") }
+        return try await edit(args) { model in
+            let range = try editorRange(start, end, isSource: isSource, in: model)
+            let existing = Set(model.motion.cues.map(\.id))
+            guard model.addMotionCue(preset: preset, fromEditorTime: range.lowerBound, toEditorTime: range.upperBound),
+                  let cue = model.motion.cues.first(where: { !existing.contains($0.id) }) else {
+                throw MCPToolError.failed("No room for a 3D motion there: it is covered by existing motions. Remove one first.")
+            }
+            return ["motion": motionJSON(cue, in: model)]
+        }
+    }
+
+    private static func removeMotion(_ args: MCPArguments) async throws -> MCPToolResult {
+        let removesAll = try args.optionalBool("all") ?? false
+        let id = removesAll ? nil : try uuid(args, "id")
+        return try await edit(args) { model in
+            let targets = model.motion.cues.filter { removesAll || $0.id == id }
+            guard !targets.isEmpty || removesAll else {
+                throw MCPToolError.failed("No 3D motion with id \(id?.uuidString ?? ""). get_recording lists them.")
+            }
+            for cue in targets {
+                model.removeMotionCue(id: cue.id)
+            }
+            return ["removed": .int(targets.count)]
+        }
     }
 
     private static func removeZoom(_ args: MCPArguments) async throws -> MCPToolResult {

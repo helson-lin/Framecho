@@ -23,6 +23,8 @@ nonisolated enum AgentTool: String, CaseIterable, Sendable {
     case addZoom = "add_zoom"
     case updateZoom = "update_zoom"
     case removeZoom = "remove_zoom"
+    case addMotion = "add_motion"
+    case removeMotion = "remove_motion"
     case updateSubtitle = "update_subtitle"
     case setCaptions = "set_captions"
     case updateSettings = "update_settings"
@@ -229,6 +231,33 @@ nonisolated enum AgentToolCatalog {
                     "recording": AgentSchema.recording,
                     "id": AgentSchema.string("Zoom id from get_recording."),
                     "all": AgentSchema.boolean("Remove every zoom."),
+                ], required: ["recording"]),
+                isReadOnly: false,
+                isDestructive: true
+            )
+        case .addMotion:
+            MCPToolDefinition(
+                name: tool.rawValue,
+                title: "Add 3D motion",
+                description: "Tilts or rolls the whole video card in 3D over a range, easing in and back out (0.8 s each way). Unlike a zoom it never crops: everything on screen stays visible, at an angle - so keep it short (3–4 s) and use it for movement at section changes rather than while small text needs reading. Presets: tilt-left / tilt-right (18° turn), top-down (20° tilt back), gentle-roll (4° roll, subtlest), push-in (scales the card up, which crops). Motions can't overlap; the reply gives the times used.",
+                inputSchema: AgentSchema.object([
+                    "recording": AgentSchema.recording,
+                    "preset": AgentSchema.choice(RecordingMotionPreset.allCases.map(\.agentName), "The movement."),
+                    "start": AgentSchema.number("Start, seconds."),
+                    "end": AgentSchema.number("End, seconds."),
+                    "timeline": AgentSchema.timeline,
+                ], required: ["recording", "preset", "start", "end"]),
+                isReadOnly: false
+            )
+        case .removeMotion:
+            MCPToolDefinition(
+                name: tool.rawValue,
+                title: "Remove 3D motion",
+                description: "Removes one 3D motion by id, or every one with `all: true`.",
+                inputSchema: AgentSchema.object([
+                    "recording": AgentSchema.recording,
+                    "id": AgentSchema.string("Motion id from get_recording."),
+                    "all": AgentSchema.boolean("Remove every 3D motion."),
                 ], required: ["recording"]),
                 isReadOnly: false,
                 isDestructive: true
@@ -502,5 +531,18 @@ nonisolated struct AgentToolProvider: MCPToolProvider {
     ) async throws -> MCPToolResult {
         guard let tool = AgentTool(rawValue: name) else { throw MCPToolError.unknownTool(name) }
         return try await AgentEditingTools.call(tool, arguments: MCPArguments(arguments), context: context)
+    }
+}
+
+extension RecordingMotionPreset {
+    /// The name agents use: kebab-case, like the other enum arguments.
+    nonisolated var agentName: String {
+        switch self {
+        case .tiltLeft: "tilt-left"
+        case .tiltRight: "tilt-right"
+        case .topDown: "top-down"
+        case .gentleRoll: "gentle-roll"
+        case .pushIn: "push-in"
+        }
     }
 }
