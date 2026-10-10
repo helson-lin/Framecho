@@ -671,16 +671,6 @@
         }
       }
     },
-    "Hide Transcript" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "隐藏文稿"
-          }
-        }
-      }
-    },
     "Show Transcript (⌥⌘T)" : {
       "localizations" : {
         "zh-Hans" : {

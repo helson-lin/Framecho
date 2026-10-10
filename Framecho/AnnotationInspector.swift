@@ -12,20 +12,6 @@ enum AnnotationEditorFocusedField: Hashable {
     case watermarkText
 }
 
-/// The inspector splits by scope: what you draw and select, and the canvas the
-/// screenshot is presented on.
-private enum AnnotationInspectorTab: Hashable, CaseIterable {
-    case annotate
-    case canvas
-
-    var title: String {
-        switch self {
-        case .annotate: String(localized: "Annotate")
-        case .canvas: String(localized: "Canvas")
-        }
-    }
-}
-
 private enum AnnotationInspectorEffectSection: String, Hashable, CaseIterable {
     case camera
     case progressiveBlur
@@ -54,54 +40,38 @@ struct AnnotationEditorInspector: View {
     let onPickWallpaper: () -> Void
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
-    @State private var selectedTab: AnnotationInspectorTab = .annotate
+    @State private var scrollPosition = ScrollPosition(edge: .top)
     @State private var expandedEffectSections: Set<AnnotationInspectorEffectSection> = AnnotationInspectorSectionState.loadExpandedSections()
 
+    /// One page: what you draw and select on top, then the canvas the
+    /// screenshot is presented on. A screenshot has few enough controls
+    /// that splitting them into tabs only hid half of them.
     var body: some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 0) {
-                switch selectedTab {
-                case .annotate:
-                    annotateTab
-                case .canvas:
-                    canvasTab
-                }
+                annotationSections
+
+                InspectorSectionDivider()
+
+                canvasSections
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
             // Reserve clearance so the final inspector controls are never
             // hidden behind the floating preview peek pill.
             .padding(.bottom, PreviewPeekTab.pillHeight * 1.1)
         }
-        // Each tab starts at its top instead of inheriting the other's offset.
-        .id(selectedTab)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            VStack(spacing: 0) {
-                tabPicker
-
-                if selectedTab == .canvas {
-                    AnnotationBackgroundPresetBar(
-                        model: model,
-                        presetStore: backgroundPresetStore,
-                        onEditorAction: onEditorAction
-                    )
-                }
-
-                Rectangle()
-                    .fill(Color(nsColor: .separatorColor).opacity(0.45))
-                    .frame(height: 0.5)
-            }
-            .background(sidebarBackground)
-        }
+        .scrollPosition($scrollPosition)
         .scrollContentBackground(.hidden)
         .scrollEdgeEffectSoftIfAvailable()
         .background(sidebarBackground)
-        // Drawing or selecting on the canvas always lands on the controls for it.
+        // Drawing or selecting on the canvas always brings the style
+        // controls for it into view.
         .onChange(of: model.selectedTool) { _, _ in
-            selectedTab = .annotate
+            scrollToAnnotationControls()
         }
         .onChange(of: model.selectionCount) { _, count in
             if count > 0 {
-                selectedTab = .annotate
+                scrollToAnnotationControls()
             }
         }
         .inspectorColumnWidth(
@@ -117,31 +87,16 @@ struct AnnotationEditorInspector: View {
         )
     }
 
-    private var tabPicker: some View {
-        InspectorSegmented(
-            options: AnnotationInspectorTab.allCases,
-            isSelected: { $0 == selectedTab },
-            onTap: { tab in
-                onEditorAction()
-                selectedTab = tab
-            },
-            label: { tab in
-                Text(tab.title)
-                    .font(.inspectorSegment)
-                    .lineLimit(1)
-            }
-        )
-        .padding(.horizontal, InspectorMetrics.horizontalPadding)
-        .padding(.top, 10)
-        .padding(.bottom, selectedTab == .canvas ? 0 : 10)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Inspector")
+    private func scrollToAnnotationControls() {
+        withAnimation(accessibilityReduceMotion ? nil : .snappy(duration: 0.25)) {
+            scrollPosition.scrollTo(edge: .top)
+        }
     }
 
-    // MARK: Tabs
+    // MARK: Sections
 
     @ViewBuilder
-    private var annotateTab: some View {
+    private var annotationSections: some View {
         // The tools themselves live on the canvas; this says what the style
         // controls below will act on.
         InspectorSection("Current") {
@@ -164,7 +119,14 @@ struct AnnotationEditorInspector: View {
     }
 
     @ViewBuilder
-    private var canvasTab: some View {
+    private var canvasSections: some View {
+        // Presets save and restore everything below, so they head it.
+        AnnotationBackgroundPresetBar(
+            model: model,
+            presetStore: backgroundPresetStore,
+            onEditorAction: onEditorAction
+        )
+
         InspectorSection(
             title: "Composition",
             accessory: {

@@ -37,7 +37,6 @@ struct StudioTranscriptPanel: View {
 
     @Bindable var model: RecordingStudioModel
 
-    @AppStorage(isPresentedKey) private var isPresented = false
     @AppStorage("studioTranscriptMode") private var mode = StudioTranscriptMode.captions
     @State private var searchText = ""
     @FocusState private var focusedCueID: UUID?
@@ -122,15 +121,6 @@ struct StudioTranscriptPanel: View {
                 if hasTranscript, model.hasTranscriptWords {
                     aiMenu
                 }
-
-                Button {
-                    isPresented = false
-                } label: {
-                    Image(systemName: "sidebar.left")
-                }
-                .buttonStyle(.borderless)
-                .help("Hide Transcript")
-                .accessibilityLabel("Hide Transcript")
             }
 
             if hasTranscript, model.hasTranscriptWords, model.captionCleanupState != .reviewing {
@@ -259,8 +249,10 @@ struct StudioTranscriptPanel: View {
             if model.canTranscribe {
                 InspectorHint("Transcribe the narration to edit its captions and cut the video by its words.")
                     .multilineTextAlignment(.center)
+                // The action button fills its width and has no padding of
+                // its own, so give it a width rather than hugging the title.
                 StudioTranscriptionStatus(model: model)
-                    .fixedSize()
+                    .frame(maxWidth: 220)
             } else {
                 InspectorHint("Captions come from narration. Record with the microphone on to transcribe it.")
                     .multilineTextAlignment(.center)
