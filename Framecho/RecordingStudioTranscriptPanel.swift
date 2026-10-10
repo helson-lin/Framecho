@@ -249,8 +249,10 @@ struct StudioTranscriptPanel: View {
             if model.canTranscribe {
                 InspectorHint("Transcribe the narration to edit its captions and cut the video by its words.")
                     .multilineTextAlignment(.center)
+                // The action button fills its width and has no padding of
+                // its own, so give it a width rather than hugging the title.
                 StudioTranscriptionStatus(model: model)
-                    .fixedSize()
+                    .frame(maxWidth: 220)
             } else {
                 InspectorHint("Captions come from narration. Record with the microphone on to transcribe it.")
                     .multilineTextAlignment(.center)
