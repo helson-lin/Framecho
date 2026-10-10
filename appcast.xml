@@ -27,6 +27,32 @@
     -->
 
     <item>
+      <title>Version 0.43.0</title>
+      <sparkle:version>46</sparkle:version>
+      <sparkle:shortVersionString>0.43.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.4</sparkle:minimumSystemVersion>
+      <pubDate>Sat, 10 Oct 2026 06:36:32 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.43.0</h2>
+        <ul>
+          <li>新增智能体访问（MCP）：Claude Code 等 AI 智能体可以对录屏进行剪辑、变速、缩放、字幕、配乐和导出；默认关闭，在设置 › AI 中开启，只有本机以你的账户运行的 App 可以连接。</li>
+          <li>Studio 支持图片叠加：在视频上放置 Logo、二维码或截图，位置随画面比例自动对齐并避开字幕。</li>
+          <li>Studio 支持片头片尾卡：文字或图片，提供居中、下三分之一、大标题、杂志四种版式、字体样式和入场动画，在时间轴上直接拖动调整时长；背景音乐会一直铺到片尾。</li>
+          <li>修复按转写剪掉词语时会覆盖手动修改过的字幕。</li>
+          <li>新录制默认开启响度统一；音频区域的按钮和循环音乐说明更清晰，并显示讲话时音乐会压低到的音量。</li>
+          <li>截图编辑器的检查器合并为一页，不再分「标注」「画布」两个标签页。</li>
+          <li>细节改进：检查器侧栏的圆点增加说明提示；文稿面板去掉重复的隐藏按钮，转写按钮尺寸更合适。</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Framecho/releases/download/v0.43.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="ej7beHf5fE/prSZucPQH6U3hQLB+8OKh9bDZJdxKQDwVjmGfPcHJsHaPU+8sjRuYYCEkcdf4wX0/ix5o88NHCg=="
+        length="10144454"
+      />
+    </item>
+
+    <item>
       <title>Version 0.42.0</title>
       <sparkle:version>45</sparkle:version>
       <sparkle:shortVersionString>0.42.0</sparkle:shortVersionString>
