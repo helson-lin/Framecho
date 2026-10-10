@@ -263,9 +263,10 @@ nonisolated struct ViewportTimeline: Sendable {
         guard duration.isFinite, duration > 0 else { return .identity }
 
         let pointerSamples = mergedPointerSamples(from: capture)
-        let activitySamples = pointerSamples.filter {
-            isRetainedSourceEvent($0.time, in: clipTimeline)
-        }
+        // Match the pointer timeline's half-open event-boundary contract so an
+        // outgoing clip-end click cannot become a Smart target in the next clip.
+        let retained = RecordingClipTimeline.RetainedSourceRanges(clipTimeline)
+        let activitySamples = pointerSamples.filter { retained.contains($0.time) }
         var activityTargetsByCueID: [UUID: [ActivityTarget]] = [:]
         for cue in cues where cue.anchorMode == .smartAnchor
             && activityTargetsByCueID[cue.id] == nil {
@@ -290,9 +291,10 @@ nonisolated struct ViewportTimeline: Sendable {
         var frames: [ViewportFrame] = []
         frames.reserveCapacity(frameCount)
 
+        var sourceTimes = RecordingClipTimeline.SourceTimeCursor(clipTimeline)
         for frameIndex in 0..<frameCount {
             let editorTime = min(Double(frameIndex) * dt, duration)
-            let time = clipTimeline.sourceTime(at: editorTime)
+            let time = sourceTimes.sourceTime(at: editorTime)
             while latestPressIndex + 1 < pressEvents.count,
                   pressEvents[latestPressIndex + 1].time <= time {
                 latestPressIndex += 1
@@ -530,17 +532,6 @@ nonisolated struct ViewportTimeline: Sendable {
             }
         }
         return samples[max(0, low - 1)].point
-    }
-
-    /// Match the pointer timeline's half-open event-boundary contract so an
-    /// outgoing clip-end click cannot become a Smart target in the next clip.
-    private static func isRetainedSourceEvent(
-        _ time: TimeInterval,
-        in clipTimeline: RecordingClipTimeline
-    ) -> Bool {
-        clipTimeline.segments.contains {
-            time >= $0.sourceStart && time < $0.sourceEnd
-        }
     }
 
     private static func mergedPointerSamples(from capture: PointerCaptureFile) -> [PointerSample] {

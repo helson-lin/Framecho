@@ -425,3 +425,77 @@ nonisolated struct RecordingClipTimeline: Codable, Equatable, Sendable {
             && abs(only.speed - 1) < 0.000_001
     }
 }
+
+extension RecordingClipTimeline {
+    /// Maps a run of non-decreasing editor times to source times, giving the
+    /// same answers as `sourceTime(at:)`. That scans the clips from the
+    /// start on every call; this walks forward with the times, so sampling
+    /// a long edit with many clips frame by frame stays linear.
+    nonisolated struct SourceTimeCursor {
+        private let segments: [RecordingClipSegment]
+        private let editorDurations: [TimeInterval]
+        private let duration: TimeInterval
+        private var index = 0
+        private var editorStart: TimeInterval = 0
+
+        init(_ timeline: RecordingClipTimeline) {
+            segments = timeline.segments
+            editorDurations = timeline.segments.map(\.editorDuration)
+            duration = timeline.duration
+        }
+
+        mutating func sourceTime(at editorTime: TimeInterval) -> TimeInterval {
+            guard !segments.isEmpty, duration > 0 else { return 0 }
+            let clamped = min(max(editorTime, 0), duration)
+            if clamped < editorStart {
+                // Out of order: start the walk again rather than answer wrong.
+                index = 0
+                editorStart = 0
+            }
+            while index < segments.count - 1, clamped >= editorStart + editorDurations[index] {
+                editorStart += editorDurations[index]
+                index += 1
+            }
+            let segment = segments[index]
+            let offset = min(max(clamped - editorStart, 0), editorDurations[index])
+            return segment.sourceStart + min(offset * segment.speed, segment.duration)
+        }
+    }
+
+    /// The source time the clips keep, as sorted, merged half-open ranges,
+    /// for testing many times without scanning every clip for each.
+    nonisolated struct RetainedSourceRanges {
+        private var starts: [TimeInterval] = []
+        private var ends: [TimeInterval] = []
+
+        init(_ timeline: RecordingClipTimeline) {
+            let ranges = timeline.segments
+                .filter { $0.sourceStart < $0.sourceEnd }
+                .map { ($0.sourceStart, $0.sourceEnd) }
+                .sorted { $0.0 < $1.0 }
+            for (start, end) in ranges {
+                if let last = ends.last, start <= last {
+                    ends[ends.count - 1] = max(last, end)
+                } else {
+                    starts.append(start)
+                    ends.append(end)
+                }
+            }
+        }
+
+        /// Whether any clip has `start <= time < end`.
+        func contains(_ time: TimeInterval) -> Bool {
+            var low = 0
+            var high = starts.count
+            while low < high {
+                let middle = (low + high) / 2
+                if starts[middle] <= time {
+                    low = middle + 1
+                } else {
+                    high = middle
+                }
+            }
+            return low > 0 && time < ends[low - 1]
+        }
+    }
+}
