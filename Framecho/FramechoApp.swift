@@ -58,6 +58,14 @@ struct FramechoApp: App {
         }
         .windowResizability(.contentSize)
         .defaultSize(WindowFrameDefaults.studioSize)
+        // New editors open centered at the default size, shrunk to fit a
+        // smaller screen. A frame the user left behind is restored instead.
+        .defaultWindowPlacement { _, context in
+            WindowPlacement(
+                .center,
+                size: WindowFrameDefaults.fitted(WindowFrameDefaults.studioSize, in: context.defaultDisplay.visibleRect.size)
+            )
+        }
     }
 
     @MainActor

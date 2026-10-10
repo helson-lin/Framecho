@@ -11,8 +11,9 @@
 import AppKit
 
 enum WindowFrameDefaults {
-    /// 2780 × 1800 px on a 2× Retina display.
-    static let studioSize = CGSize(width: 1390, height: 900)
+    /// 3448 × 2188 px on a 2× Retina display: close to the whole screen of
+    /// a 16-inch MacBook Pro. A smaller screen caps it at its visible frame.
+    static let studioSize = CGSize(width: 1724, height: 1094)
     static let studioMinimum = CGSize(width: 980, height: 720)
     /// 1840 × 1220 px on a 2× Retina display.
     static let settingsSize = CGSize(width: 920, height: 610)
@@ -22,7 +23,7 @@ enum WindowFrameDefaults {
     /// window's default size changes, so it opens at the new default after
     /// an update. Sizes chosen afterwards are kept.
     private static let resets: [(versionKey: String, version: Int, frameKey: (String) -> Bool)] = [
-        ("windowFramesResetVersion", 2, { $0.hasPrefix("NSWindow Frame VIDEO_EDITOR") }),
+        ("windowFramesResetVersion", 4, { $0.hasPrefix("NSWindow Frame VIDEO_EDITOR") }),
         ("settingsWindowFrameResetVersion", 3, { $0 == "NSWindow Frame SettingsWindow" }),
     ]
 
@@ -38,6 +39,11 @@ enum WindowFrameDefaults {
             }
             defaults.set(reset.version, forKey: reset.versionKey)
         }
+    }
+
+    /// The default size, capped to what the screen can show.
+    static func fitted(_ size: CGSize, in available: CGSize) -> CGSize {
+        CGSize(width: min(size.width, available.width), height: min(size.height, available.height))
     }
 
     /// A restored frame smaller than the window's minimum came from an
