@@ -316,6 +316,12 @@ h2 {
 .cloud-stack { display: flex; gap: 6px; margin-top: 22px; flex-wrap: wrap; }
 .cloud-stack span { font: 600 12px var(--mono); padding: 5px 10px; border-radius: 999px; background: #fff3e6; color: #c25a00; border: 1px solid #ffe0c2; }
 
+/* ---------- FAQ ---------- */
+.faq { display: grid; grid-template-columns: 1fr 1fr; column-gap: 56px; margin: 56px 0 0; }
+.faq-item { padding: 26px 0 28px; border-top: 1px solid var(--line); }
+.faq dt { font-size: 17px; font-weight: 650; letter-spacing: -.01em; color: var(--ink); }
+.faq dd { margin: 10px 0 0; font-size: 15px; color: var(--ink-2); text-wrap: pretty; }
+
 /* ---------- Final CTA ---------- */
 .final { padding: 160px 0 120px; text-align: center; }
 .final-icon { width: 128px; margin: 0 auto; filter: drop-shadow(0 30px 40px rgba(60,40,20,.18)); }
@@ -354,6 +360,7 @@ footer a:hover { color: var(--ink); }
   .studio-grid { grid-template-columns: 1fr 1fr; }
   .bento > .tile { grid-column: span 6; }
   .privacy { grid-template-columns: 1fr; }
+  .faq { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
   .wrap { width: calc(100% - 32px); }

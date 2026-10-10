@@ -1,9 +1,10 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import sitemap from '@astrojs/sitemap';
 
 export default defineConfig({
-  // Absolute URLs (canonical, hreflang) are only emitted when the deployed origin is known.
-  site: process.env.SITE_URL,
+  // Used for canonical, hreflang, Open Graph and sitemap URLs. Override with SITE_URL for a preview domain.
+  site: process.env.SITE_URL ?? 'https://getframecho.com',
   i18n: {
     defaultLocale: 'zh',
     locales: ['zh', 'en'],
@@ -12,4 +13,12 @@ export default defineConfig({
       prefixDefaultLocale: false,
     },
   },
+  integrations: [
+    sitemap({
+      i18n: {
+        defaultLocale: 'zh',
+        locales: { zh: 'zh-CN', en: 'en' },
+      },
+    }),
+  ],
 });

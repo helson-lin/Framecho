@@ -147,6 +147,49 @@ const zh = {
       { big: '自托管', small: '分享', title: '没有公共服务器', body: '分享部署在你自己的 Cloudflare 账号上，视频页带播放器、可搜索转写和评论。' },
     ],
   },
+  seo: {
+    ogImageAlt: 'Framecho：一键截下，把重点讲清楚。原生 macOS 截图、录屏与编辑工具',
+    applicationSubCategory: '截图与录屏',
+    operatingSystem: (macOS: string) => `macOS ${macOS} 或更高版本`,
+  },
+  faq: {
+    kicker: '常见问题',
+    titleHtml: '你可能想问。',
+    items: [
+      {
+        q: 'Framecho 是什么？',
+        a: 'Framecho 是一款原生 macOS 截图、录屏与编辑工具，用 SwiftUI 和 AppKit 编写。它把截图标注、录屏、Studio 视频剪辑和本地素材库放在同一个应用里，所有编辑都是非破坏性的，原图和原始录像不会被改动。',
+      },
+      {
+        q: 'Framecho 免费吗？',
+        a: '免费。源代码以 CC0 1.0 许可发布在 GitHub 上，没有订阅，也没有内购。',
+      },
+      {
+        q: '需要什么系统？',
+        a: (macOS: string) => `macOS ${macOS} 或更高版本，同时支持 Apple Silicon 和 Intel 芯片的 Mac。安装包经过 Developer ID 签名和 Apple 公证，通过 Sparkle 自动更新。`,
+      },
+      {
+        q: '截图和录屏会被上传吗？',
+        a: '不会。截图、录屏和编辑项目默认都保存在 Mac 本地的 ~/Library/Application Support/Framecho，字幕转写也在设备端完成。只有你手动上传或开启了自动上传时，文件才会发送到你自己配置的 Cloudflare 服务。',
+      },
+      {
+        q: '云端分享怎么用？',
+        a: 'Framecho 不提供公共上传服务器。把配套的 Framecho-worker 部署到你自己的 Cloudflare 账号（Workers、R2 和 D1），再在「设置 › 云端」里填入 Worker 地址和上传令牌即可。分享的视频页带播放器、可搜索的转写文本和评论。',
+      },
+      {
+        q: 'AI 助手能帮我剪辑录屏吗？',
+        a: '可以。在「设置 › AI」中打开智能体访问后，Framecho 会提供一个 MCP 服务器，Claude Code、Claude Desktop、Cursor 等客户端通过 Framecho --mcp 连接，就能转写录屏、按文字剪辑、添加缩放和片头片尾并导出。这些修改都是非破坏的，可以在 Studio 里撤销。该功能默认关闭。',
+      },
+      {
+        q: '支持哪些语言？',
+        a: '界面提供英文和简体中文，跟随系统语言切换。OCR 文字识别和自动遮挡能读出中英混排的文字。',
+      },
+      {
+        q: 'Framecho 和 Screendrop 是什么关系？',
+        a: 'Framecho 最初基于开源项目 Screendrop 开发，现在由 helson-lin 独立维护，不再同步上游，拥有自己的应用标识、签名、发布渠道和更新源。',
+      },
+    ],
+  },
   final: {
     iconAlt: 'Framecho 应用图标',
     titleHtml: '下一张截图，<br>用 Framecho。',
@@ -306,6 +349,49 @@ const en: UI = {
       { big: 'Local', small: 'first', title: 'Nothing leaves your Mac', body: 'Screenshots, recording tracks and projects are stored locally; back up by copying one folder.' },
       { big: 'On-device', small: 'speech', title: 'Your voice isn’t uploaded', body: 'Captions and teleprompter tracking run on device. Camera and microphone are only requested when used.' },
       { big: 'Self-hosted', small: 'sharing', title: 'No public server', body: 'Sharing runs on your own Cloudflare account, with a player, searchable transcript and comments.' },
+    ],
+  },
+  seo: {
+    ogImageAlt: 'Framecho: capture it, make the point clear. Native screenshots, screen recording and editing for macOS',
+    applicationSubCategory: 'Screenshots and screen recording',
+    operatingSystem: (macOS: string) => `macOS ${macOS} or later`,
+  },
+  faq: {
+    kicker: 'FAQ',
+    titleHtml: 'Questions, answered.',
+    items: [
+      {
+        q: 'What is Framecho?',
+        a: 'Framecho is a native macOS app for screenshots, screen recordings and editing, written in SwiftUI and AppKit. It brings screenshot annotation, screen recording, a Studio video editor and a local library together in one app, and every edit is non-destructive: the original image or recording is never changed.',
+      },
+      {
+        q: 'Is Framecho free?',
+        a: 'Yes. The source code is published on GitHub under the CC0 1.0 license, with no subscription and no in-app purchases.',
+      },
+      {
+        q: 'What does it run on?',
+        a: (macOS: string) => `macOS ${macOS} or later, on both Apple silicon and Intel Macs. The download is signed with a Developer ID, notarized by Apple, and kept up to date with Sparkle.`,
+      },
+      {
+        q: 'Are my screenshots and recordings uploaded?',
+        a: 'No. Screenshots, recordings and projects are stored on your Mac in ~/Library/Application Support/Framecho, and captions are transcribed on device. Files are only sent when you upload them, or turn on automatic upload, to a Cloudflare service you set up yourself.',
+      },
+      {
+        q: 'How does cloud sharing work?',
+        a: 'There is no public upload server. You deploy the companion Framecho-worker to your own Cloudflare account (Workers, R2 and D1), then enter its URL and upload token under Settings › Cloud. Shared videos get a player, a searchable transcript and comments.',
+      },
+      {
+        q: 'Can an AI assistant edit my recordings?',
+        a: 'Yes. Turn on agent access under Settings › AI and Framecho runs an MCP server; clients such as Claude Code, Claude Desktop and Cursor connect with Framecho --mcp and can transcribe a recording, cut it by its words, add zooms and intro or outro cards, and export it. Every edit is non-destructive and can be undone in Studio. Agent access is off by default.',
+      },
+      {
+        q: 'Which languages does it support?',
+        a: 'The interface is available in English and Simplified Chinese and follows your system language. OCR and automatic redaction read text that mixes Chinese and English.',
+      },
+      {
+        q: 'How is Framecho related to Screendrop?',
+        a: 'Framecho began as a fork of the open-source Screendrop and is now maintained independently by helson-lin, with its own app identity, signing, release channel and update feed. It no longer tracks upstream.',
+      },
     ],
   },
   final: {

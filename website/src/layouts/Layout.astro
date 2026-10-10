@@ -1,7 +1,13 @@
 ---
 import '../styles/global.css';
 import { getAbsoluteLocaleUrl } from 'astro:i18n';
+import { getImage } from 'astro:assets';
 import { ui, type Locale } from '../i18n/ui';
+import { structuredData } from '../seo';
+import editorLight from '../assets/editor-light.webp';
+import editorEnLight from '../assets/editor-en-light.webp';
+import studioDark from '../assets/studio-dark.webp';
+import libraryLight from '../assets/library-light.webp';
 
 interface Props {
   lang: Locale;
@@ -10,6 +16,20 @@ interface Props {
 const { lang } = Astro.props;
 const t = ui[lang];
 const locales = Object.keys(ui) as Locale[];
+const ogLocale = { zh: 'zh_CN', en: 'en_US' } as const;
+
+// `site` is always set in astro.config.mjs, so every URL here is absolute.
+const site = Astro.site!;
+const siteUrl = new URL('/', site).href;
+const pageUrl = getAbsoluteLocaleUrl(lang);
+const ogImage = new URL(`/og/${lang}.png`, site).href;
+const screenshots = await Promise.all(
+  [lang === 'zh' ? editorLight : editorEnLight, studioDark, libraryLight].map(async (src) => {
+    const image = await getImage({ src, width: 1600, format: 'webp' });
+    return new URL(image.src, site).href;
+  }),
+);
+const jsonLd = structuredData({ lang, pageUrl, siteUrl, ogImage, screenshots });
 ---
 
 <!doctype html>
@@ -19,20 +39,34 @@ const locales = Object.keys(ui) as Locale[];
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{t.meta.title}</title>
     <meta name="description" content={t.meta.description} />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="author" content="helson-lin" />
+    <meta name="theme-color" content="#f5f3ef" />
+    <link rel="canonical" href={pageUrl} />
+    {locales.map((l) => <link rel="alternate" hreflang={ui[l].htmlLang} href={getAbsoluteLocaleUrl(l)} />)}
+    <link rel="alternate" hreflang="x-default" href={getAbsoluteLocaleUrl('zh')} />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Framecho" />
+    <meta property="og:url" content={pageUrl} />
     <meta property="og:title" content={t.meta.title} />
     <meta property="og:description" content={t.meta.description} />
-    <link rel="icon" type="image/png" href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/favicon.png`} />
-    {
-      Astro.site && (
-        <>
-          <link rel="canonical" href={getAbsoluteLocaleUrl(lang)} />
-          {locales.map((l) => (
-            <link rel="alternate" hreflang={ui[l].htmlLang} href={getAbsoluteLocaleUrl(l)} />
-          ))}
-          <link rel="alternate" hreflang="x-default" href={getAbsoluteLocaleUrl('zh')} />
-        </>
-      )
-    }
+    <meta property="og:locale" content={ogLocale[lang]} />
+    {locales.filter((l) => l !== lang).map((l) => <meta property="og:locale:alternate" content={ogLocale[l]} />)}
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={t.seo.ogImageAlt} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={t.meta.title} />
+    <meta name="twitter:description" content={t.meta.description} />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image:alt" content={t.seo.ogImageAlt} />
+
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd).replace(/</g, '\\u003c')} />
     <script is:inline>document.documentElement.classList.add('js');</script>
   </head>
   <body>
