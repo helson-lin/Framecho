@@ -10,6 +10,7 @@ on:
       - appcast.xml
       - "**/*.md"
       - docs/**
+      - website/**
 
 concurrency:
   group: ci-${{ github.ref }}

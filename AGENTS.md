@@ -29,7 +29,7 @@ No Xcode test target exists. Automated verification is:
 - **`scripts/run-checks.sh`** - compiles each standalone check in `scripts/` against the production sources it exercises and runs it. Add new checks there: the script fails if a `scripts/check-*.swift` isn't run by it or listed in its `not_run` (where `check-editor-cancellation.swift` sits, as it needs a fixture from the motion-blur benchmark). To make code checkable, keep its logic in files that compile without the app (see the `nonisolated` geometry, permission and timeline files the checks use).
 - **`go test ./cmd/...`** for the release tool.
 
-CI (`.github/workflows/ci.yml`) runs all three on pull requests and pushes to `main`, using Xcode 27.1 on GitHub's `xcode-27` runner image (beta), and can be started by hand on any branch. Pushes touching only `appcast.xml`, docs or Markdown are skipped. Each check's result appears in the job summary; on failure the logs are uploaded as `check-logs`.
+CI (`.github/workflows/ci.yml`) runs all three on pull requests and pushes to `main`, using Xcode 27.1 on GitHub's `xcode-27` runner image (beta), and can be started by hand on any branch. Pushes touching only `appcast.xml`, docs, Markdown or `website/` are skipped. Each check's result appears in the job summary; on failure the logs are uploaded as `check-logs`.
 
 ## Swift concurrency settings
 
