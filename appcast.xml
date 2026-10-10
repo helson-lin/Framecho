@@ -27,6 +27,29 @@
     -->
 
     <item>
+      <title>Version 0.44.0</title>
+      <sparkle:version>47</sparkle:version>
+      <sparkle:shortVersionString>0.44.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.4</sparkle:minimumSystemVersion>
+      <pubDate>Sat, 10 Oct 2026 09:23:27 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.44.0</h2>
+        <ul>
+          <li>修复：开启「录制时包含 Framecho 窗口」时，录制条、摄像头气泡、提词器会被录进画面，在 Studio 里打开摄像头会出现两个摄像头画面。</li>
+          <li>长视频打开 Studio 更快（19 分钟的项目约 4.4 秒 → 1 秒），加载时显示进度；长项目里添加或修改缩放不再卡顿。</li>
+          <li>Studio 窗口默认居中，接近全屏大小。</li>
+          <li>智能体访问（MCP）新增：一次重排全部字幕、设置缩放跟随方式（指针 / 智能 / 固定）、添加和移除 3D 运镜。</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Framecho/releases/download/v0.44.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="osyd64VxADkETLan0BNcCTMBXhO+cNg96pFHHuTFRXhtfGxXnrqmZY+iv5RP+yGKDpHSqRAZOBWUFKrr9tojAQ=="
+        length="10218756"
+      />
+    </item>
+
+    <item>
       <title>Version 0.43.0</title>
       <sparkle:version>46</sparkle:version>
       <sparkle:shortVersionString>0.43.0</sparkle:shortVersionString>
