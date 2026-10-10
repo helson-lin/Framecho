@@ -412,6 +412,14 @@ final class RecordingStudioModel {
     private var screenAsset: AVURLAsset?
     private var isTornDown = false
     private var isLoading = false
+    /// How far `load()` has got, for the window's loading screen.
+    private(set) var loadPhase: LoadPhase = .reading
+
+    enum LoadPhase: Int, CaseIterable {
+        case reading
+        case preparing
+        case building
+    }
     private var wallpaperCacheLease: BoundedCGImageCache.Lease?
     private let editUndoManager = UndoManager()
     private(set) var undoRevision = 0
@@ -465,11 +473,15 @@ final class RecordingStudioModel {
         isLoading = true
         defer { isLoading = false }
         wallpaperCacheLease = AnnotationBackgroundRenderer.beginWallpaperUse()
+        loadPhase = .reading
 
-        if let session {
-            manifest = session.loadCaptureManifest()
-            pointerCapture = session.loadPointerCapture() ?? PointerCaptureFile()
+        // The sidecars of a long recording run to megabytes of JSON. They
+        // decode off the main actor while AVFoundation reads the movie, so
+        // the window stays responsive and the two waits overlap.
+        let filesTask = Task.detached(priority: .userInitiated) { [session] in
+            session.map(StudioSessionFiles.init(session:))
         }
+        defer { filesTask.cancel() }
 
         let asset = AVURLAsset(url: screenURL)
         screenAsset = asset
@@ -493,17 +505,22 @@ final class RecordingStudioModel {
             return
         }
 
-        if session != nil {
+        let files = await filesTask.value
+        guard !isTornDown, !Task.isCancelled else { return }
+        loadPhase = .preparing
+        if let files {
+            manifest = files.manifest
             let pointScale = max(manifest?.pixelScale ?? 1, 1)
-            let stream = PointerStreamSanitizer.sanitize(
-                pointerCapture,
-                options: PointerSanitizeOptions(
-                    recordingSizeInPoints: CGSize(
-                        width: videoSize.width / CGFloat(pointScale),
-                        height: videoSize.height / CGFloat(pointScale)
-                    )
+            let options = PointerSanitizeOptions(
+                recordingSizeInPoints: CGSize(
+                    width: videoSize.width / CGFloat(pointScale),
+                    height: videoSize.height / CGFloat(pointScale)
                 )
             )
+            let stream = await Task.detached(priority: .userInitiated) { [capture = files.pointerCapture ?? PointerCaptureFile()] in
+                PointerStreamSanitizer.sanitize(capture, options: options)
+            }.value
+            guard !isTornDown, !Task.isCancelled else { return }
             pointerCapture = stream.sanitizedCapture
             recordedPressTimes = pointerCapture.presses
                 .filter { $0.phase == .down }
@@ -521,12 +538,12 @@ final class RecordingStudioModel {
             style.camera.isVisible = false
         }
 
-        lastSavedDocument = session?.loadEditDocument()
+        lastSavedDocument = files?.savedDocument
         if let session, !isHeadless {
             // Nothing can undo back to an image a stored document no longer
             // uses, so its file can go. A headless model skips this: a
             // Studio window may hold undo history that still needs it.
-            let documents = [lastSavedDocument, session.effectiveEditDocument()].compactMap { $0 }
+            let documents = [lastSavedDocument, files?.effectiveDocument].compactMap { $0 }
             let referenced = documents.flatMap { ($0.imageOverlays ?? []).map(\.fileName) }
                 + documents.flatMap { [$0.introCard?.imageFileName, $0.outroCard?.imageFileName].compactMap { $0 } }
             RecordingStudioAssets.removeUnused(in: session.directoryURL, keeping: Set(referenced))
@@ -535,7 +552,7 @@ final class RecordingStudioModel {
         // without a save - a crash, a force quit, or a Studio window that is
         // still open elsewhere. Reopen on the draft so nothing is lost; the
         // project simply opens dirty.
-        let document = session?.effectiveEditDocument()
+        let document = files?.effectiveDocument
         // Sessions recorded before the toggle moved into Studio stored the
         // choice in the manifest; honor it as the default.
         showsClickEffects = manifest?.pressEffectsEnabled ?? true
@@ -591,6 +608,11 @@ final class RecordingStudioModel {
         }
         await loadCachedBackgroundMusic()
         guard !isTornDown, !Task.isCancelled else { return }
+        loadPhase = .building
+        // Let the loading screen show the new step before the synchronous
+        // composition and timeline builds below take the main actor.
+        await Task.yield()
+        guard !isTornDown, !Task.isCancelled else { return }
 
         do {
             try rebuildScreenPlayerItem(preserving: 0)
@@ -615,7 +637,7 @@ final class RecordingStudioModel {
         }
 
         if let session {
-            if session.hasUnsavedDraft {
+            if files?.hasUnsavedDraft == true {
                 // Reopened on a draft that outlived its editor.
                 hasUnsavedChanges = true
             } else if lastSavedDocument == nil {
@@ -4015,4 +4037,27 @@ struct RecordingMotionTimelineBlock: Identifiable, Equatable, Sendable {
 enum RecordingPoseAdjustmentTarget: Equatable {
     case base
     case cue(UUID)
+}
+
+/// The package sidecars `load()` needs, decoded in one pass off the main
+/// actor. The draft and the saved project are each read once, where the
+/// session helpers would read them again for every question asked.
+nonisolated private struct StudioSessionFiles: Sendable {
+    let manifest: CaptureManifest?
+    let pointerCapture: PointerCaptureFile?
+    let savedDocument: RecordingEditDocument?
+    let draftDocument: RecordingEditDocument?
+
+    init(session: RecordingSession) {
+        manifest = session.loadCaptureManifest()
+        pointerCapture = session.loadPointerCapture()
+        savedDocument = session.loadEditDocument()
+        draftDocument = session.loadDraftDocument()
+    }
+
+    /// What the editor opens: see `RecordingSession.effectiveEditDocument()`.
+    var effectiveDocument: RecordingEditDocument? { draftDocument ?? savedDocument }
+
+    /// See `RecordingSession.hasUnsavedDraft`.
+    var hasUnsavedDraft: Bool { draftDocument.map { $0 != savedDocument } ?? false }
 }

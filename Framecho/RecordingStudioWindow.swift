@@ -50,6 +50,97 @@ struct RecordingStudioWindow: View {
     }
 }
 
+/// Shown while a project loads. A long recording's sidecars, cuts and
+/// composition take a moment; this says which step is running rather than
+/// leaving an empty editor on screen. It fades in only after a short delay,
+/// so a project that opens instantly never flashes it.
+private struct StudioLoadingView: View {
+    let model: RecordingStudioModel
+    @State private var isShown = false
+
+    var body: some View {
+        VStack(spacing: 18) {
+            VStack(spacing: 4) {
+                Text(model.projectDisplayName)
+                    .font(.headline)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                if model.sourceDuration > 0 {
+                    Text(Duration.seconds(model.sourceDuration).formatted(.time(pattern: .hourMinuteSecond)))
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(RecordingStudioModel.LoadPhase.allCases, id: \.self) { phase in
+                    StudioLoadingStep(title: phase.title, state: state(of: phase))
+                }
+            }
+        }
+        .padding(.horizontal, 32)
+        .padding(.vertical, 26)
+        .frame(width: 300)
+        .studioCard()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text("Opening \(model.projectDisplayName)"))
+        .accessibilityValue(Text(model.loadPhase.title))
+        .opacity(isShown ? 1 : 0)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(.easeOut(duration: 0.2), value: model.loadPhase)
+        .task {
+            try? await Task.sleep(for: .milliseconds(250))
+            withAnimation(.easeOut(duration: 0.25)) { isShown = true }
+        }
+    }
+
+    private func state(of phase: RecordingStudioModel.LoadPhase) -> StudioLoadingStep.State {
+        if phase.rawValue < model.loadPhase.rawValue { return .done }
+        return phase == model.loadPhase ? .running : .pending
+    }
+}
+
+private struct StudioLoadingStep: View {
+    enum State { case pending, running, done }
+
+    let title: String
+    let state: State
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Group {
+                switch state {
+                case .done:
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.tint)
+                        .transition(.scale.combined(with: .opacity))
+                case .running:
+                    ProgressView()
+                        .controlSize(.small)
+                case .pending:
+                    Image(systemName: "circle")
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .frame(width: 18, height: 18)
+
+            Text(title)
+                .foregroundStyle(state == .pending ? .secondary : .primary)
+        }
+        .font(.callout)
+    }
+}
+
+private extension RecordingStudioModel.LoadPhase {
+    var title: String {
+        switch self {
+        case .reading: String(localized: "Reading the recording")
+        case .preparing: String(localized: "Preparing edits")
+        case .building: String(localized: "Building the timeline")
+        }
+    }
+}
+
 enum StudioCardMetrics {
     static let gap: CGFloat = 8
     static let cornerRadius: CGFloat = 10
@@ -98,6 +189,9 @@ private struct RecordingStudioContent: View {
                     description: Text(loadError)
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if !model.isLoaded {
+                StudioLoadingView(model: model)
+                    .transition(.opacity)
             } else {
                 // Each area is a card on a slightly darker ground: the
                 // transcript runs the full height on the leading edge, the
@@ -135,8 +229,10 @@ private struct RecordingStudioContent: View {
                 .padding(StudioCardMetrics.gap)
                 .animation(.easeOut(duration: 0.2), value: isTranscriptPresented)
                 .animation(.easeOut(duration: 0.2), value: isInspectorPresented)
+                .transition(.opacity)
             }
         }
+        .animation(.easeOut(duration: 0.25), value: model.isLoaded)
         .frame(
             minWidth: WindowFrameDefaults.studioMinimum.width,
             minHeight: WindowFrameDefaults.studioMinimum.height

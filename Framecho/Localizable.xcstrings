@@ -2223,6 +2223,16 @@
         }
       }
     },
+    "Opening %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在打开 %@"
+          }
+        }
+      }
+    },
     "Or start from a preset" : {
       "localizations" : {
         "zh-Hans" : {
@@ -4137,6 +4147,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "右下"
+          }
+        }
+      }
+    },
+    "Building the timeline" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "构建时间轴"
           }
         }
       }
@@ -8601,6 +8621,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在准备"
+          }
+        }
+      }
+    },
+    "Preparing edits" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "准备编辑内容"
           }
         }
       }
@@ -13535,6 +13565,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重新分段字幕"
+          }
+        }
+      }
+    },
+    "Reading the recording" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "读取录制"
           }
         }
       }
