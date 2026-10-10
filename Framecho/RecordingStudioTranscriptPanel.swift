@@ -37,7 +37,6 @@ struct StudioTranscriptPanel: View {
 
     @Bindable var model: RecordingStudioModel
 
-    @AppStorage(isPresentedKey) private var isPresented = false
     @AppStorage("studioTranscriptMode") private var mode = StudioTranscriptMode.captions
     @State private var searchText = ""
     @FocusState private var focusedCueID: UUID?
@@ -122,15 +121,6 @@ struct StudioTranscriptPanel: View {
                 if hasTranscript, model.hasTranscriptWords {
                     aiMenu
                 }
-
-                Button {
-                    isPresented = false
-                } label: {
-                    Image(systemName: "sidebar.left")
-                }
-                .buttonStyle(.borderless)
-                .help("Hide Transcript")
-                .accessibilityLabel("Hide Transcript")
             }
 
             if hasTranscript, model.hasTranscriptWords, model.captionCleanupState != .reviewing {
