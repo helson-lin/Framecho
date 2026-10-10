@@ -267,6 +267,7 @@ enum AgentEditingTools {
             "edited_start": .optional(slices.first.map { .seconds($0.editorStart) }),
             "edited_end": .optional(slices.last.map { .seconds($0.editorEnd) }),
             "zoom": .double(cue.zoom),
+            "mode": .string(zoomModeName(cue.anchorMode)),
             "follows_pointer": .bool(cue.anchorMode != .pinnedAnchor),
             "focus": ["x": .double(cue.pinnedPoint.x), "y": .double(cue.pinnedPoint.y)],
             "enabled": .bool(cue.isEnabled),
@@ -482,18 +483,20 @@ enum AgentEditingTools {
         let isSource = try usesSourceTimeline(args)
         let zoom = try args.optionalNumber("zoom")
         let focus = try point(args, "focus")
+        let mode = try zoomMode(args)
         guard end > start else { throw MCPToolError.invalidArguments("`end` must be after `start`") }
         return try await edit(args) { model in
             let range = try editorRange(start, end, isSource: isSource, in: model)
             guard let id = model.addZoomCue(fromEditorTime: range.lowerBound, toEditorTime: range.upperBound) else {
                 throw MCPToolError.failed("No room for a zoom there: it is covered by existing zooms. Update or remove one first.")
             }
-            if zoom != nil || focus != nil, var cue = model.zoomCues.first(where: { $0.id == id }) {
+            if zoom != nil || focus != nil || mode != nil, var cue = model.zoomCues.first(where: { $0.id == id }) {
                 if let zoom { cue.zoom = zoom }
                 if let focus {
                     cue.pinnedPoint = focus
                     cue.anchorMode = .pinnedAnchor
                 }
+                if let mode { cue.anchorMode = mode }
                 applyZoomEdit(cue, to: model)
             }
             guard let cue = model.zoomCues.first(where: { $0.id == id }) else { return [:] }
@@ -509,6 +512,7 @@ enum AgentEditingTools {
         let zoom = try args.optionalNumber("zoom")
         let focus = try point(args, "focus")
         let followsPointer = try args.optionalBool("follow_pointer")
+        let mode = try zoomMode(args)
         let isEnabled = try args.optionalBool("enabled")
         return try await edit(args) { model in
             guard var cue = model.zoomCues.first(where: { $0.id == id && !$0.isImplicit }) else {
@@ -531,6 +535,7 @@ enum AgentEditingTools {
             if let followsPointer {
                 cue.anchorMode = followsPointer ? .pointerAnchor : .pinnedAnchor
             }
+            if let mode { cue.anchorMode = mode }
             if let isEnabled { cue.isEnabled = isEnabled }
             applyZoomEdit(cue, to: model)
             guard let updated = model.zoomCues.first(where: { $0.id == id }) else { return [:] }
@@ -1056,6 +1061,23 @@ enum AgentEditingTools {
         isSource
             ? min(max(time, 0), model.sourceDuration)
             : model.sourceTime(atEditorTime: min(max(time, 0), model.duration))
+    }
+
+    private static func zoomMode(_ args: MCPArguments) throws -> ZoomAnchorMode? {
+        switch try args.optionalChoice("mode", in: ["pointer", "smart", "fixed"]) {
+        case "pointer": .pointerAnchor
+        case "smart": .smartAnchor
+        case "fixed": .pinnedAnchor
+        default: nil
+        }
+    }
+
+    private static func zoomModeName(_ mode: ZoomAnchorMode) -> String {
+        switch mode {
+        case .pointerAnchor: "pointer"
+        case .smartAnchor: "smart"
+        case .pinnedAnchor: "fixed"
+        }
     }
 
     private static func uuid(_ args: MCPArguments, _ key: String) throws -> UUID {

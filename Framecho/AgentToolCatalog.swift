@@ -189,7 +189,7 @@ nonisolated enum AgentToolCatalog {
             MCPToolDefinition(
                 name: tool.rawValue,
                 title: "Add zoom",
-                description: "Zooms the camera in over a range. By default the zoom follows the pointer; pass `focus` to hold on a fixed point instead. Zooms can't overlap: a range that runs into another zoom is shortened, and the reply gives the times actually used.",
+                description: "Zooms the camera in over a range. By default the zoom follows the pointer; `mode: smart` holds steady on where the pointer is working instead of chasing every move (calmer to watch), and `focus` holds on a fixed point. Zooms can't overlap: a range that runs into another zoom is shortened, and the reply gives the times actually used.",
                 inputSchema: AgentSchema.object([
                     "recording": AgentSchema.recording,
                     "start": AgentSchema.number("Zoom start, seconds."),
@@ -197,6 +197,7 @@ nonisolated enum AgentToolCatalog {
                     "timeline": AgentSchema.timeline,
                     "zoom": AgentSchema.number("Magnification, 1–4. Default 1.5."),
                     "focus": AgentSchema.point,
+                    "mode": AgentSchema.zoomMode,
                 ], required: ["recording", "start", "end"]),
                 isReadOnly: false
             )
@@ -213,7 +214,8 @@ nonisolated enum AgentToolCatalog {
                     "timeline": AgentSchema.timeline,
                     "zoom": AgentSchema.number("Magnification, 1–4."),
                     "focus": AgentSchema.point,
-                    "follow_pointer": AgentSchema.boolean("true to follow the pointer instead of a fixed focus."),
+                    "follow_pointer": AgentSchema.boolean("true to follow the pointer instead of a fixed focus. Prefer `mode`."),
+                    "mode": AgentSchema.zoomMode,
                     "enabled": AgentSchema.boolean("false to keep the zoom but skip it."),
                 ], required: ["recording", "id"]),
                 isReadOnly: false
@@ -452,6 +454,11 @@ nonisolated enum AgentSchema {
     static let timeline = choice(
         ["edited", "source"],
         "Which timeline the times are on: edited (after cuts and speed changes; the default) or source (the original recording)."
+    )
+
+    static let zoomMode = choice(
+        ["pointer", "smart", "fixed"],
+        "How the zoomed camera aims: pointer tracks every pointer move; smart holds on stable regions of pointer activity and moves only when the work does (calmest); fixed holds on `focus`."
     )
 
     /// A preset name or a normalized center.
