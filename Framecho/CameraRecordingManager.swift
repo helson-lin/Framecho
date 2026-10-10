@@ -230,7 +230,7 @@ final class CameraRecordingManager {
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isMovableByWindowBackground = true
-        PreviewWindowCaptureExclusion.shared.register(window: panel)
+        PreviewWindowCaptureExclusion.shared.registerRecorderControl(window: panel)
 
         let previewLayer = engine.makePreviewLayer()
         previewLayer.videoGravity = .resizeAspectFill

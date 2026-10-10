@@ -19,6 +19,7 @@ final class PreviewWindowCaptureExclusion {
     }
 
     private let registeredWindows = NSHashTable<NSWindow>.weakObjects()
+    private let recorderControls = NSHashTable<NSWindow>.weakObjects()
 
     private init() {}
 
@@ -29,6 +30,25 @@ final class PreviewWindowCaptureExclusion {
 
         registeredWindows.add(window)
         applyCaptureVisibility(to: window)
+    }
+
+    /// Registers a window that belongs to the recorder itself - the bar, the
+    /// camera bubble, the teleprompter. Screenshots follow the preference
+    /// like any other window, but recordings always leave these out: the
+    /// camera is recorded on its own track, so a bubble baked into the
+    /// screen shows up twice once Studio adds it back.
+    func registerRecorderControl(window: NSWindow?) {
+        guard let window else { return }
+
+        recorderControls.add(window)
+        register(window: window)
+    }
+
+    /// The recorder's own windows that are currently on screen.
+    var recorderControlWindowIDs: Set<CGWindowID> {
+        Set(recorderControls.allObjects.compactMap { window in
+            window.windowNumber > 0 ? CGWindowID(window.windowNumber) : nil
+        })
     }
 
     /// Applies a changed preference immediately to windows that already

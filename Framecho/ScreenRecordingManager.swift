@@ -253,7 +253,9 @@ final class ScreenRecordingManager {
 
                 // Camera setup and every permission prompt complete before the
                 // screen stream begins, so setup UI is never baked into video.
-                try await capture.startCapture(filter: target.filter, configuration: target.configuration)
+                let filter = try await Self.filterExcludingRecorderControls(target)
+                guard isStarting(session: session) else { return }
+                try await capture.startCapture(filter: filter, configuration: target.configuration)
                 guard isStarting(session: session) else { return }
 
                 manifest = CaptureManifest()
@@ -674,6 +676,22 @@ final class ScreenRecordingManager {
         state = .idle
     }
 
+    /// The camera bubble opens after the target is resolved, so a display
+    /// filter that lets Framecho's windows through is rebuilt from a fresh
+    /// window list just before capture starts, to keep the bubble out too.
+    private static func filterExcludingRecorderControls(_ target: ScreenRecordingCaptureTarget) async throws -> SCContentFilter {
+        guard let display = target.filterDisplay, PreviewWindowCaptureExclusion.includesAppWindowsInCaptures else {
+            return target.filter
+        }
+        let content = try await ScreenRecordingCapture.availableContent()
+        return ScreenRecordingCapture.displayFilter(
+            display: display,
+            content: content,
+            includesAppWindows: true,
+            excludedWindowIDs: PreviewWindowCaptureExclusion.shared.recorderControlWindowIDs
+        )
+    }
+
     private static func captureTarget(
         for source: ScreenRecordingSource,
         content: SCShareableContent,
@@ -684,6 +702,7 @@ final class ScreenRecordingManager {
         var sourceRect: CGRect?
         let captureRect: CGRect
         let displayID: CGDirectDisplayID?
+        let filterDisplay: SCDisplay?
         let tracksDynamicGeometry: Bool
         let includesAppWindows = PreviewWindowCaptureExclusion.includesAppWindowsInCaptures
 
@@ -693,7 +712,8 @@ final class ScreenRecordingManager {
             filter = ScreenRecordingCapture.displayFilter(
                 display: freshDisplay,
                 content: content,
-                includesAppWindows: includesAppWindows
+                includesAppWindows: includesAppWindows,
+                excludedWindowIDs: PreviewWindowCaptureExclusion.shared.recorderControlWindowIDs
             )
             sourceSize = CGSize(width: freshDisplay.width, height: freshDisplay.height)
             // Input mapping rects are always Quartz top-left, the space
@@ -703,6 +723,7 @@ final class ScreenRecordingManager {
             let bounds = CGDisplayBounds(freshDisplay.displayID)
             captureRect = bounds.isEmpty ? freshDisplay.frame : bounds
             displayID = freshDisplay.displayID
+            filterDisplay = freshDisplay
             tracksDynamicGeometry = false
         case .window(let window):
             let freshWindow = content.windows.first(where: { $0.windowID == window.windowID }) ?? window
@@ -713,13 +734,15 @@ final class ScreenRecordingManager {
             // beat the stream's first frame.
             captureRect = freshWindow.frame
             displayID = nil
+            filterDisplay = nil
             tracksDynamicGeometry = true
         case .area(let display, let rect):
             let freshDisplay = content.displays.first(where: { $0.displayID == display.displayID }) ?? display
             filter = ScreenRecordingCapture.displayFilter(
                 display: freshDisplay,
                 content: content,
-                includesAppWindows: includesAppWindows
+                includesAppWindows: includesAppWindows,
+                excludedWindowIDs: PreviewWindowCaptureExclusion.shared.recorderControlWindowIDs
             )
             let mappedSourceRect = Self.sourceRect(
                 forAppKitSelectionRect: rect,
@@ -730,6 +753,7 @@ final class ScreenRecordingManager {
             sourceSize = mappedSourceRect.size
             captureRect = Self.quartzRect(fromAppKitRect: rect)
             displayID = freshDisplay.displayID
+            filterDisplay = freshDisplay
             tracksDynamicGeometry = false
         }
 
@@ -750,6 +774,7 @@ final class ScreenRecordingManager {
         )
         return ScreenRecordingCaptureTarget(
             filter: filter,
+            filterDisplay: filterDisplay,
             configuration: configuration,
             width: width,
             height: height,
@@ -834,6 +859,8 @@ final class ScreenRecordingManager {
 
 private struct ScreenRecordingCaptureTarget {
     let filter: SCContentFilter
+    /// The display a display or area filter covers; nil for a window.
+    let filterDisplay: SCDisplay?
     let configuration: SCStreamConfiguration
     let width: Int
     let height: Int
@@ -896,13 +923,19 @@ nonisolated final class ScreenRecordingCapture: NSObject, SCStreamOutput, SCStre
     static func displayFilter(
         display: SCDisplay,
         content: SCShareableContent,
-        includesAppWindows: Bool
+        includesAppWindows: Bool,
+        excludedWindowIDs: Set<CGWindowID>
     ) -> SCContentFilter {
-        let excludedApps = includesAppWindows
-            ? []
-            : content.applications.filter { application in
-                application.bundleIdentifier == Bundle.main.bundleIdentifier
-            }
+        if includesAppWindows {
+            // Framecho's own UI is wanted, but never the recorder's controls.
+            return SCContentFilter(
+                display: display,
+                excludingWindows: content.windows.filter { excludedWindowIDs.contains($0.windowID) }
+            )
+        }
+        let excludedApps = content.applications.filter { application in
+            application.bundleIdentifier == Bundle.main.bundleIdentifier
+        }
 
         return SCContentFilter(
             display: display,

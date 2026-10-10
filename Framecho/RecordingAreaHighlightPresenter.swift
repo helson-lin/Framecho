@@ -52,7 +52,7 @@ final class RecordingAreaHighlightPresenter {
             highlightRect: localRect
         )
 
-        PreviewWindowCaptureExclusion.shared.register(window: panel)
+        PreviewWindowCaptureExclusion.shared.registerRecorderControl(window: panel)
         self.panel = panel
         panel.orderFrontRegardless()
     }

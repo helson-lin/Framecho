@@ -159,7 +159,7 @@ final class TeleprompterOverlayPresenter {
         guard !model.layout.isEmpty else { return }
 
         let panel = panel ?? makePanel()
-        PreviewWindowCaptureExclusion.shared.register(window: panel)
+        PreviewWindowCaptureExclusion.shared.registerRecorderControl(window: panel)
         position(panel, on: screen)
         panel.orderFrontRegardless()
 

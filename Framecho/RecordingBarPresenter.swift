@@ -73,7 +73,7 @@ final class RecordingBarPresenter {
             return
         }
         let panel = panel ?? makePanel()
-        PreviewWindowCaptureExclusion.shared.register(window: panel)
+        PreviewWindowCaptureExclusion.shared.registerRecorderControl(window: panel)
         Task {
             await RecordingSourceCatalog.shared.refresh()
         }
@@ -96,7 +96,7 @@ final class RecordingBarPresenter {
     /// and there's nothing to morph from.
     func showRecording(displayID: CGDirectDisplayID?) {
         let panel = panel ?? makePanel()
-        PreviewWindowCaptureExclusion.shared.register(window: panel)
+        PreviewWindowCaptureExclusion.shared.registerRecorderControl(window: panel)
         TeleprompterComposerPresenter.shared.hide()
         isPickerVisible = false
 
@@ -222,7 +222,7 @@ final class RecordingBarPresenter {
         panel.disableCursorRects()
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
-        PreviewWindowCaptureExclusion.shared.register(window: panel)
+        PreviewWindowCaptureExclusion.shared.registerRecorderControl(window: panel)
 
         let hostingView = RecordingBarHostingView(rootView: RecordingBarView())
         hostingView.frame = CGRect(origin: .zero, size: size)
