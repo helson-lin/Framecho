@@ -2451,6 +2451,13 @@ final class RecordingStudioModel {
         )
     }
 
+    /// Replaces every caption at once - a re-segmentation - as one undo
+    /// step. The transcript's words are untouched.
+    func replaceAllSubtitleCues(_ cues: [RecordingSubtitleCue]) {
+        selectedSubtitleCueID = nil
+        applySubtitleCues(cues.sorted { $0.start < $1.start }, actionName: String(localized: "Re-segment Captions"))
+    }
+
     private func applySubtitleCues(_ cues: [RecordingSubtitleCue], actionName: String) {
         guard cues != subtitleCues else { return }
         let previous = subtitleCues

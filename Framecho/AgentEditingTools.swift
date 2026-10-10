@@ -55,6 +55,8 @@ enum AgentEditingTools {
             return try await removeZoom(args)
         case .updateSubtitle:
             return try await updateSubtitle(args)
+        case .setCaptions:
+            return try await setCaptions(args)
         case .updateSettings:
             return try await updateSettings(args)
         case .setMusic:
@@ -571,6 +573,44 @@ enum AgentEditingTools {
             model.updateSubtitleText(id: id, text: text)
             model.endSubtitleEdit(actionName: String(localized: "Edit Caption"))
             return [:]
+        }
+    }
+
+    private static func setCaptions(_ args: MCPArguments) async throws -> MCPToolResult {
+        let requested = try args.array("captions").enumerated().map { index, item -> (range: ClosedRange<Int>, text: String?) in
+            guard let from = item["from"]?.intValue, let to = item["to"]?.intValue, from <= to else {
+                throw MCPToolError.invalidArguments("`captions[\(index)]` needs integer `from` ≤ `to`")
+            }
+            if let text = item["text"], text != .null, text.stringValue == nil {
+                throw MCPToolError.invalidArguments("`captions[\(index)].text` must be a string")
+            }
+            return (from...to, item["text"]?.stringValue)
+        }
+        return try await edit(args) { model in
+            let words = model.transcriptWords
+            guard !words.isEmpty else {
+                throw MCPToolError.failed("There is no transcript yet. Call transcribe first.")
+            }
+            var previousEnd = -1
+            let cues = try requested.enumerated().map { index, caption -> RecordingSubtitleCue in
+                guard caption.range.lowerBound >= 0, caption.range.upperBound < words.count else {
+                    throw MCPToolError.invalidArguments("Word indices run from 0 to \(words.count - 1)")
+                }
+                guard caption.range.lowerBound > previousEnd else {
+                    throw MCPToolError.invalidArguments("`captions[\(index)]` starts before the previous caption ends; keep them in order without shared words")
+                }
+                previousEnd = caption.range.upperBound
+                let spoken = words[caption.range]
+                let text = caption.text?.trimmingCharacters(in: .whitespacesAndNewlines)
+                    ?? TranscriptCaptionText.text(of: spoken).trimmingCharacters(in: .whitespacesAndNewlines)
+                return RecordingSubtitleCue(
+                    start: words[caption.range.lowerBound].start,
+                    end: max(words[caption.range.upperBound].end, words[caption.range.lowerBound].start + SubtitleCueTiming.minimumDuration),
+                    text: text
+                )
+            }
+            model.replaceAllSubtitleCues(cues)
+            return ["captions": .int(cues.count)]
         }
     }
 

@@ -24,6 +24,7 @@ nonisolated enum AgentTool: String, CaseIterable, Sendable {
     case updateZoom = "update_zoom"
     case removeZoom = "remove_zoom"
     case updateSubtitle = "update_subtitle"
+    case setCaptions = "set_captions"
     case updateSettings = "update_settings"
     case setMusic = "set_music"
     case addOverlay = "add_overlay"
@@ -241,6 +242,27 @@ nonisolated enum AgentToolCatalog {
                     "text": AgentSchema.string("New caption text."),
                 ], required: ["recording", "id", "text"]),
                 isReadOnly: false
+            )
+        case .setCaptions:
+            MCPToolDefinition(
+                name: tool.rawValue,
+                title: "Set captions",
+                description: "Replaces all captions at once, to re-segment them: each caption spans a run of transcript words by index (from get_transcript) and takes its timing from them, so it stays in sync with the speech. Captions must be in order and must not share words. `text` overrides what the caption says (keep it to the words' meaning - e.g. a corrected spelling); omitted, it reads the words. One undo step in Studio.",
+                inputSchema: AgentSchema.object([
+                    "recording": AgentSchema.recording,
+                    "captions": .object([
+                        "type": "array",
+                        "minItems": 1,
+                        "description": "The captions in order.",
+                        "items": AgentSchema.object([
+                            "from": AgentSchema.integer("First word index."),
+                            "to": AgentSchema.integer("Last word index, inclusive."),
+                            "text": AgentSchema.string("Caption text. Defaults to the words."),
+                        ], required: ["from", "to"]),
+                    ]),
+                ], required: ["recording", "captions"]),
+                isReadOnly: false,
+                isDestructive: true
             )
         case .updateSettings:
             MCPToolDefinition(

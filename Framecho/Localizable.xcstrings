@@ -13529,6 +13529,16 @@
         }
       }
     },
+    "Re-segment Captions" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新分段字幕"
+          }
+        }
+      }
+    },
     "Ready for connections" : {
       "localizations" : {
         "zh-Hans" : {
