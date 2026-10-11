@@ -53,7 +53,6 @@ const (
 	appDisplayName = "Framecho"
 	githubRepo     = "helson-lin/Framecho"
 	gitBranch      = "main"
-	minSystemVer   = "26.4"
 	dmgVolumeName  = "Framecho"
 	appName        = "Framecho.app"
 	dmgName        = "Framecho.dmg"
@@ -183,6 +182,13 @@ func main() {
 		fail("Could not read build number from Info.plist")
 	}
 
+	// Xcode writes this from the deployment target; Sparkle offers the
+	// update only to Macs that meet it.
+	minSystemVersion, err := plistValue(plist, "LSMinimumSystemVersion")
+	if err != nil {
+		fail("Could not read LSMinimumSystemVersion from Info.plist")
+	}
+
 	if feedURL, err := plistValue(plist, "SUFeedURL"); err != nil {
 		warn("SUFeedURL not found in Info.plist")
 	} else if feedURL != appcastURL {
@@ -193,7 +199,7 @@ func main() {
 		warn("SUPublicEDKey not found in Info.plist")
 	}
 
-	fmt.Printf("  Version: %s%s%s  Build: %s%s%s\n", bold, version, reset, bold, build, reset)
+	fmt.Printf("  Version: %s%s%s  Build: %s%s%s  Minimum macOS: %s%s%s\n", bold, version, reset, bold, build, reset, bold, minSystemVersion, reset)
 
 	existingData, _ := os.ReadFile(appcastPath)
 	if strings.Contains(string(existingData), "sparkle:version>"+build+"<") {
@@ -308,7 +314,7 @@ func main() {
 		Title:              fmt.Sprintf("Version %s", version),
 		Version:            build,
 		ShortVersionString: version,
-		MinSystemVersion:   minSystemVer,
+		MinSystemVersion:   minSystemVersion,
 		PubDate:            pubDate,
 		Description:        buildDescription(version, notes),
 		Enclosure: Enclosure{
