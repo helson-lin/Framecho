@@ -41,8 +41,10 @@ check() {
   local log="$out/logs/$name.log"
   echo "==> $name"
   # Optimised, but keeping precondition messages: a plain -O build drops
-  # them, and a failing check would only say it trapped.
-  if ! xcrun swiftc -O -assert-config Debug -module-cache-path "$out/module-cache" "$@" -o "$out/$name" 2>&1 | tee "$log"; then
+  # them, and a failing check would only say it trapped. Built for the
+  # app's oldest macOS, so an API newer than that fails here as in Xcode.
+  if ! xcrun swiftc -O -assert-config Debug -target "$(uname -m)-apple-macos15.0" \
+      -module-cache-path "$out/module-cache" "$@" -o "$out/$name" 2>&1 | tee "$log"; then
     report "$name" "❌ doesn't compile"
     exit 1
   fi
