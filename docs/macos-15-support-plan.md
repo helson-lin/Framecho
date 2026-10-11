@@ -1,6 +1,6 @@
 # Framecho 支持 macOS 15 改造方案
 
-状态：第 1 步（界面退路）已在 `macos-15-support` 分支实现，其余未实施。
+状态：第 1–2 步（界面退路、预览卡片拖拽）已在 `macos-15-support` 分支实现，其余未实施。
 
 依据：2026-10-11 在 `main`（v0.44.0）上，用 `MACOSX_DEPLOYMENT_TARGET=15.0` 和整模块编译（`SWIFT_COMPILATION_MODE=wholemodule`，一次报出全部错误）构建得到的编译器错误清单，以及对相关代码的阅读。复现命令：
 
@@ -72,9 +72,15 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 - 开始时关闭 Quick Look（`ScreenshotPreviewStack.beginDrag`）；
 - 结束时，如果开启了「拖出后关闭」（`FramechoPreferences.previewCloseAfterDragging`），就移除卡片（`finishDrag`）。
 
-15 上没有这个 API。建议在 15 上改用一个 AppKit 拖拽源：在 `NSViewRepresentable` 里实现 `NSDraggingSource`，通过 `draggingSession(_:willBeginAt:)` 和 `draggingSession(_:endedAt:operation:)` 回调同样的两个闭包，粘贴板内容和拖拽预览图与现在的 `.draggable(item.url) { … }` 保持一致。26 上继续用 SwiftUI 的写法。
+15 上没有这个 API。实现（`PreviewCardView.swift` 末尾的 `draggableFile` / `FileDragModifier`）：
 
-不建议的简化方案：只用 `.onDrag` 判断拖拽开始，再靠鼠标抬起判断结束。拖拽期间 AppKit 跑的是自己的事件循环，鼠标事件监听不可靠。
+- 26 上保持 `.draggable(url)` + `onDragSessionUpdated`，行为不变。
+- 15 上改用 `.onDrag { … } preview: { … }`：系统在拖拽真正开始时才请求 `NSItemProvider`，在这里回调「开始」；拖出的内容是 `NSItemProvider(object: url as NSURL)`，和 `.draggable(url)` 一样提供文件 URL。
+- 拖拽只在鼠标左键按住期间存在，所以「开始」之后每 30ms 检查一次系统级的 `NSEvent.pressedMouseButtons`，左键松开就回调「结束」。无论放到 Finder、别的 App 还是取消，都能检测到；只在拖拽期间检查。
+
+没有采用 AppKit 拖拽源（`NSViewRepresentable` + `NSDraggingSource`）：卡片上叠着悬停操作按钮、双击和右键菜单，用一个 `NSView` 接管鼠标事件很容易破坏这些交互。
+
+在 15 上需要验证：拖到 Finder 能复制文件；拖拽开始时 Quick Look 关闭；「拖出后关闭」开启时，放下和取消拖拽都会移除卡片，与 26 上的行为一致。
 
 ## 4. 字幕清理（低）
 
@@ -173,7 +179,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 每一步单独提交，并且每一步都要能在当前的部署目标（26.4）下编译通过。开发时用本文开头的命令覆盖部署目标来检查进度，最后一步再正式修改工程设置。
 
 1. 界面退路：`glassSurface`、`GlassSurfaceContainer`、工具栏（第 3.1、3.2 节）——在 26 上不改变任何表现
-2. 预览卡片的 AppKit 拖拽源（第 3.3 节）
+2. 预览卡片拖拽的开始与结束（第 3.3 节）
 3. 字幕清理的版本判断（第 4 节）
 4. 语音识别权限：`Info.plist`、`AppPermission`、权限引导（第 5.4 节）
 5. 转写的 15 实现，含切块（第 5 节）

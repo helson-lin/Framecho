@@ -100,21 +100,11 @@ struct PreviewCardView: View {
                     }
                 }
             }
-            .draggable(item.url) {
+            .draggableFile(item.url, onBegan: onDragBegan, onEnded: onDragEnded) {
                 Image(nsImage: item.previewImage)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .clipShape(.rect(cornerRadius: cornerRadius))
-            }
-            .onDragSessionUpdated { session in
-                switch session.phase {
-                case .active:
-                    onDragBegan()
-                case .ended:
-                    onDragEnded()
-                default:
-                    break
-                }
             }
             .onHover { status in
                 withAnimation(previewStackAnimation) {
@@ -425,5 +415,82 @@ struct PreviewCardView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Dragging the file out
+
+private extension View {
+    /// Drags `url` out as a file, reporting when the drag starts and when it
+    /// ends, whether dropped or cancelled.
+    func draggableFile(
+        _ url: URL,
+        onBegan: @escaping () -> Void,
+        onEnded: @escaping () -> Void,
+        @ViewBuilder preview: () -> some View
+    ) -> some View {
+        modifier(FileDragModifier(url: url, onBegan: onBegan, onEnded: onEnded, preview: preview()))
+    }
+}
+
+private struct FileDragModifier<Preview: View>: ViewModifier {
+    let url: URL
+    let onBegan: () -> Void
+    let onEnded: () -> Void
+    let preview: Preview
+
+    @State private var releaseWatcher = MouseReleaseWatcher()
+
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .draggable(url) { preview }
+                .onDragSessionUpdated { session in
+                    switch session.phase {
+                    case .active:
+                        onBegan()
+                    case .ended:
+                        onEnded()
+                    default:
+                        break
+                    }
+                }
+        } else {
+            // Before macOS 26 SwiftUI reports neither phase. The provider is
+            // requested as the drag begins, and the drag lasts exactly as long
+            // as the mouse button stays down, wherever it is released.
+            content
+                .onDrag {
+                    onBegan()
+                    releaseWatcher.watch(then: onEnded)
+                    return NSItemProvider(object: url as NSURL)
+                } preview: {
+                    preview
+                }
+                .onDisappear { releaseWatcher.cancel() }
+        }
+    }
+}
+
+/// Calls back once the left mouse button is up. `NSEvent.pressedMouseButtons`
+/// is system-wide, so this also sees a release over another app, where a drop
+/// onto Finder or a document ends.
+private final class MouseReleaseWatcher {
+    private var task: Task<Void, Never>?
+
+    func watch(then onRelease: @escaping () -> Void) {
+        task?.cancel()
+        task = Task {
+            while NSEvent.pressedMouseButtons & 1 != 0 {
+                try? await Task.sleep(for: .milliseconds(30))
+                if Task.isCancelled { return }
+            }
+            onRelease()
+        }
+    }
+
+    func cancel() {
+        task?.cancel()
+        task = nil
     }
 }
