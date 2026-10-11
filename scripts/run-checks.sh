@@ -152,16 +152,20 @@ check recording-timelines "${strict[@]}" \
   scripts/check-recording-timelines.swift
 
 check transcript-captions "${strict[@]}" \
-  Framecho/RecordingTranscription.swift scripts/check-transcript-captions.swift
+  Framecho/RecordingTranscription.swift Framecho/LegacySpeechTranscription.swift scripts/check-transcript-captions.swift
+
+check legacy-transcription "${strict[@]}" \
+  Framecho/RecordingTranscription.swift Framecho/LegacySpeechTranscription.swift \
+  scripts/check-legacy-transcription.swift
 
 check caption-cleanup "${strict[@]}" \
-  Framecho/RecordingTranscription.swift Framecho/CaptionCleanup.swift \
+  Framecho/RecordingTranscription.swift Framecho/LegacySpeechTranscription.swift Framecho/CaptionCleanup.swift \
   scripts/check-caption-cleanup.swift
 
 check background-music "${strict[@]}" \
   Framecho/BackgroundMusic.swift Framecho/RecordingAudioGain.swift \
   Framecho/RecordingAudioNormalization.swift \
-  Framecho/RecordingTranscription.swift scripts/check-background-music.swift
+  Framecho/RecordingTranscription.swift Framecho/LegacySpeechTranscription.swift scripts/check-background-music.swift
 
 check audio-normalization "${strict[@]}" \
   Framecho/RecordingAudioGain.swift Framecho/RecordingAudioNormalization.swift \

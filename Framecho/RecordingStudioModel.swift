@@ -2241,6 +2241,14 @@ final class RecordingStudioModel {
         transcriptionState = .transcribing
         let movieURL = screenURL
         transcriptionTask = Task { [weak self] in
+            // SFSpeechRecognizer, used before macOS 26, needs permission.
+            if #unavailable(macOS 26.0), await !AppPermissionCenter.shared.ensureSpeechRecognition() {
+                guard !Task.isCancelled else { return }
+                self?.transcriptionState = .failed(String(
+                    localized: "Allow Speech Recognition for Framecho in System Settings → Privacy & Security to transcribe on this version of macOS."
+                ))
+                return
+            }
             do {
                 let transcript = try await RecordingTranscriptionService.transcribe(screenMovieURL: movieURL)
                 guard !Task.isCancelled else { return }

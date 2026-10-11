@@ -1,6 +1,6 @@
 # Framecho 支持 macOS 15 改造方案
 
-状态：第 1–4 步（界面退路、预览卡片拖拽、字幕清理、语音识别权限）已在 `macos-15-support` 分支实现，其余未实施。
+状态：第 1–5 步（界面退路、预览卡片拖拽、字幕清理、语音识别权限、录屏转写）已在 `macos-15-support` 分支实现，其余未实施。
 
 依据：2026-10-11 在 `main`（v0.44.0）上，用 `MACOSX_DEPLOYMENT_TARGET=15.0` 和整模块编译（`SWIFT_COMPILATION_MODE=wholemodule`，一次报出全部错误）构建得到的编译器错误清单，以及对相关代码的阅读。复现命令：
 
@@ -95,24 +95,24 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 
 `RecordingTranscription.swift` 对外只有 `transcribe(screenMovieURL:) -> RecordingTranscript` 和 `resolveLocale()`。字幕、按文字剪辑、MCP 的 `transcribe` / `cut_words` / `tighten_narration` 都只依赖 `RecordingTranscript` 里带时间的逐词结果，所以只在引擎层加一个 15 的实现，上层不用改。
 
-### 5.1 15 上的实现
+### 5.1 15 上的实现（已实现，`LegacySpeechTranscription.swift`）
 
-在 `transcribe(screenMovieURL:)`（`:789` 起）里按系统分支：
+`transcribe(screenMovieURL:)` 在 26 上走原有的 SpeechAnalyzer（移到 `transcribeWithSpeechAnalyzer`，代码不变），26 以下走 `LegacySpeechTranscription.transcribe(narrationURL:locale:)`。`extractNarrationAudio(from:)` 和 `makeCues(from:)` 两条路径共用。
 
-- **26**：保持现有的 `SpeechTranscriber` + `SpeechAnalyzer` 流程。
-- **15**：用 `SFSpeechRecognizer(locale:)` + `SFSpeechURLRecognitionRequest(url: narrationURL)`，设置 `requiresOnDeviceRecognition = true`、`addsPunctuation = true`、`shouldReportPartialResults = false`。取最终结果 `bestTranscription.segments`，每个 `SFTranscriptionSegment` 映射为一个 `RecordingTranscriptWord`（`text` 取 `substring`，`start` 取 `timestamp`，`end` 取 `timestamp + duration`）。标点的粘连规则对齐 `collectWords(from:)`（`:892` 起）现有的处理方式。
-
-`extractNarrationAudio(from:)` 和 `makeCues(from:)` 两条路径共用。
+- `SFSpeechAudioBufferRecognitionRequest`：`requiresOnDeviceRecognition = true`、`addsPunctuation = true`、`shouldReportPartialResults = true`，识别回调放在专用队列上。
+- **分段 → 词**（`LegacyTranscriptAssembly.words`）：从 `formattedString` 里两个分段之间的文字还原空格和标点，标点并到前一个词，空格作为下一个词的前缀，和 SpeechAnalyzer 的词格式一致，中文、英文都适用。
+- **长停顿后重新开始**：实测发现，长停顿后识别器会重新开始一段新的转写，最终结果只包含最后一段。中间结果的分段时间全部是 0；只有带 `speechRecognitionMetadata` 的结果（每段话结束时）和最终结果才有真实时间。所以只收集这两类结果，按时间归并（`LegacyTranscriptAssembly.merge`）：和上一段重叠的是修订或重复，替换；在上一段之后开始的是新的一段，追加。
+- 一块里有「检测不到语音」的错误（`kAFAssistantErrorDomain` 1110）时按空块处理。
 
 ### 5.2 语言
 
-15 上的 `resolveLocale()` 改从 `SFSpeechRecognizer.supportedLocales()` 里选，并且只考虑 `supportsOnDeviceRecognition == true` 的语言，选择优先级和现在一样（完全匹配 → 同语言 → 英文）。都不支持时抛出 `unsupportedLocale`，错误提示要告诉用户在「系统设置 › 键盘 › 听写」中启用对应语言。15 上无法像 `AssetInventory` 那样由 App 主动下载语言模型。
+`RecordingTranscriptionService.bestLocale(among:for:)` 抽出了原有的选择顺序（完全匹配 → 同语种 → 英文），两条路径共用。15 上只从 `supportsOnDeviceRecognition == true` 的语言里选，都不支持时提示用户可在「系统设置 → 键盘」中为该语言打开听写。
 
-**不能为了能用就回退到服务器识别**：网站和 README 都承诺「语音不上传」。
+**不会为了能用就回退到服务器识别**：网站和 README 都承诺「语音不上传」。
 
 ### 5.3 长录音
 
-设备端的 `SFSpeechRecognizer` 处理长音频不如 SpeechAnalyzer 稳定。建议把旁白按约 60 秒切块，切点选在静音处，或者相邻块留几秒重叠后去重，再把各块的时间戳加上偏移量后合并。要用 19 分钟的项目（性能提交里用过的那个）验证。
+旁白按最长 55 秒切块，切点选在每块最后 8 秒里能量最低的 0.25 秒（`LegacyTranscriptAssembly.quietestSample`），各块时间戳加上偏移后合并；使用空格分词的语言，在块与块之间补空格。
 
 ### 5.4 权限
 
@@ -123,6 +123,15 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 - **不放进首次启动的权限引导**（`isListedInOnboarding`）：引导卡片固定 520pt 高，第 6 行加上「重新打开」提示会超出约 40pt；而且在用到时再请求，系统弹窗出现得更自然；
 - 第一次转写或开启提词器前调用 `AppPermissionCenter.ensureSpeechRecognition()`：未决定时弹出系统授权，已拒绝时返回 false（第 5、6 步接入）；
 - README「隐私与权限」表格增加一行：语音识别（仅 macOS 15）。
+
+### 5.5 实测（2026-10-11，macOS 27 上直接调用 15 的代码路径）
+
+用 `say` 合成的中文旁白测试：
+
+- 70 秒（2 块）：3 秒识别完；修正「长停顿后重新开始」之前前 23 秒全部丢失，修正后完整、无重复，时间戳单调递增，切点前后衔接正确。
+- 4.5 分钟（5 块）：9.8 秒识别完，切点处没有丢失内容。
+- 准确度不如 SpeechAnalyzer：「Framecho」被识别为「reach」「remain」，同一句话重复 4 次，有一次漏了「演示一下」；有一处约 2 秒的短句（「录完以后」）识别器在任何回调里都没给出。
+- 测试机没有英文的设备端识别模型，所以英文只由 `scripts/check-legacy-transcription.swift` 覆盖，需要在装了英文听写的 macOS 15 上实测。
 
 ## 6. 提词器语音跟随（中）
 
@@ -183,7 +192,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 2. 预览卡片拖拽的开始与结束（第 3.3 节）
 3. 字幕清理的版本判断（第 4 节）
 4. 语音识别权限：`Info.plist`、`AppPermission`、设置的权限列表（第 5.4 节）
-5. 转写的 15 实现，含切块（第 5 节）
+5. 转写的 15 实现，含切块和长停顿后的分段归并（第 5 节）
 6. 提词器的 15 实现（第 6 节）
 7. 部署目标改为 15.0，检查脚本加 `-target`，发布工具读取最低系统版本，确认弱链接和 Metal（第 7 节）
 8. 文档：AGENTS.md、README

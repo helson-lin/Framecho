@@ -786,10 +786,28 @@ nonisolated enum RecordingTranscriptionService {
     private static let cueGapThreshold: TimeInterval = 0.9
     private static let minimumCueDuration: TimeInterval = 0.8
 
+    /// Before macOS 26 this uses SFSpeechRecognizer, which needs the Speech
+    /// Recognition permission; ask for it before calling.
     static func transcribe(screenMovieURL: URL) async throws -> RecordingTranscript {
         let narrationURL = try await extractNarrationAudio(from: screenMovieURL)
         defer { try? FileManager.default.removeItem(at: narrationURL) }
 
+        let words: [RecordingTranscriptWord]
+        if #available(macOS 26.0, *) {
+            words = try await transcribeWithSpeechAnalyzer(narrationURL: narrationURL)
+        } else {
+            words = try await LegacySpeechTranscription.transcribe(
+                narrationURL: narrationURL,
+                locale: LegacySpeechTranscription.locale()
+            )
+        }
+        let cues = makeCues(from: words)
+        guard !cues.isEmpty else { throw TranscriptionError.noSpeechDetected }
+        return RecordingTranscript(words: words, cues: cues)
+    }
+
+    @available(macOS 26.0, *)
+    private static func transcribeWithSpeechAnalyzer(narrationURL: URL) async throws -> [RecordingTranscriptWord] {
         let locale = try await resolveLocale()
         let transcriber = SpeechTranscriber(
             locale: locale,
@@ -813,10 +831,7 @@ nonisolated enum RecordingTranscriptionService {
             await analyzer.cancelAndFinishNow()
         }
 
-        let words = try await collectedWords
-        let cues = makeCues(from: words)
-        guard !cues.isEmpty else { throw TranscriptionError.noSpeechDetected }
-        return RecordingTranscript(words: words, cues: cues)
+        return try await collectedWords
     }
 
     /// Best transcription locale for the user's language; on-device models
@@ -824,22 +839,21 @@ nonisolated enum RecordingTranscriptionService {
     /// than produce gibberish English cues. Also used by the live
     /// teleprompter, which tracks the same narration as it is spoken.
     static func resolveLocale() async throws -> Locale {
-        let supported = await SpeechTranscriber.supportedLocales
-        let current = Locale.current
-        if let exact = supported.first(where: {
-            $0.identifier(.bcp47) == current.identifier(.bcp47)
-        }) {
-            return exact
+        guard #available(macOS 26.0, *) else {
+            return try LegacySpeechTranscription.locale()
         }
-        if let sameLanguage = supported.first(where: {
-            $0.language.languageCode == current.language.languageCode
-        }) {
-            return sameLanguage
+        guard let locale = bestLocale(among: await SpeechTranscriber.supportedLocales, for: .current) else {
+            throw TranscriptionError.unsupportedLocale
         }
-        if let english = supported.first(where: { $0.language.languageCode?.identifier == "en" }) {
-            return english
-        }
-        throw TranscriptionError.unsupportedLocale
+        return locale
+    }
+
+    /// The user's own language and region, then their language anywhere,
+    /// then English.
+    static func bestLocale(among supported: [Locale], for current: Locale) -> Locale? {
+        supported.first { $0.identifier(.bcp47) == current.identifier(.bcp47) }
+            ?? supported.first { $0.language.languageCode == current.language.languageCode }
+            ?? supported.first { $0.language.languageCode?.identifier == "en" }
     }
 
     /// Pulls the narration out of the screen movie into a standalone audio
@@ -889,6 +903,7 @@ nonisolated enum RecordingTranscriptionService {
         return outputURL
     }
 
+    @available(macOS 26.0, *)
     private static func collectWords(from transcriber: SpeechTranscriber) async throws -> [RecordingTranscriptWord] {
         var words: [RecordingTranscriptWord] = []
         for try await result in transcriber.results where result.isFinal {
