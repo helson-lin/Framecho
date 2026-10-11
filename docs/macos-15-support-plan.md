@@ -1,6 +1,6 @@
 # Framecho 支持 macOS 15 改造方案
 
-状态：第 1–5 步（界面退路、预览卡片拖拽、字幕清理、语音识别权限、录屏转写）已在 `macos-15-support` 分支实现，其余未实施。
+状态：第 1–6 步已在 `macos-15-support` 分支实现，部署目标 15.0 下整个 App 可以编译通过；第 7–8 步（正式修改部署目标、发布工具和文档）未实施。
 
 依据：2026-10-11 在 `main`（v0.44.0）上，用 `MACOSX_DEPLOYMENT_TARGET=15.0` 和整模块编译（`SWIFT_COMPILATION_MODE=wholemodule`，一次报出全部错误）构建得到的编译器错误清单，以及对相关代码的阅读。复现命令：
 
@@ -133,14 +133,17 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 - 准确度不如 SpeechAnalyzer：「Framecho」被识别为「reach」「remain」，同一句话重复 4 次，有一次漏了「演示一下」；有一处约 2 秒的短句（「录完以后」）识别器在任何回调里都没给出。
 - 测试机没有英文的设备端识别模型，所以英文只由 `scripts/check-legacy-transcription.swift` 覆盖，需要在装了英文听写的 macOS 15 上实测。
 
-## 6. 提词器语音跟随（中）
+## 6. 提词器语音跟随（中，已实现）
 
-`TeleprompterSpeechEngine` 对外只有 `preflightAssets()`、`start()`、`ingest(_:)` 和进度回调，并且本来就是「尽力而为」：识别失败时提词器只是停止自动滚动，不影响录制。
+`TeleprompterSpeechEngine` 对外的接口（`preflightAssets()`、`start()`、`ingest(_:)`、`setPaused(_:)`、`finish()`、进度回调）不变，并且本来就是「尽力而为」：识别失败时提词器只是停止自动滚动，不影响录制。
 
-- 把识别部分抽成文件内的私有协议，两个实现：26 上是现有的 SpeechAnalyzer 实现；15 上是 `SFSpeechAudioBufferRecognitionRequest`（`shouldReportPartialResults = true`、`requiresOnDeviceRecognition = true`），`ingest` 里把转换后的 `AVAudioPCMBuffer` 用 `append(_:)` 送进去。
-- 15 上的部分结果每次给出完整文本，所以直接对全部文本重新匹配，用不到现有的「已确定 + 临时」拼接逻辑；进度只前进不后退的规则不变。
-- 识别任务在长时间静音后可能自行结束，结束后要重新创建一个请求继续识别。
-- `preflightAssets()` 在 15 上改为请求语音识别授权，并检查所选语言是否支持设备端识别。
+- 识别部分抽成文件内的私有协议 `TeleprompterRecognizer`（显式 `nonisolated`：`append` 在录制的音频线程上调用，若被推断为主线程隔离，运行时会触发隔离检查），两个实现：
+  - `SpeechAnalyzerTeleprompterRecognizer`（26）：原有逻辑原样搬入；
+  - `LegacyTeleprompterRecognizer`（26 以下）：`SFSpeechAudioBufferRecognitionRequest`，设备端、开启中间结果；带 `speechRecognitionMetadata` 的结果把这段话的词固定下来，中间结果作为临时尾巴，每次对「已固定 + 临时」重新匹配。识别任务自行结束后重开一个继续识别，连续失败 5 次后停止。
+- 权限：开启提词器时（以及打开提词器面板时开关已是开着的）请求语音识别授权；开始录制时**不弹窗**（弹窗会被录进视频），未授权就不启动语音跟随，提词器只显示脚本。
+- 实测（2026-10-11，同一段 70 秒中文旁白，以 10 倍速作为麦克风输入）：两条路径的识别文本都随音频持续增长，跨过长停顿后前面的内容都保留，没有重复；15 路径识别出 245 字，26 路径 173 字。
+
+**发现的已有限制（不在本次范围）**：脚本和识别结果都只按空格切词（`TeleprompterScriptText.displayWords`），中文的一整句是一个「词」，几乎不可能匹配上，所以**中文脚本在 26 上也不会自动滚动**。
 
 ## 7. 工程、发布与文档
 
@@ -156,7 +159,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 
 ### 7.1 两项必须在真机上确认的风险
 
-- **FoundationModels 的弱链接**：macOS 15 上没有 `FoundationModels.framework`。如果它被强链接，App 在 15 上**一启动就会崩溃**。改完后用 `otool -l` 检查，`FoundationModels` 必须是 `LC_LOAD_WEAK_DYLIB`；如果不是，在 `OTHER_LDFLAGS` 里加 `-weak_framework FoundationModels`。
+- **FoundationModels 的弱链接**：macOS 15 上没有 `FoundationModels.framework`。如果它被强链接，App 在 15 上**一启动就会崩溃**。第 6 步后用部署目标 15.0 构建的 Debug 版本已确认：链接器自动把它标为 `LC_LOAD_WEAK_DYLIB`，`minos` 为 15.0。第 7 步要再用 Release 构建确认一次；如果不是弱链接，在 `OTHER_LDFLAGS` 里加 `-weak_framework FoundationModels`。
 - **Metal 着色器**：本次构建在 Swift 编译阶段就失败了，`StudioMotionBlur.metal` 还没有按 15.0 编译过。Swift 部分改完后要确认它能编译，并在 15 上验证导出时的运动模糊。
 
 ## 8. 为什么不考虑 macOS 14 及更早
@@ -193,7 +196,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 3. 字幕清理的版本判断（第 4 节）
 4. 语音识别权限：`Info.plist`、`AppPermission`、设置的权限列表（第 5.4 节）
 5. 转写的 15 实现，含切块和长停顿后的分段归并（第 5 节）
-6. 提词器的 15 实现（第 6 节）
+6. 提词器的 15 实现（第 6 节）——完成后部署目标 15.0 可以整体编译
 7. 部署目标改为 15.0，检查脚本加 `-target`，发布工具读取最低系统版本，确认弱链接和 Metal（第 7 节）
 8. 文档：AGENTS.md、README
 
