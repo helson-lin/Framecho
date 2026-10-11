@@ -1021,6 +1021,16 @@
         }
       }
     },
+    "Apple Intelligence needs macOS 26 or later. Use an OpenAI-compatible API instead." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Intelligence 需要 macOS 26 或更高版本，请改用 OpenAI 兼容 API。"
+          }
+        }
+      }
+    },
     "Remove Fillers from Captions" : {
       "localizations" : {
         "zh-Hans" : {

@@ -1,6 +1,6 @@
 # Framecho 支持 macOS 15 改造方案
 
-状态：第 1–2 步（界面退路、预览卡片拖拽）已在 `macos-15-support` 分支实现，其余未实施。
+状态：第 1–3 步（界面退路、预览卡片拖拽、字幕清理）已在 `macos-15-support` 分支实现，其余未实施。
 
 依据：2026-10-11 在 `main`（v0.44.0）上，用 `MACOSX_DEPLOYMENT_TARGET=15.0` 和整模块编译（`SWIFT_COMPILATION_MODE=wholemodule`，一次报出全部错误）构建得到的编译器错误清单，以及对相关代码的阅读。复现命令：
 
@@ -87,7 +87,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 `CaptionCleanupEngine.swift` 已经有两个实现：Apple 设备端模型（`OnDeviceCaptionEngine`）和 OpenAI 兼容的云端接口。并且当设备端不可用时，默认提供方会自动选云端（`:107`）。只需要：
 
 - 给 `OnDeviceCaptionEngine` 加 `@available(macOS 26.0, *)`；
-- `CaptionCleanupEngines.onDeviceUnavailableReason`（`:199`）在 26 以下返回「需要 macOS 26 和 Apple Intelligence」，`engine(for:)` 中的设备端分支包一层 `#available`。
+- `CaptionCleanupEngines.onDeviceUnavailableReason`（`:199`）在 26 以下返回「Apple Intelligence 需要 macOS 26 或更高版本，请改用 OpenAI 兼容 API。」（新字符串，已加中文翻译），`engine(for:)` 中的设备端分支包一层 `#available`。
 
 设置页（`SettingsCaptionAIPane.swift:40`）已经会显示不可用原因，不用改。
 
