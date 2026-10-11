@@ -1,6 +1,6 @@
 # Framecho 支持 macOS 15 改造方案
 
-状态：第 1–6 步已在 `macos-15-support` 分支实现，部署目标 15.0 下整个 App 可以编译通过；第 7–8 步（正式修改部署目标、发布工具和文档）未实施。
+状态：第 1–7 步已在 `macos-15-support` 分支实现，部署目标已改为 macOS 15.0；第 8 步（文档）未实施。
 
 依据：2026-10-11 在 `main`（v0.44.0）上，用 `MACOSX_DEPLOYMENT_TARGET=15.0` 和整模块编译（`SWIFT_COMPILATION_MODE=wholemodule`，一次报出全部错误）构建得到的编译器错误清单，以及对相关代码的阅读。复现命令：
 
@@ -149,10 +149,10 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 
 | 位置 | 改动 |
 | --- | --- |
-| `Framecho.xcodeproj` | 工程级和目标级共 6 处 `MACOSX_DEPLOYMENT_TARGET`（Debug、Release、Debug Dev）从 `26.4` 改为 `15.0` |
+| `Framecho.xcodeproj` | 工程级和目标级共 6 处 `MACOSX_DEPLOYMENT_TARGET`（Debug、Release、Debug Dev）从 `26.4` 改为 `15.0`（已实现） |
 | `Framecho/Info.plist` | 新增 `NSSpeechRecognitionUsageDescription` |
-| `cmd/framecho-release/main.go:56` | `minSystemVer = "26.4"` 写死了 appcast 的 `sparkle:minimumSystemVersion`，不改的话 15 的用户收不到更新。建议改为从导出的 `.app` 中读取 `LSMinimumSystemVersion`，同时更新 `main_test.go:32` |
-| `scripts/run-checks.sh:45` | `swiftc` 没有指定 `-target`，默认按本机系统编译，测不出 15 的兼容问题。加上 `-target "$(uname -m)-apple-macos15.0"` |
+| `cmd/framecho-release/main.go` | 原先写死 `minSystemVer = "26.4"` 作为 appcast 的 `sparkle:minimumSystemVersion`，不改的话 15 的用户收不到更新。已改为从导出的 `.app` 中读取 `LSMinimumSystemVersion`，读不到就停止发布（已实现） |
+| `scripts/run-checks.sh` | `swiftc` 原先不指定 `-target`，默认按本机系统编译，测不出 15 的兼容问题。已加上 `-target "$(uname -m)-apple-macos15.0"`，28 个检查全部通过（已实现） |
 | `AGENTS.md` | 改部署目标那一行；新增约定：macOS 26 专属 API 必须加版本判断，并优先用 `ViewModifiers.swift` 里的 `…IfAvailable` 辅助方法 |
 | `README.md` | 徽章、系统要求、从源码构建、权限表 |
 | 官网 | 系统要求从 appcast 自动读取，不用改 |
@@ -160,7 +160,9 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 ### 7.1 两项必须在真机上确认的风险
 
 - **FoundationModels 的弱链接**：macOS 15 上没有 `FoundationModels.framework`。如果它被强链接，App 在 15 上**一启动就会崩溃**。第 6 步后用部署目标 15.0 构建的 Debug 版本已确认：链接器自动把它标为 `LC_LOAD_WEAK_DYLIB`，`minos` 为 15.0。第 7 步要再用 Release 构建确认一次；如果不是弱链接，在 `OTHER_LDFLAGS` 里加 `-weak_framework FoundationModels`。
-- **Metal 着色器**：本次构建在 Swift 编译阶段就失败了，`StudioMotionBlur.metal` 还没有按 15.0 编译过。Swift 部分改完后要确认它能编译，并在 15 上验证导出时的运动模糊。
+- **Metal 着色器**：第 7 步的 Release 构建中，`StudioMotionBlur.metal` 按 15.0 编译、链接成功，`default.metallib` 已打包。导出时的运动模糊仍需在 15 上实际验证。
+
+第 7 步的 Release 构建（关闭签名）还确认了：通用二进制（x86_64 + arm64），两个架构的 `minos` 都是 15.0、`FoundationModels` 都是弱链接，`Info.plist` 的 `LSMinimumSystemVersion` 为 15.0。
 
 ## 8. 为什么不考虑 macOS 14 及更早
 
