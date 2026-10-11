@@ -142,7 +142,7 @@ struct PinnedScreenshotToolbar: View {
             )
         }
         .padding(4)
-        .glassEffect(.regular, in: .rect(cornerRadius: 14))
+        .glassSurface(in: .rect(cornerRadius: 14))
     }
 }
 
@@ -197,7 +197,7 @@ private struct PinnedFeedbackBadge: View {
         .font(.system(size: 13, weight: .semibold).monospacedDigit())
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
-        .glassEffect(.regular, in: .capsule)
+        .glassSurface(in: .capsule)
         .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
@@ -263,7 +263,7 @@ private struct PinnedAnnotationBar: View {
         }
         .padding(.horizontal, 6)
         .frame(height: 30)
-        .glassEffect(.regular, in: .capsule)
+        .glassSurface(in: .capsule)
         .disabled(!editor.isColorStyleAvailable)
         .opacity(editor.isColorStyleAvailable ? 1 : 0.4)
         .accessibilityElement(children: .contain)
@@ -328,7 +328,7 @@ private struct PinnedTextButton: View {
                         Capsule().fill(Color.primary.opacity(isHovering ? 0.08 : 0))
                     }
                 }
-                .glassEffect(.regular, in: .capsule)
+                .glassSurface(in: .capsule)
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)

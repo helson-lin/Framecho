@@ -55,7 +55,7 @@ struct RecordingPickerControls: View {
     @Environment(BarTooltipModel.self) private var tooltip: BarTooltipModel?
 
     var body: some View {
-        GlassEffectContainer(spacing: BarMetrics.pickerSectionGap) {
+        GlassSurfaceContainer(spacing: BarMetrics.pickerSectionGap) {
             VStack(spacing: BarMetrics.pickerSectionGap) {
                 configuration
                 recordActions
@@ -135,7 +135,7 @@ struct RecordingPickerControls: View {
         }
         .environment(\.recordingBarControlLayout, .grid)
         .clipShape(surfaceShape)
-        .glassEffect(.regular, in: surfaceShape)
+        .glassSurface(in: surfaceShape)
         .overlay { surfaceShape.strokeBorder(BarMetrics.edge, lineWidth: 0.5) }
     }
 
@@ -256,7 +256,7 @@ struct RecordingPickerControls: View {
             .frame(width: BarMetrics.pickerActionHeight, height: BarMetrics.pickerActionHeight)
         }
         .clipShape(surfaceShape)
-        .glassEffect(.regular, in: surfaceShape)
+        .glassSurface(in: surfaceShape)
         .overlay { surfaceShape.strokeBorder(BarMetrics.edge, lineWidth: 0.5) }
     }
 

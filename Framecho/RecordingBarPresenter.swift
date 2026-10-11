@@ -318,7 +318,7 @@ private struct RecordingBarView: View {
                     .padding(.horizontal, BarMetrics.horizontalPadding)
                     .frame(height: BarMetrics.height)
                     .clipShape(barShape)
-                    .glassEffect(.regular, in: barShape)
+                    .glassSurface(in: barShape)
                     .overlay { barShape.strokeBorder(BarMetrics.edge, lineWidth: 0.5) }
             }
         }
@@ -362,7 +362,7 @@ private struct RecordingBarView: View {
         .padding(.top, BarMetrics.visibilityBannerOverlap)
         .frame(maxWidth: .infinity)
         .frame(height: BarMetrics.visibilityBannerHeight)
-        .glassEffect(.regular, in: visibilityBannerShape)
+        .glassSurface(in: visibilityBannerShape)
         .overlay {
             visibilityBannerShape
                 .strokeBorder(BarMetrics.edge, lineWidth: 0.5)
