@@ -12,6 +12,7 @@ import AppKit
 import AVFoundation
 import IOKit.hid
 import Observation
+import Speech
 import UserNotifications
 
 @MainActor
@@ -50,6 +51,7 @@ final class AppPermissionCenter {
     func refresh() {
         statuses[.screenRecording] = Self.screenRecordingStatus()
         statuses[.microphone] = Self.status(for: .audio)
+        statuses[.speechRecognition] = Self.speechRecognitionStatus()
         statuses[.camera] = Self.status(for: .video)
         statuses[.inputMonitoring] = Self.inputMonitoringStatus()
         Task {
@@ -101,6 +103,16 @@ final class AppPermissionCenter {
         }
     }
 
+    private static func speechRecognitionStatus() -> AppPermissionStatus {
+        switch SFSpeechRecognizer.authorizationStatus() {
+        case .authorized: .granted
+        case .notDetermined: .notDetermined
+        case .restricted: .restricted
+        case .denied: .denied
+        @unknown default: .denied
+        }
+    }
+
     private static func inputMonitoringStatus() -> AppPermissionStatus {
         switch IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) {
         case kIOHIDAccessTypeGranted: .granted
@@ -139,6 +151,11 @@ final class AppPermissionCenter {
                 _ = await AVCaptureDevice.requestAccess(for: mediaType)
                 refresh()
             }
+        case .speechRecognition:
+            Task {
+                _ = await Self.requestSpeechRecognition()
+                refresh()
+            }
         case .inputMonitoring:
             if !CGRequestListenEventAccess() {
                 sentToSettings.insert(.inputMonitoring)
@@ -148,6 +165,32 @@ final class AppPermissionCenter {
             Task {
                 _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
                 refresh()
+            }
+        }
+    }
+
+    /// Asks once, the first time it's needed, and reports whether
+    /// transcription may go ahead.
+    func ensureSpeechRecognition() async -> Bool {
+        refresh()
+        switch status(of: .speechRecognition) {
+        case .granted:
+            return true
+        case .denied, .restricted:
+            return false
+        case .notDetermined:
+            let granted = await Self.requestSpeechRecognition() == .authorized
+            refresh()
+            return granted
+        }
+    }
+
+    /// The handler runs on an arbitrary queue, so it must not inherit this
+    /// type's main-actor isolation.
+    private nonisolated static func requestSpeechRecognition() async -> SFSpeechRecognizerAuthorizationStatus {
+        await withCheckedContinuation { continuation in
+            SFSpeechRecognizer.requestAuthorization { @Sendable status in
+                continuation.resume(returning: status)
             }
         }
     }

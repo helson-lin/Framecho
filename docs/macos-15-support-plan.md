@@ -1,6 +1,6 @@
 # Framecho 支持 macOS 15 改造方案
 
-状态：第 1–3 步（界面退路、预览卡片拖拽、字幕清理）已在 `macos-15-support` 分支实现，其余未实施。
+状态：第 1–4 步（界面退路、预览卡片拖拽、字幕清理、语音识别权限）已在 `macos-15-support` 分支实现，其余未实施。
 
 依据：2026-10-11 在 `main`（v0.44.0）上，用 `MACOSX_DEPLOYMENT_TARGET=15.0` 和整模块编译（`SWIFT_COMPILATION_MODE=wholemodule`，一次报出全部错误）构建得到的编译器错误清单，以及对相关代码的阅读。复现命令：
 
@@ -118,9 +118,10 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 
 `SFSpeechRecognizer` 需要「语音识别」授权，SpeechAnalyzer 不需要。现在 `Info.plist` 里没有这个说明：
 
-- `Info.plist` 新增 `NSSpeechRecognitionUsageDescription`，并在 `InfoPlist.xcstrings` 中补上中文；
-- 15 上首次转写或首次开启提词器前，调用 `SFSpeechRecognizer.requestAuthorization`；
-- `AppPermission`（目前有 `screenRecording`、`microphone`、`camera`、`inputMonitoring`、`notifications` 五种）增加 `speechRecognition`，权限引导和设置里**只在 macOS 26 以下显示**；
+- `Info.plist` 新增 `NSSpeechRecognitionUsageDescription`，`InfoPlist.xcstrings` 中补上中文（已实现）；
+- `AppPermission` 新增 `speechRecognition`，`AppPermission.applicable` 在 macOS 26 及以上把它排除；设置的权限列表改为显示 `applicable`（已实现）；
+- **不放进首次启动的权限引导**（`isListedInOnboarding`）：引导卡片固定 520pt 高，第 6 行加上「重新打开」提示会超出约 40pt；而且在用到时再请求，系统弹窗出现得更自然；
+- 第一次转写或开启提词器前调用 `AppPermissionCenter.ensureSpeechRecognition()`：未决定时弹出系统授权，已拒绝时返回 false（第 5、6 步接入）；
 - README「隐私与权限」表格增加一行：语音识别（仅 macOS 15）。
 
 ## 6. 提词器语音跟随（中）
@@ -181,7 +182,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 1. 界面退路：`glassSurface`、`GlassSurfaceContainer`、工具栏（第 3.1、3.2 节）——在 26 上不改变任何表现
 2. 预览卡片拖拽的开始与结束（第 3.3 节）
 3. 字幕清理的版本判断（第 4 节）
-4. 语音识别权限：`Info.plist`、`AppPermission`、权限引导（第 5.4 节）
+4. 语音识别权限：`Info.plist`、`AppPermission`、设置的权限列表（第 5.4 节）
 5. 转写的 15 实现，含切块（第 5 节）
 6. 提词器的 15 实现（第 6 节）
 7. 部署目标改为 15.0，检查脚本加 `-target`，发布工具读取最低系统版本，确认弱链接和 Metal（第 7 节）

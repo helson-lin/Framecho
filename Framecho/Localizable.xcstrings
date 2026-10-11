@@ -1433,6 +1433,26 @@
         }
       }
     },
+    "Speech Recognition" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语音识别"
+          }
+        }
+      }
+    },
+    "Turns your narration into subtitles and lets the teleprompter follow along." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将旁白转写为字幕，并让提词器跟随你的讲述。"
+          }
+        }
+      }
+    },
     "Allow access" : {
       "localizations" : {
         "zh-Hans" : {

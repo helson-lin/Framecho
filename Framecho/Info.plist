@@ -27,6 +27,8 @@
 	<false/>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>Framecho needs screen recording permission to capture screenshots.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Framecho turns your narration into subtitles and lets the teleprompter follow along as you speak. Recognition runs on this Mac.</string>
 	<key>SUEnableInstallerLauncherService</key>
 	<true/>
 	<key>SUFeedURL</key>

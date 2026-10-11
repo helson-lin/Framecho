@@ -72,7 +72,7 @@ struct GeneralSettingsPane: View {
             }
 
             Section {
-                ForEach(AppPermission.allCases) { permission in
+                ForEach(AppPermission.applicable) { permission in
                     AppPermissionRow(permission: permission)
                 }
                 if permissionCenter.isRelaunchSuggested {
