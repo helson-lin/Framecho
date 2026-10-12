@@ -174,6 +174,8 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 
 **构建**：部署目标为 15.0 时零错误；`scripts/run-checks.sh`、`go test ./cmd/...` 通过。部署目标改成 15.0 后，CI 的常规构建会自动拦下没加版本判断的 macOS 26 API。
 
+详细的手动测试用例（前置条件、步骤、预期结果和记录表）见 [macOS 15 手动测试用例](macos-15-test-cases.md)。
+
 **macOS 15 实机**：在 Apple Silicon 上用虚拟化（如 UTM、Tart）装一台 macOS 15。
 
 - 启动、权限引导（包括新的语音识别权限）
