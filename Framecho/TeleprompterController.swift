@@ -24,10 +24,15 @@ final class TeleprompterController {
     private init() {}
 
     /// Kicks off the on-device model download when the user enables the
-    /// teleprompter, so pressing Record never waits on an install.
+    /// teleprompter, so pressing Record never waits on an install. Before
+    /// macOS 26 this is also when Speech Recognition is asked for, rather
+    /// than in the middle of a recording.
     func preflightAssets() {
         guard !hasPreflightedAssets else { return }
         hasPreflightedAssets = true
+        if #unavailable(macOS 26.0) {
+            Task { _ = await AppPermissionCenter.shared.ensureSpeechRecognition() }
+        }
         Task.detached {
             await TeleprompterSpeechEngine.preflightAssets()
         }
@@ -43,6 +48,13 @@ final class TeleprompterController {
         TeleprompterOverlayPresenter.shared.show(script: script, displayID: displayID)
 
         guard microphoneActive else { return }
+        // Before macOS 26 tracking needs Speech Recognition. It's asked for
+        // when the teleprompter is turned on; a prompt now would land in the
+        // recording.
+        if #unavailable(macOS 26.0) {
+            AppPermissionCenter.shared.refresh()
+            guard AppPermissionCenter.shared.status(of: .speechRecognition) == .granted else { return }
+        }
         let matcher = TeleprompterScriptMatcher(script: script)
         guard !matcher.isEmpty else { return }
 

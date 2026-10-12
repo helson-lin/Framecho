@@ -38,7 +38,7 @@ struct AnnotationZoomControl: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .contentShape(Capsule())
-                .glassEffect(.regular.interactive())
+                .glassSurface(interactive: true)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
@@ -64,7 +64,7 @@ struct AnnotationHistoryControl: View {
         }
         .padding(.horizontal, 3)
         .frame(height: 30)
-        .glassEffect(.regular, in: .capsule)
+        .glassSurface(in: .capsule)
     }
 
     private func button(
@@ -126,7 +126,7 @@ struct AnnotationErrorBanner: View {
         .padding(.trailing, 8)
         .padding(.vertical, 8)
         .frame(maxWidth: 560)
-        .glassEffect(.regular, in: .rect(cornerRadius: 12))
+        .glassSurface(in: .rect(cornerRadius: 12))
         .accessibilityElement(children: .contain)
     }
 }
@@ -145,7 +145,7 @@ struct CropResolutionBadge: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
             .fixedSize()
-            .glassEffect()
+            .glassSurface()
             .help("Crop size")
     }
 }
@@ -183,7 +183,7 @@ struct LowResolutionPreviewNotice: View {
             }
             .frame(height: diameter)
             .fixedSize()
-            .glassEffect()
+            .glassSurface()
         }
         .buttonStyle(.plain)
         .help("Why is this preview low resolution?")

@@ -1021,6 +1021,16 @@
         }
       }
     },
+    "Apple Intelligence needs macOS 26 or later. Use an OpenAI-compatible API instead." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Intelligence 需要 macOS 26 或更高版本，请改用 OpenAI 兼容 API。"
+          }
+        }
+      }
+    },
     "Remove Fillers from Captions" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1419,6 +1429,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在录屏中加入你的旁白。"
+          }
+        }
+      }
+    },
+    "Speech Recognition" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语音识别"
+          }
+        }
+      }
+    },
+    "Turns your narration into subtitles and lets the teleprompter follow along." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将旁白转写为字幕，并让提词器跟随你的讲述。"
           }
         }
       }
@@ -8121,6 +8151,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "设备端转写暂不支持你的语言。"
+          }
+        }
+      }
+    },
+    "On-device speech recognition isn't available for your language on this Mac. Turning on Dictation for it in System Settings → Keyboard may add it." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这台 Mac 暂不支持用你的语言进行设备端语音识别。在“系统设置”→“键盘”中为该语言打开听写，可能会补上所需的支持。"
+          }
+        }
+      }
+    },
+    "Allow Speech Recognition for Framecho in System Settings → Privacy & Security to transcribe on this version of macOS." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在当前版本的 macOS 上转写，需要在“系统设置”→“隐私与安全性”中允许 Framecho 使用语音识别。"
           }
         }
       }

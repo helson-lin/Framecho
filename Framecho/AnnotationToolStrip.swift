@@ -43,7 +43,7 @@ struct AnnotationToolStrip: View {
             }
         }
         .padding(4)
-        .glassEffect(.regular, in: .rect(cornerRadius: 14))
+        .glassSurface(in: .rect(cornerRadius: 14))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Annotation tools")
     }

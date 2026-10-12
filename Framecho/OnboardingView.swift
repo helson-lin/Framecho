@@ -208,7 +208,7 @@ private struct OnboardingPermissionsPage: View {
                     .onboardingRise(delay: 0.06, distance: 8)
 
                 VStack(spacing: 2) {
-                    ForEach(Array(AppPermission.allCases.enumerated()), id: \.element) { index, permission in
+                    ForEach(Array(AppPermission.applicable.filter(\.isListedInOnboarding).enumerated()), id: \.element) { index, permission in
                         OnboardingPermissionRow(permission: permission, index: index)
                     }
                 }

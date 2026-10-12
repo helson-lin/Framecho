@@ -197,6 +197,9 @@ nonisolated enum CaptionCleanupError: LocalizedError {
 nonisolated enum CaptionCleanupEngines {
     /// Why Apple's on-device model can't run here; nil when it can.
     static var onDeviceUnavailableReason: String? {
+        guard #available(macOS 26.0, *) else {
+            return String(localized: "Apple Intelligence needs macOS 26 or later. Use an OpenAI-compatible API instead.")
+        }
         switch SystemLanguageModel.default.availability {
         case .available:
             return nil
@@ -214,8 +217,8 @@ nonisolated enum CaptionCleanupEngines {
     static func engine(for configuration: CaptionAIConfiguration) throws -> any CaptionCleanupEngine {
         switch configuration.provider {
         case .appleOnDevice:
-            if let reason = onDeviceUnavailableReason {
-                throw CaptionCleanupError.onDeviceUnavailable(reason)
+            guard #available(macOS 26.0, *), onDeviceUnavailableReason == nil else {
+                throw CaptionCleanupError.onDeviceUnavailable(onDeviceUnavailableReason ?? "")
             }
             return OnDeviceCaptionEngine()
         case .openAICompatible:
@@ -231,6 +234,7 @@ nonisolated enum CaptionCleanupEngines {
     }
 }
 
+@available(macOS 26.0, *)
 nonisolated struct OnDeviceCaptionEngine: CaptionCleanupEngine {
     var maximumWordsPerRequest: Int { 160 }
 

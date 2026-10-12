@@ -41,8 +41,10 @@ check() {
   local log="$out/logs/$name.log"
   echo "==> $name"
   # Optimised, but keeping precondition messages: a plain -O build drops
-  # them, and a failing check would only say it trapped.
-  if ! xcrun swiftc -O -assert-config Debug -module-cache-path "$out/module-cache" "$@" -o "$out/$name" 2>&1 | tee "$log"; then
+  # them, and a failing check would only say it trapped. Built for the
+  # app's oldest macOS, so an API newer than that fails here as in Xcode.
+  if ! xcrun swiftc -O -assert-config Debug -target "$(uname -m)-apple-macos15.0" \
+      -module-cache-path "$out/module-cache" "$@" -o "$out/$name" 2>&1 | tee "$log"; then
     report "$name" "❌ doesn't compile"
     exit 1
   fi
@@ -152,16 +154,20 @@ check recording-timelines "${strict[@]}" \
   scripts/check-recording-timelines.swift
 
 check transcript-captions "${strict[@]}" \
-  Framecho/RecordingTranscription.swift scripts/check-transcript-captions.swift
+  Framecho/RecordingTranscription.swift Framecho/LegacySpeechTranscription.swift scripts/check-transcript-captions.swift
+
+check legacy-transcription "${strict[@]}" \
+  Framecho/RecordingTranscription.swift Framecho/LegacySpeechTranscription.swift \
+  scripts/check-legacy-transcription.swift
 
 check caption-cleanup "${strict[@]}" \
-  Framecho/RecordingTranscription.swift Framecho/CaptionCleanup.swift \
+  Framecho/RecordingTranscription.swift Framecho/LegacySpeechTranscription.swift Framecho/CaptionCleanup.swift \
   scripts/check-caption-cleanup.swift
 
 check background-music "${strict[@]}" \
   Framecho/BackgroundMusic.swift Framecho/RecordingAudioGain.swift \
   Framecho/RecordingAudioNormalization.swift \
-  Framecho/RecordingTranscription.swift scripts/check-background-music.swift
+  Framecho/RecordingTranscription.swift Framecho/LegacySpeechTranscription.swift scripts/check-background-music.swift
 
 check audio-normalization "${strict[@]}" \
   Framecho/RecordingAudioGain.swift Framecho/RecordingAudioNormalization.swift \

@@ -284,9 +284,11 @@ struct CaptureLibraryView: View {
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
         }
-        .sharedBackgroundVisibility(.hidden)
+        .sharedBackgroundHiddenIfAvailable()
 
-        ToolbarSpacer(.flexible)
+        if #available(macOS 26.0, *) {
+            ToolbarSpacer(.flexible)
+        }
 
         ToolbarItem(placement: .primaryAction) {
             LibrarySearchField(text: $model.searchText, focusRequest: searchFocusRequest)
@@ -345,7 +347,7 @@ struct CaptureLibraryView: View {
             .help("New capture")
             .accessibilityLabel("New Capture")
         }
-        .sharedBackgroundVisibility(.hidden)
+        .sharedBackgroundHiddenIfAvailable()
         ToolbarItem(placement: .primaryAction) {
             Button { inspectorVisible.toggle() } label: {
                 Label(inspectorVisible ? "Hide Inspector" : "Show Inspector", systemImage: "sidebar.right")

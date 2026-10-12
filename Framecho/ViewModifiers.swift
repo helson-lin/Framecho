@@ -258,4 +258,56 @@ extension View {
             safeAreaInset(edge: edge, content: content)
         }
     }
+
+    /// Liquid Glass behind floating chrome on macOS 26, and the regular
+    /// material in the same shape before it. Callers that want an edge keep
+    /// drawing their own, so the fallback adds none. Interactive glass has no
+    /// earlier equivalent.
+    @ViewBuilder
+    func glassSurface(in shape: some Shape, interactive: Bool = false) -> some View {
+        if #available(macOS 26.0, *) {
+            glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+        } else {
+            background(.regularMaterial, in: shape)
+        }
+    }
+
+    /// `glassSurface(in:)` in the system's default glass shape, with a
+    /// capsule standing in for it before macOS 26.
+    @ViewBuilder
+    func glassSurface(interactive: Bool = false) -> some View {
+        if #available(macOS 26.0, *) {
+            glassEffect(interactive ? .regular.interactive() : .regular)
+        } else {
+            background(.regularMaterial, in: Capsule())
+        }
+    }
+}
+
+/// Groups glass surfaces so they blend and morph together on macOS 26;
+/// before that, surfaces are independent and this is a plain wrapper.
+struct GlassSurfaceContainer<Content: View>: View {
+    let spacing: CGFloat
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        if #available(macOS 26.0, *) {
+            GlassEffectContainer(spacing: spacing) { content }
+        } else {
+            content
+        }
+    }
+}
+
+extension ToolbarContent {
+    /// Drops the shared glass capsule macOS 26 draws behind toolbar items;
+    /// earlier toolbars have none.
+    @ToolbarContentBuilder
+    func sharedBackgroundHiddenIfAvailable() -> some ToolbarContent {
+        if #available(macOS 26.0, *) {
+            sharedBackgroundVisibility(.hidden)
+        } else {
+            self
+        }
+    }
 }

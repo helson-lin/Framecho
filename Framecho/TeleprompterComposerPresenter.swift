@@ -138,6 +138,13 @@ private struct TeleprompterComposerView: View {
                 TeleprompterController.shared.preflightAssets()
             }
         }
+        // Left on from an earlier session, it still needs its model (and,
+        // before macOS 26, permission) before the next recording.
+        .onAppear {
+            if isEnabled {
+                TeleprompterController.shared.preflightAssets()
+            }
+        }
     }
 
     private var header: some View {

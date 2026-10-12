@@ -161,7 +161,7 @@ struct PreviewPeekTab: View {
         .buttonStyle(.plain)
         .help("Show recent captures")
         // Keep the dismiss control as part of the glass foreground content
-        // (before .glassEffect) so the "x" gets the same vibrancy/appearance
+        // (before .glassSurface) so the "x" gets the same vibrancy/appearance
         // adaptation as the chevron + label and stays visible in light mode.
         .overlay(alignment: .trailing) {
             HStack(spacing: 2) {
@@ -172,7 +172,7 @@ struct PreviewPeekTab: View {
             }
             .padding(.trailing, 6)
         }
-        .glassEffect(.regular.interactive(), in: shape)
+        .glassSurface(in: shape, interactive: true)
         .overlay {
             // Match the cards' border exactly (colour, thickness, opacity).
             shape

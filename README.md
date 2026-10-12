@@ -10,7 +10,7 @@
 
 [![最新版本](https://img.shields.io/github/v/release/helson-lin/Framecho?label=%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC)](https://github.com/helson-lin/Framecho/releases/latest)
 [![CI](https://github.com/helson-lin/Framecho/actions/workflows/ci.yml/badge.svg)](https://github.com/helson-lin/Framecho/actions/workflows/ci.yml)
-![macOS 26.4+](https://img.shields.io/badge/macOS-26.4%2B-black)
+![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black)
 [![License: CC0](https://img.shields.io/badge/license-CC0%201.0-lightgrey)](LICENSE)
 
 <p>
@@ -25,7 +25,7 @@
 
 ---
 
-- **系统要求**：macOS 26.4 或更高版本；发布包同时支持 Apple Silicon 和 Intel。
+- **系统要求**：macOS 15 或更高版本；发布包同时支持 Apple Silicon 和 Intel。macOS 15 上部分功能有差异，见[在 macOS 15 上](#在-macos-15-上)。
 - **项目来源**：基于 [Screendrop](https://github.com/fayazara/Screendrop) 开发，现由 [helson-lin](https://github.com/helson-lin) 完全独立维护，不再同步上游；使用自己的应用标识、签名、公证、发布渠道和 Sparkle 更新源。GitHub 仓库已由 `helson-lin/Screendrop` 更名为 `helson-lin/Framecho`，旧地址会自动跳转。
 
 > [!NOTE]
@@ -44,6 +44,14 @@
 **自动更新**：Framecho 通过 Sparkle 检查更新，更新源为本仓库 `main` 分支上的 [`appcast.xml`](https://raw.githubusercontent.com/helson-lin/Framecho/main/appcast.xml)，DMG 保存在 GitHub Release 附件中。已是最新版时不会提示；Debug 构建不检查更新。
 
 **从旧版本升级**：早期版本保存的 `.screendrop` 编辑记录、`.screendroprec` 录屏项目会在启动时自动改名为 `.framecho`、`.framechorec`，素材库和编辑记录不受影响。
+
+### 在 macOS 15 上
+
+所有功能都可以使用，以下几处依赖 macOS 26 的新框架，在 macOS 15 上有所不同：
+
+- **字幕转写与提词器语音跟随**：使用系统上一代的设备端语音识别，准确度和逐词时间不如 macOS 26，按文字剪辑后可能需要手动微调切点。首次使用时需要授予「语音识别」权限；只能识别已在「系统设置 → 键盘 → 听写」中启用的语言。
+- **用 AI 整理字幕**：Apple Intelligence 需要 macOS 26，可改用 OpenAI 兼容 API。
+- **外观**：编辑器工具条、录制控制条和置顶截图的按钮使用 macOS 15 的毛玻璃材质，而不是 Liquid Glass。
 
 ### 数据位置与卸载
 
@@ -200,16 +208,17 @@ Framecho 以 [Screendrop](https://github.com/fayazara/Screendrop) v0.34.0（2026
 
 ## 隐私与权限
 
-截图、录屏原始轨道、编辑项目和转写文本都保存在 Mac 本地。语音转写在设备端运行，首次使用时系统可能需要下载语言模型。文件只会在手动上传或已启用自动上传时，发送到你自己配置的服务。
+截图、录屏原始轨道、编辑项目和转写文本都保存在 Mac 本地。语音转写在设备端运行，首次使用时系统可能需要下载语言模型；macOS 15 上使用系统的设备端听写模型，同样不会改用服务器识别。文件只会在手动上传或已启用自动上传时，发送到你自己配置的服务。
 
 | 权限 | 用途 |
 | --- | --- |
 | 屏幕与系统音频录制 | 截图、录屏和系统音频 |
 | 摄像头 | 摄像头预览及独立视频轨道 |
 | 麦克风 | 旁白与提词器语音跟随 |
+| 语音识别（仅 macOS 15） | 字幕转写与提词器语音跟随 |
 | 输入监控 | 可编辑的按键字幕 |
 
-摄像头、麦克风和输入监控只在用到相应功能时才请求。截图和录屏默认排除 Framecho 自身窗口；需要录制预览卡片、控制条或设置界面时，可在通用设置中开启「捕获自身窗口」。
+摄像头、麦克风、语音识别和输入监控只在用到相应功能时才请求；语音识别在开启提词器或首次转写时请求，不会在录制过程中弹出。截图和录屏默认排除 Framecho 自身窗口；需要录制预览卡片、控制条或设置界面时，可在通用设置中开启「捕获自身窗口」。
 
 ## 壁纸资源包
 
@@ -243,7 +252,7 @@ npx wrangler secret put UPLOAD_TOKEN
 
 ### 从源码构建
 
-需要 macOS 26.4 或更高版本，以及 Xcode 27.1（发布版与 CI 使用的版本）。Xcode 会自动解析 Sparkle 和 DockProgress 依赖。
+需要 Xcode 27.1（发布版与 CI 使用的版本），构建出的 App 支持 macOS 15 及更高版本。Xcode 会自动解析 Sparkle 和 DockProgress 依赖。
 
 ```bash
 git clone https://github.com/helson-lin/Framecho.git

@@ -11,11 +11,30 @@ import Foundation
 nonisolated enum AppPermission: String, CaseIterable, Identifiable {
     case screenRecording
     case microphone
+    /// Only before macOS 26: SpeechAnalyzer, which transcribes on macOS 26,
+    /// needs no permission, but SFSpeechRecognizer before it does.
+    case speechRecognition
     case camera
     case inputMonitoring
     case notifications
 
     var id: Self { self }
+
+    /// The permissions this Mac's version of macOS asks for, in display order.
+    static var applicable: [AppPermission] {
+        allCases.filter(\.appliesOnThisMac)
+    }
+
+    var appliesOnThisMac: Bool {
+        guard self == .speechRecognition else { return true }
+        if #available(macOS 26.0, *) { return false }
+        return true
+    }
+
+    /// Speech Recognition is asked for the first time a transcription or the
+    /// teleprompter needs it rather than up front; the onboarding page is
+    /// also sized for the other five.
+    var isListedInOnboarding: Bool { self != .speechRecognition }
 
     /// Without it nothing can be captured; everything else adds to recordings.
     var isRequired: Bool { self == .screenRecording }
@@ -24,6 +43,7 @@ nonisolated enum AppPermission: String, CaseIterable, Identifiable {
         switch self {
         case .screenRecording: String(localized: "Screen Recording")
         case .microphone: String(localized: "Microphone")
+        case .speechRecognition: String(localized: "Speech Recognition")
         case .camera: String(localized: "Camera")
         case .inputMonitoring: String(localized: "Input Monitoring")
         case .notifications: String(localized: "Notifications")
@@ -36,6 +56,8 @@ nonisolated enum AppPermission: String, CaseIterable, Identifiable {
             String(localized: "Needed for every screenshot and recording.")
         case .microphone:
             String(localized: "Adds your narration to recordings.")
+        case .speechRecognition:
+            String(localized: "Turns your narration into subtitles and lets the teleprompter follow along.")
         case .camera:
             String(localized: "Shows you in a camera bubble while recording.")
         case .inputMonitoring:
@@ -49,6 +71,7 @@ nonisolated enum AppPermission: String, CaseIterable, Identifiable {
         switch self {
         case .screenRecording: "rectangle.dashed.badge.record"
         case .microphone: "mic"
+        case .speechRecognition: "waveform"
         case .camera: "video"
         case .inputMonitoring: "keyboard"
         case .notifications: "bell.badge"
@@ -66,6 +89,8 @@ nonisolated enum AppPermission: String, CaseIterable, Identifiable {
             "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
         case .microphone:
             "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
+        case .speechRecognition:
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition"
         case .camera:
             "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"
         case .inputMonitoring:

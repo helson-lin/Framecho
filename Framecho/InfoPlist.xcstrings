@@ -82,6 +82,24 @@
           }
         }
       }
+    },
+    "NSSpeechRecognitionUsageDescription" : {
+      "comment" : "Privacy - Speech Recognition Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Framecho turns your narration into subtitles and lets the teleprompter follow along as you speak. Recognition runs on this Mac."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Framecho 会把旁白转写为字幕，并让提词器跟随你的讲述。语音识别在本机完成。"
+          }
+        }
+      }
     }
   },
   "version" : "1.3"

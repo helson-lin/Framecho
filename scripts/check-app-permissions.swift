@@ -37,6 +37,19 @@ struct AppPermissionChecks {
         }
         expect(Set(all.compactMap { $0.settingsURL?.absoluteString }).count == all.count,
                "Each permission opens its own pane")
+
+        // Speech Recognition is only for SFSpeechRecognizer, used before
+        // macOS 26, and is asked for when first needed.
+        expect(all.filter { !$0.isListedInOnboarding } == [.speechRecognition],
+               "Onboarding lists everything but Speech Recognition")
+        let applicable = AppPermission.applicable
+        expect(applicable.first == .screenRecording, "The required permission still comes first")
+        if #available(macOS 26.0, *) {
+            expect(applicable == all.filter { $0 != .speechRecognition },
+                   "macOS 26 transcribes without Speech Recognition")
+        } else {
+            expect(applicable == all, "Before macOS 26 every permission applies")
+        }
     }
 
     static func checkScreenRecordingStatus() {

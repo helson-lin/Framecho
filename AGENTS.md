@@ -4,7 +4,7 @@
 
 Framecho is a native macOS screenshot and screen recording tool. Its Library window opens on normal launch; login launches remain in the menu bar (`LSUIElement = YES`). `AppActivationPolicy` uses `.regular` while Library, Settings, or editor windows are open, and returns to `.accessory` when they close. Built with SwiftUI + AppKit and no Xcode test target.
 
-**Deployment target:** macOS 26.4, built with Xcode 27.1 (macOS 27 SDK).
+**Deployment target:** macOS 15.0, built with Xcode 27.1 (macOS 27 SDK). APIs from macOS 26 and later need an availability check and a fallback (see Conventions).
 **Bundle ID:** `com.jarinhe.Framecho`
 **Origin:** started as a fork of [Screendrop](https://github.com/fayazara/screendrop) and is now maintained independently; upstream changes are no longer merged. The GitHub repository was renamed from `helson-lin/Screendrop` to `helson-lin/Framecho` on 2026-10-07. Copies installed before then poll the old `raw.githubusercontent.com/helson-lin/Screendrop` feed URL and older appcast entries link to old release URLs; both rely on GitHub's rename redirects, so never create a new repository named `helson-lin/Screendrop`.
 
@@ -26,7 +26,7 @@ There are three shared schemes, all building the same target: `Framecho`, `Frame
 No Xcode test target exists. Automated verification is:
 
 - **Build success** (add `CODE_SIGNING_ALLOWED=NO` to build without the maintainer's signing identity).
-- **`scripts/run-checks.sh`** - compiles each standalone check in `scripts/` against the production sources it exercises and runs it. Add new checks there: the script fails if a `scripts/check-*.swift` isn't run by it or listed in its `not_run` (where `check-editor-cancellation.swift` sits, as it needs a fixture from the motion-blur benchmark). To make code checkable, keep its logic in files that compile without the app (see the `nonisolated` geometry, permission and timeline files the checks use).
+- **`scripts/run-checks.sh`** - compiles each standalone check in `scripts/` against the production sources it exercises, for macOS 15 like the app, and runs it. Add new checks there: the script fails if a `scripts/check-*.swift` isn't run by it or listed in its `not_run` (where `check-editor-cancellation.swift` sits, as it needs a fixture from the motion-blur benchmark). To make code checkable, keep its logic in files that compile without the app (see the `nonisolated` geometry, permission and timeline files the checks use).
 - **`go test ./cmd/...`** for the release tool.
 
 CI (`.github/workflows/ci.yml`) runs all three on pull requests and pushes to `main`, using Xcode 27.1 on GitHub's `xcode-27` runner image (beta), and can be started by hand on any branch. Pushes touching only `appcast.xml`, docs, Markdown or `website/` are skipped. Each check's result appears in the job summary; on failure the logs are uploaded as `check-logs`.
@@ -67,6 +67,7 @@ All annotation positions/sizes are normalized to `[0, 1]` relative to the source
 
 - **Minimal dependencies.** Apart from Apple frameworks, the only Swift packages are Sparkle (updates) and DockProgress. Don't add packages without a strong reason.
 - **`@Observable` macro** (Observation framework) is used for state - not `ObservableObject`/`@Published`.
+- **macOS 15 compatibility.** The SDK is newer than the deployment target, so the compiler rejects a macOS 26+ API used without `if #available(macOS 26.0, *)`. Give every such use a fallback: Liquid Glass goes through `glassSurface(in:)` / `GlassSurfaceContainer` and other SwiftUI additions through the `…IfAvailable` helpers in `ViewModifiers.swift`; transcription and teleprompter tracking use SFSpeechRecognizer before macOS 26 (`LegacySpeechTranscription.swift`, `LegacyTeleprompterRecognizer`), which is why the Speech Recognition permission exists only there; on-device caption cleanup (FoundationModels, weak-linked) is offered only on macOS 26. A compile catches missing checks, not behavior: `docs/macos-15-support-plan.md` lists what to test on a macOS 15 machine.
 - **App sandbox is disabled** (`ENABLE_APP_SANDBOX = NO`) - the app needs screen capture permissions and direct filesystem access.
 - Screenshots are saved as lossless PNG to `NSTemporaryDirectory()` first, then optionally compressed to JPEG on export.
 - **Persisted formats** live in `~/Library/Application Support/Framecho`: `<image>.framecho` edit sidecars beside History images, `.framechorec` recording packages (whose `assets/` folder holds the images Studio overlays and shows on intro and outro cards, copied in at import), and `history.json`. Exported presets are `.framechopreset` (`com.jarinhe.framecho.preset`). Files from before the rename (`.screendrop`, `.screendroprec`, `.screendroppreset`) are migrated at launch by `LegacyStorageMigration` or still read; keep that path working and never rename a persisted key or format without a migration.
@@ -87,7 +88,7 @@ Updates are served by Sparkle from `appcast.xml` on `main` of `helson-lin/Framec
 
 Builds are signed for team `64S5F787T9`: Debug with the Apple Development certificate, Release with Developer ID Application (hardened runtime on). Because the signature is tied to the team rather than the binary, privacy permissions survive rebuilds and updates.
 
-To release, run `go run ./cmd/framecho-release -build -set-version <x.y.z> -set-build <n>`. It first runs the same checks as CI (`scripts/run-checks.sh`, `go vet`, `go test`) and stops if any fail or if CI failed for the commit; `-skip-checks` bypasses that, for emergencies only. Then it archives, exports with Developer ID, notarizes, staples, builds and Sparkle-signs the DMG, prepends `appcast.xml`, pushes it, and creates the GitHub release. Notarization reads the `framecho-notary` keychain profile; create it once with:
+To release, run `go run ./cmd/framecho-release -build -set-version <x.y.z> -set-build <n>`. It first runs the same checks as CI (`scripts/run-checks.sh`, `go vet`, `go test`) and stops if any fail or if CI failed for the commit; `-skip-checks` bypasses that, for emergencies only. Then it archives, exports with Developer ID, notarizes, staples, builds and Sparkle-signs the DMG, prepends `appcast.xml` (its minimum macOS read from the exported app's `LSMinimumSystemVersion`), pushes it, and creates the GitHub release. Notarization reads the `framecho-notary` keychain profile; create it once with:
 
 ```bash
 xcrun notarytool store-credentials framecho-notary --apple-id <apple-id> --team-id 64S5F787T9
