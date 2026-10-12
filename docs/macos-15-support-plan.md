@@ -1,6 +1,6 @@
 # Framecho 支持 macOS 15 改造方案
 
-状态：第 1–7 步已在 `macos-15-support` 分支实现，部署目标已改为 macOS 15.0；第 8 步（文档）未实施。
+状态：第 1–8 步已在 `macos-15-support` 分支全部实现，部署目标为 macOS 15.0。剩下的是第 9 节在 macOS 15 真机上的测试。
 
 依据：2026-10-11 在 `main`（v0.44.0）上，用 `MACOSX_DEPLOYMENT_TARGET=15.0` 和整模块编译（`SWIFT_COMPILATION_MODE=wholemodule`，一次报出全部错误）构建得到的编译器错误清单，以及对相关代码的阅读。复现命令：
 
@@ -153,8 +153,8 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 | `Framecho/Info.plist` | 新增 `NSSpeechRecognitionUsageDescription` |
 | `cmd/framecho-release/main.go` | 原先写死 `minSystemVer = "26.4"` 作为 appcast 的 `sparkle:minimumSystemVersion`，不改的话 15 的用户收不到更新。已改为从导出的 `.app` 中读取 `LSMinimumSystemVersion`，读不到就停止发布（已实现） |
 | `scripts/run-checks.sh` | `swiftc` 原先不指定 `-target`，默认按本机系统编译，测不出 15 的兼容问题。已加上 `-target "$(uname -m)-apple-macos15.0"`，28 个检查全部通过（已实现） |
-| `AGENTS.md` | 改部署目标那一行；新增约定：macOS 26 专属 API 必须加版本判断，并优先用 `ViewModifiers.swift` 里的 `…IfAvailable` 辅助方法 |
-| `README.md` | 徽章、系统要求、从源码构建、权限表 |
+| `AGENTS.md` | 部署目标那一行；新增「macOS 15 compatibility」约定（版本判断与退路、现有辅助方法、只能编译期检查）；检查脚本按 15 编译；appcast 最低系统的来源（已实现） |
+| `README.md` | 徽章、系统要求、新增「在 macOS 15 上」一节（转写与提词器、字幕整理、外观的差异）、隐私与权限表加「语音识别（仅 macOS 15）」、从源码构建（已实现） |
 | 官网 | 系统要求从 appcast 自动读取，不用改 |
 
 ### 7.1 两项必须在真机上确认的风险
