@@ -1,262 +1,269 @@
 <div align="center">
 
-<img src="docs/images/icon.png" alt="Framecho 应用图标" width="128" height="128">
+**English** · [简体中文](README.zh-CN.md)
+
+<img src="docs/images/icon.png" alt="Framecho app icon" width="128" height="128">
 
 # Framecho
 
-原生 macOS 截图、录屏与编辑工具
+A native macOS app for screenshots, screen recording and editing
 
-本地素材库 · 非破坏性编辑 · 简体中文界面 · 部署在自己 Cloudflare 账号上的云端分享
+Local library · Non-destructive editing · English and Simplified Chinese · Cloud sharing on your own Cloudflare account
 
-[![最新版本](https://img.shields.io/github/v/release/helson-lin/Framecho?label=%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC)](https://github.com/helson-lin/Framecho/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/helson-lin/Framecho?label=release)](https://github.com/helson-lin/Framecho/releases/latest)
 [![CI](https://github.com/helson-lin/Framecho/actions/workflows/ci.yml/badge.svg)](https://github.com/helson-lin/Framecho/actions/workflows/ci.yml)
 ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black)
 [![License: CC0](https://img.shields.io/badge/license-CC0%201.0-lightgrey)](LICENSE)
 
 <p>
-  <a href="https://github.com/helson-lin/Framecho/releases/latest/download/Framecho.dmg"><img src="docs/images/button-download.svg" alt="下载 Framecho.dmg" width="252" height="56"></a>
-  <a href="https://github.com/helson-lin/Framecho/releases"><img src="docs/images/button-releases.svg" alt="发布记录" width="148" height="56"></a>
-  <a href="https://github.com/helson-lin/Framecho/issues"><img src="docs/images/button-issues.svg" alt="反馈问题" width="148" height="56"></a>
+  <a href="https://github.com/helson-lin/Framecho/releases/latest/download/Framecho.dmg"><img src="docs/images/button-download-en.svg" alt="Download Framecho.dmg" width="252" height="56"></a>
+  <a href="https://github.com/helson-lin/Framecho/releases"><img src="docs/images/button-releases-en.svg" alt="Releases" width="148" height="56"></a>
+  <a href="https://github.com/helson-lin/Framecho/issues"><img src="docs/images/button-issues-en.svg" alt="Issues" width="148" height="56"></a>
 </p>
 
-<img src="docs/images/editor.webp" alt="Framecho 图片编辑器：在一张网页对比表格截图上添加了编号、矩形框、手绘圈注和两个指向原像素的颜色值标注，并套用了壁纸背景" width="900">
+<img src="docs/images/editor.webp" alt="Framecho's image editor: a screenshot of a comparison table on a web page, annotated with numbered steps, a rectangle, a hand-drawn circle and two color-value callouts pointing at the original pixels, set on a wallpaper background" width="900">
 
 </div>
 
 ---
 
-- **系统要求**：macOS 15 或更高版本；发布包同时支持 Apple Silicon 和 Intel。macOS 15 上部分功能有差异，见[在 macOS 15 上](#在-macos-15-上)。
-- **项目来源**：基于 [Screendrop](https://github.com/fayazara/Screendrop) 开发，现由 [helson-lin](https://github.com/helson-lin) 完全独立维护，不再同步上游；使用自己的应用标识、签名、公证、发布渠道和 Sparkle 更新源。GitHub 仓库已由 `helson-lin/Screendrop` 更名为 `helson-lin/Framecho`，旧地址会自动跳转。
+- **Requirements**: macOS 15 or later. Release builds run natively on Apple Silicon and Intel. A few features differ on macOS 15; see [On macOS 15](#on-macos-15).
+- **Origin**: Framecho started as a fork of [Screendrop](https://github.com/fayazara/Screendrop) and is now maintained independently by [helson-lin](https://github.com/helson-lin), without syncing upstream. It has its own bundle ID, signing, notarization, releases and Sparkle update feed. The GitHub repository was renamed from `helson-lin/Screendrop` to `helson-lin/Framecho`; the old URLs redirect.
 
 > [!NOTE]
-> 项目仍在持续开发中。反馈问题时，请附上 macOS 版本、Framecho 版本和复现步骤。
+> Framecho is under active development. When reporting an issue, please include your macOS version, Framecho version and steps to reproduce.
 
-**目录**：[安装与更新](#安装与更新) · [功能](#功能) · [相比 Screendrop](#相比-screendrop-的改进) · [快捷键](#默认快捷键) · [隐私与权限](#隐私与权限) · [壁纸资源包](#壁纸资源包) · [云端分享](#云端分享) · [开发](#开发) · [致谢与许可](#致谢与许可)
+**Website**: [getframecho.com](https://getframecho.com)
 
-## 安装与更新
+**Contents**: [Install and update](#install-and-update) · [Features](#features) · [Changes from Screendrop](#changes-from-screendrop) · [Shortcuts](#default-shortcuts) · [Privacy and permissions](#privacy-and-permissions) · [Wallpaper packs](#wallpaper-packs) · [Cloud sharing](#cloud-sharing) · [Development](#development) · [Credits and license](#credits-and-license)
 
-1. 下载最新的 [`Framecho.dmg`](https://github.com/helson-lin/Framecho/releases/latest/download/Framecho.dmg)。
-2. 打开 DMG，将 **Framecho** 拖入「应用程序」文件夹。
-3. 启动 Framecho，按提示授予屏幕录制权限。
+## Install and update
 
-正常启动会打开素材库，菜单栏提供截图和录屏入口；登录时启动只留在菜单栏。正式发布包使用 Developer ID 签名并经过 Apple 公证。
+1. Download the latest [`Framecho.dmg`](https://github.com/helson-lin/Framecho/releases/latest/download/Framecho.dmg).
+2. Open the DMG and drag **Framecho** into Applications.
+3. Launch Framecho and grant Screen Recording permission when asked.
 
-**自动更新**：Framecho 通过 Sparkle 检查更新，更新源为本仓库 `main` 分支上的 [`appcast.xml`](https://raw.githubusercontent.com/helson-lin/Framecho/main/appcast.xml)，DMG 保存在 GitHub Release 附件中。已是最新版时不会提示；Debug 构建不检查更新。
+A normal launch opens the Library; capture and recording are also available from the menu bar. When launched at login, Framecho stays in the menu bar. Release builds are signed with Developer ID and notarized by Apple.
 
-**从旧版本升级**：早期版本保存的 `.screendrop` 编辑记录、`.screendroprec` 录屏项目会在启动时自动改名为 `.framecho`、`.framechorec`，素材库和编辑记录不受影响。
+**Automatic updates**: Framecho checks for updates with Sparkle. The feed is [`appcast.xml`](https://raw.githubusercontent.com/helson-lin/Framecho/main/appcast.xml) on this repository's `main` branch, and DMGs are attached to GitHub releases. You won't be prompted if you're up to date; Debug builds don't check for updates.
 
-### 在 macOS 15 上
+**Upgrading from older versions**: `.screendrop` edit files and `.screendroprec` recording projects saved by early versions are renamed to `.framecho` and `.framechorec` at launch. Your library and edits are kept.
 
-所有功能都可以使用，以下几处依赖 macOS 26 的新框架，在 macOS 15 上有所不同：
+### On macOS 15
 
-- **字幕转写与提词器语音跟随**：使用系统上一代的设备端语音识别，准确度和逐词时间不如 macOS 26，按文字剪辑后可能需要手动微调切点。首次使用时需要授予「语音识别」权限；只能识别已在「系统设置 → 键盘 → 听写」中启用的语言。
-- **用 AI 整理字幕**：Apple Intelligence 需要 macOS 26，可改用 OpenAI 兼容 API。
-- **外观**：编辑器工具条、录制控制条和置顶截图的按钮使用 macOS 15 的毛玻璃材质，而不是 Liquid Glass。
+Everything works on macOS 15, but a few features rely on frameworks introduced in macOS 26 and behave differently:
 
-### 数据位置与卸载
+- **Caption transcription and teleprompter tracking** use the previous generation of on-device speech recognition. Accuracy and word timings are lower than on macOS 26, so cuts made by editing text may need fine-tuning. Speech Recognition permission is requested on first use, and only languages enabled under System Settings → Keyboard → Dictation are recognized.
+- **AI caption cleanup**: Apple Intelligence requires macOS 26; you can use an OpenAI-compatible API instead.
+- **Appearance**: the editor toolbar, recording controls and pinned-screenshot buttons use macOS 15's translucent materials instead of Liquid Glass.
 
-| 位置 | 内容 |
+### Where data lives and uninstalling
+
+| Location | Contents |
 | --- | --- |
-| `~/Library/Application Support/Framecho/` | 素材库：截图（`History/`）、录屏项目（`Recordings/`）、壁纸（`Wallpapers/`）和 `history.json` |
-| `~/Pictures/Framecho/` | 默认导出目录，可在设置中修改 |
-| 钥匙串中的 `com.jarinhe.Framecho` | 云端分享的上传令牌 |
+| `~/Library/Application Support/Framecho/` | The library: screenshots (`History/`), recording projects (`Recordings/`), wallpapers (`Wallpapers/`) and `history.json` |
+| `~/Pictures/Framecho/` | Default export folder (configurable in Settings) |
+| `com.jarinhe.Framecho` in the Keychain | Upload token for cloud sharing |
 
-备份时复制 `Application Support/Framecho` 整个文件夹即可。卸载时退出 Framecho、删除应用，再按需删除上面的文件夹和钥匙串项目；设置保存在 `~/Library/Preferences/com.jarinhe.Framecho.plist`。
+To back up, copy the whole `Application Support/Framecho` folder. To uninstall, quit Framecho, delete the app, and optionally delete the folders and Keychain item above. Settings are stored in `~/Library/Preferences/com.jarinhe.Framecho.plist`.
 
-## 功能
+## Features
 
-### 截图
+### Screenshots
 
-- 全屏、窗口和区域截图；区域选择时按空格切换到窗口截图。
-- 定时截图、窗口阴影、PNG / JPEG 导出及自定义保存目录。
-- 本地 OCR：框选屏幕区域即可识别并复制文字，无需保存截图。
-- 浮动预览卡片可调整大小、位置和操作顺序，提供复制、保存、压缩、编辑、上传、置顶和删除。
-- 截图可置顶在屏幕上：框选区域后直接置顶，或置顶最近一张截图；置顶窗口可用滚轮调整透明度。
+- Full-screen, window and area capture; press Space while selecting an area to switch to window capture.
+- Timed capture, window shadows, PNG / JPEG export and a custom save folder.
+- On-device OCR: select an area of the screen to recognize and copy its text without saving a screenshot.
+- A floating preview card with adjustable size, position and action order: copy, save, compress, edit, upload, pin and delete.
+- Pin screenshots on screen: pin an area right after selecting it, or pin the most recent screenshot; scroll over a pinned window to change its opacity.
 
-### 素材库
+### Library
 
-- 统一管理截图、视频和可编辑录屏项目，支持搜索、排序、网格 / 列表视图与批量操作。
-- 从 Finder 打开图片时导入副本进行编辑，原文件保持不变。
+- Screenshots, videos and editable recording projects in one place, with search, sorting, grid / list views and batch actions.
+- Images opened from Finder are imported as copies, so the originals stay untouched.
 
-<img src="docs/images/library.png" alt="素材库窗口：侧边栏按截图、录制、已共享和草稿分组，右侧以网格显示今天的四项素材" width="800">
+<img src="docs/images/library.png" alt="The Library window: a sidebar grouping Screenshots, Recordings, Shared and Drafts, with today's four items in a grid on the right" width="800">
 
-### 图片编辑器
+### Image editor
 
-- **标注**：矩形、圆形、箭头、直线、自由绘制、文字、编号和高亮；工具在画布顶部的悬浮工具条中，每个工具都有单键快捷键。
-- **完成与拷贝**：「完成」存储并关闭；「拷贝」直接拷贝当前画面，未存储的修改也会包含在内；存储、存储为和上传在「共享」菜单中。
-- **遮挡**：模糊、像素化，以及自动识别并遮挡敏感文字。
-- **非破坏性**：裁剪、撤销与重做；保留原图和 `.framecho` 编辑 sidecar，可随时再次修改。
-- **背景**：纯色、渐变、自定义壁纸和按需下载的壁纸包，配合留白、圆角、阴影、边框、水印和画布比例。
-- **效果**：3D 透视（镜头角度、取景、卡片旋转）和渐进模糊。
-- **预设**：导入、导出 `.framechopreset` 背景预设（仍可导入旧版 `.screendroppreset`）；本地壁纸文件不随预设导出。
+- **Annotations**: rectangle, ellipse, arrow, line, freehand, text, numbered steps and highlight. Tools live in a floating toolbar above the canvas, each with a single-key shortcut.
+- **Done and Copy**: Done saves and closes; Copy copies the current image, including unsaved changes. Save, Save As and Upload are in the Share menu.
+- **Redaction**: blur, pixelate, and automatic detection and redaction of sensitive text.
+- **Non-destructive**: crop, undo and redo; the original image and a `.framecho` edit sidecar are kept so you can edit again at any time.
+- **Backgrounds**: solid colors, gradients, your own wallpapers and downloadable wallpaper packs, with padding, corner radius, shadow, border, watermark and canvas aspect ratio.
+- **Effects**: 3D perspective (camera angle, framing, card rotation) and progressive blur.
+- **Presets**: import and export `.framechopreset` background presets (older `.screendroppreset` files still import). Local wallpaper files are not included in exported presets.
 
-侧边栏按作用范围分为两个标签。选择工具或选中标注时，会自动切回「标注」。
+The sidebar has two tabs by scope. Choosing a tool or selecting an annotation switches back to Annotate automatically.
 
-<img src="docs/images/effects.png" alt="图片编辑器的「画面」标签：代码截图套用了 3D 透视、渐变背景、圆角和阴影" width="800">
+<img src="docs/images/effects.png" alt="The image editor's Canvas tab: a code screenshot with 3D perspective, a gradient background, rounded corners and a shadow" width="800">
 
-| 标签 | 内容 |
+| Tab | Contents |
 | --- | --- |
-| 标注 | 工具、样式、自动遮挡 |
-| 画面 | 预设、构图、背景、截图外观（圆角、阴影、边框）、3D 透视、渐进模糊、水印 |
+| Annotate | Tools, style, auto-redaction |
+| Canvas | Presets, layout, background, screenshot appearance (corners, shadow, border), 3D perspective, progressive blur, watermark |
 
-### 录屏
+### Screen recording
 
-- 录制显示器、窗口或区域，可同时录制摄像头、麦克风和系统音频。
-- 暂停、继续、重新录制；屏幕和摄像头轨道分别保存。
-- 提词器，可通过设备端语音识别跟随讲述进度。
+- Record a display, window or area, optionally with camera, microphone and system audio.
+- Pause, resume and restart; screen and camera are saved as separate tracks.
+- A teleprompter that can follow your speech using on-device speech recognition.
 
-### Studio 视频编辑
+### Studio video editor
 
-- **剪辑**：时间线分割、裁剪、删除片段和调整播放速度。
-- **镜头**：自动 / 手动缩放、鼠标跟随、重建光标、点按效果和按键字幕。
-- **3D 运镜**：为视频卡片设置基础姿态，并在时间线上添加带进入 / 退出过渡的姿态变化；可在画布上用旋转球直接调整，在运镜轨道上拖出一段即可添加，导出时带运动模糊。
-- **摄像头**：调整位置、大小和圆角；保存背景与布局预设。
-- **字幕**：设备端转写、字幕编辑、逐词高亮，以及通过编辑文字剪辑视频。
-- **导出**：原始比例、横屏、竖屏和方形画幅，支持单独裁剪画面；可设置质量、编码、分辨率、30 / 60 fps、运动模糊和音频。导出与分享使用项目的编辑结果，支持进度显示和取消。
+- **Editing**: split, trim and delete clips on the timeline, and change playback speed.
+- **Camera work**: automatic / manual zoom, cursor following, a rebuilt cursor, click effects and keystroke overlays.
+- **3D motion**: set a base pose for the video card and add pose changes with enter / exit transitions on the timeline. Adjust them directly on the canvas with a rotation ball, or drag out a range on the motion track to add one. Exports include motion blur.
+- **Camera overlay**: position, size and corner radius, with saved background and layout presets.
+- **Captions**: on-device transcription, caption editing, word-by-word highlighting, and cutting the video by editing its text.
+- **Export**: original, landscape, portrait and square formats, with a separate crop; quality, codec, resolution, 30 / 60 fps, motion blur and audio settings. Export and sharing use the project's edits, with progress and cancellation.
 
-侧边栏每种效果一个图标标签，正在画面中生效的效果，其标签上有小圆点。在时间线上选中缩放、运镜或片段时，它的设置显示在侧边栏顶部，不必切换标签。
+The sidebar has one icon tab per effect; tabs for effects that are active in the frame show a small dot. When you select a zoom, motion or clip on the timeline, its settings appear at the top of the sidebar, so you don't have to switch tabs.
 
-<img src="docs/images/studio.webp" alt="Studio 视频编辑器：预览区是套用渐变背景、经 3D 运镜倾斜的录屏画面；下方时间线有视频、缩放、字幕和 3D 运镜轨道；右侧侧边栏顶部是所选运镜的旋转、位置、缩放和过渡设置" width="800">
+<img src="docs/images/studio.webp" alt="The Studio video editor: the preview shows a recording on a gradient background, tilted by a 3D motion; the timeline below has video, zoom, caption and 3D motion tracks; the top of the sidebar shows rotation, position, scale and transition settings for the selected motion" width="800">
 
-| 标签 | 内容 |
+| Tab | Contents |
 | --- | --- |
-| 画面 | 构图、背景、视频卡片 |
-| 缩放与 3D 运动 | 缩放、3D 运镜 |
-| 光标 | 显示或隐藏、大小、点按高亮 |
-| 摄像头 | 摄像头画面的位置、大小和圆角 |
-| 按键 | 按键字幕 |
-| 字幕 | 字幕、按文字剪辑 |
-| 音频 | 音量、替换或添加音频文件 |
+| Canvas | Layout, background, video card |
+| Zoom & 3D Motion | Zooms, 3D motion |
+| Cursor | Show or hide, size, click highlights |
+| Camera | Position, size and corner radius of the camera overlay |
+| Keystrokes | Keystroke overlays |
+| Captions | Captions, editing by text |
+| Images | Image overlays such as a logo, QR code or screenshot |
+| Intro & Outro | Intro and outro cards |
+| Audio | Volume, replacing or adding audio files |
 
-两个编辑器中的数值框都可以直接拖动或点击定位，填充条显示当前值在范围中的位置。按住 <kbd>Option</kbd> 拖动可微调，<kbd>Shift</kbd> + 方向键按 10% 步进，点击数值可直接输入。
+Numeric fields in both editors can be dragged or clicked to a position, and a fill bar shows where the value sits in its range. Hold <kbd>Option</kbd> while dragging for fine adjustment, press <kbd>Shift</kbd> + arrow keys to step by 10%, or click the value to type it.
 
-### 分享与自动化
+### Sharing and automation
 
-- 使用自己的 Cloudflare Workers、R2 和 D1 分享截图与视频。
-- 视频分享页支持播放器、拖动预览、可搜索的转写文本和评论。
-- 截图与录屏分别配置自动保存、复制、上传和打开编辑器等动作；上传与上传后复制链接可分别设置。
-- 支持快捷指令、Siri 和 App Intents。
+- Share screenshots and videos through your own Cloudflare Workers, R2 and D1.
+- Video share pages include a player, scrubbing previews, a searchable transcript and comments.
+- Separate after-capture actions for screenshots and recordings: auto-save, copy, upload and open in the editor. Uploading and copying the link after upload are configured separately.
+- Shortcuts, Siri and App Intents support.
+- **AI agents (MCP)**: turn on agent access under Settings › AI, and clients such as Claude Code, Claude Desktop and Cursor can connect with `Framecho --mcp` to transcribe a recording, cut it by its words, add zooms and intro or outro cards, and export it. Every edit is non-destructive and can be undone in Studio. Agent access is off by default.
 
-## 相比 Screendrop 的改进
+## Changes from Screendrop
 
-Framecho 以 [Screendrop](https://github.com/fayazara/Screendrop) v0.34.0（2026 年 10 月 1 日）为基础，并合入了此后的几个上游 PR。下面只列出 Framecho 独立维护后新增或改动的部分，上游已有的功能（Metal 运动模糊、30 / 60 fps 导出、置顶、OCR、智能遮挡等）不在其列。
+Framecho is based on [Screendrop](https://github.com/fayazara/Screendrop) v0.34.0 (October 1, 2026), plus a few upstream PRs merged after it. This section lists only what was added or changed since Framecho became independent; features that already existed upstream (Metal motion blur, 30 / 60 fps export, pinning, OCR, smart redaction and so on) are not included.
 
-**中文支持**
-- 完整的简体中文界面，所有界面文字都通过 String Catalog 本地化。
-- OCR 和自动遮挡可以识别中文：按图片检测语言，能读出英文为主的行里夹杂的中日韩文字，大截图分块识别，复制出的文字保持原有排版。
+**Chinese support**
+- A complete Simplified Chinese interface; all UI text is localized through String Catalogs.
+- OCR and auto-redaction recognize Chinese: the language is detected per image, CJK text mixed into mostly English lines is read, large screenshots are recognized in tiles, and copied text keeps its layout.
 
-**编辑器**
-- 视频 3D 运镜：在时间线上为视频卡片添加带过渡的姿态变化，可以在画布上用旋转球调整，导出时带运动模糊。
-- 图片编辑器的工具移到画布上方的悬浮工具条，每个工具都有单键快捷键；顶栏改为「完成」和「拷贝」，并加入撤销 / 重做按钮。
-- 两个编辑器的侧边栏按用途分成标签页（图片：标注 / 画面；Studio：画面 / 动效 / 叠加 / 剪辑），选中对象时自动切换；数值框改为可拖动、可点击定位的滑块。
+**Editors**
+- 3D motion for video: add pose changes with transitions to the video card on the timeline, adjust them on the canvas with a rotation ball, and export with motion blur.
+- The image editor's tools moved to a floating toolbar above the canvas, each with a single-key shortcut; the title bar now has Done and Copy, plus undo / redo buttons.
+- Both editors' sidebars are split into tabs by purpose (image: Annotate / Canvas; Studio: one tab per effect) and switch automatically when you select something; numeric fields became sliders you can drag or click to a position.
 
-**置顶截图**
-- 新增「区域截图并置顶」和「置顶最近一张截图」快捷键。
-- 可以直接在置顶窗口里选择、移动和标注；支持按键、触控板捏合和 <kbd>⌘</kbd> + 滚轮缩放，显示并可调整透明度；支持实况文本。
+**Pinned screenshots**
+- New shortcuts for "Capture Area and Pin" and "Pin Latest Screenshot".
+- Select, move and annotate directly in a pinned window; zoom with keys, trackpad pinch or <kbd>⌘</kbd> + scroll; see and adjust opacity; Live Text support.
 
-**录屏**
-- 录屏选择器和录制过程中显示麦克风实时电平；再次按录屏快捷键即可停止录制；放弃或重新录制前会再次确认。
-- 屏幕改为以 4:2:0 采集（原为 BGRA，每像素数据量从 4 字节降到 1.5 字节），摄像头以 720p 4:2:0 录制；光标图像未变化时不再重复编码。
+**Recording**
+- Live microphone levels in the recording picker and while recording; press the recording shortcut again to stop; confirmation before discarding or restarting a recording.
+- The screen is captured as 4:2:0 instead of BGRA (1.5 bytes per pixel instead of 4), and the camera records at 720p 4:2:0; unchanged cursor images are no longer re-encoded.
 
-**素材库、设置与首次使用**
-- 素材库重新设计：侧边栏加入智能分组，按日期分组显示，网格缩略图大小可调，列表视图可按列排序。
-- 设置窗口按类别分组，快捷键有单独的设置页；菜单栏菜单显示截图快捷键。
-- 新增首次使用引导，实时显示各项权限的状态；截图缺少屏幕录制权限时会自动打开引导。
+**Library, settings and onboarding**
+- A redesigned Library: smart groups in the sidebar, items grouped by date, adjustable grid thumbnail size, and sortable list columns.
+- Settings grouped by category, with a dedicated Shortcuts page; the menu bar menu shows capture shortcuts.
+- A first-run guide that shows the live status of each permission; it opens automatically when a capture is missing Screen Recording permission.
 
-**性能与可靠性**
-- 拷贝到剪贴板、生成预览缩略图、有损自动保存等耗时操作移出主线程；新截图直接移入历史记录而不是复制；云端上传直接从磁盘流式读取。
-- 编辑、裁剪和压缩后的图片保留原始 DPI。
-- `history.json` 部分损坏时，仍保留可读的记录，并备份无法读取的部分。
-- 修复 Intel Mac 上的视频导出渲染。
+**Performance and reliability**
+- Copying to the clipboard, generating preview thumbnails and lossy auto-save run off the main thread; new screenshots are moved into History instead of copied; cloud uploads stream from disk.
+- Edited, cropped and compressed images keep their original DPI.
+- If `history.json` is partly corrupted, readable entries are kept and the unreadable part is backed up.
+- Fixed video export rendering on Intel Macs.
 
-**分享**
-- 截图以 AVIF 格式上传，同时附带 JPEG 预览图。
-- 配套 Worker 由本项目维护：[Framecho-worker](https://github.com/helson-lin/Framecho-worker)。
+**Sharing**
+- Screenshots are uploaded as AVIF with a JPEG preview.
+- The companion Worker is maintained by this project: [Framecho-worker](https://github.com/helson-lin/Framecho-worker).
 
-**工程**
-- 使用独立的签名、公证和 Sparkle 更新源。
-- 新增 CI 和一组独立检查脚本，发布工具在检查或 CI 未通过时拒绝发布。
+**Engineering**
+- Separate signing, notarization and Sparkle update feed.
+- CI and a set of standalone check scripts; the release tool refuses to release when checks or CI fail.
 
-## 默认快捷键
+## Default shortcuts
 
-| 快捷键 | 操作 |
+| Shortcut | Action |
 | --- | --- |
-| <kbd>⌥</kbd> <kbd>1</kbd> | 全屏截图 |
-| <kbd>⌥</kbd> <kbd>2</kbd> | 窗口截图 |
-| <kbd>⌥</kbd> <kbd>3</kbd> | 区域截图 |
-| <kbd>⌥</kbd> <kbd>4</kbd> | 打开录屏选择器 |
-| <kbd>⌥</kbd> <kbd>5</kbd> | 识别并复制屏幕文字 |
-| <kbd>⌥</kbd> <kbd>6</kbd> | 倒计时后截图 |
-| <kbd>⌥</kbd> <kbd>7</kbd> | 区域截图并置顶 |
-| <kbd>⌥</kbd> <kbd>8</kbd> | 置顶最近一张截图 |
-| <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>L</kbd> | 打开素材库 |
+| <kbd>⌥</kbd> <kbd>1</kbd> | Capture full screen |
+| <kbd>⌥</kbd> <kbd>2</kbd> | Capture window |
+| <kbd>⌥</kbd> <kbd>3</kbd> | Capture area |
+| <kbd>⌥</kbd> <kbd>4</kbd> | Open the recording picker |
+| <kbd>⌥</kbd> <kbd>5</kbd> | Recognize and copy text on screen |
+| <kbd>⌥</kbd> <kbd>6</kbd> | Capture after a countdown |
+| <kbd>⌥</kbd> <kbd>7</kbd> | Capture Area and Pin |
+| <kbd>⌥</kbd> <kbd>8</kbd> | Pin Latest Screenshot |
+| <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>L</kbd> | Open the Library |
 
-以上八个全局快捷键都可在设置中修改，素材库快捷键固定。新快捷键无法注册时，应用会保留原先可用的设置并说明原因。
+All eight global shortcuts can be changed in Settings; the Library shortcut is fixed. If a new shortcut can't be registered, Framecho keeps the previous working one and explains why.
 
-图片编辑器中（编辑文字时除外）：
+In the image editor (except while editing text):
 
-| 快捷键 | 操作 |
+| Shortcut | Action |
 | --- | --- |
-| <kbd>H</kbd> 选择 · <kbd>R</kbd> 矩形 · <kbd>⇧</kbd> <kbd>R</kbd> 实心矩形 · <kbd>O</kbd> 圆形 · <kbd>L</kbd> 直线 · <kbd>A</kbd> 箭头 · <kbd>F</kbd> 自由绘制 | 形状与线条 |
-| <kbd>N</kbd>（或 <kbd>1</kbd>）编号 · <kbd>T</kbd> 文字 · <kbd>S</kbd> 高亮 · <kbd>P</kbd> 像素化 · <kbd>B</kbd> 模糊 | 编号、文字与遮挡 |
-| <kbd>⌘</kbd> <kbd>C</kbd> | 拷贝当前画面 |
-| <kbd>⌘</kbd> <kbd>↩</kbd> | 完成（存储并关闭） |
-| <kbd>⌘</kbd> <kbd>S</kbd> / <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>S</kbd> | 存储 / 存储为 |
-| <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>C</kbd> | 裁剪 |
-| <kbd>⌘</kbd> <kbd>Z</kbd> / <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>Z</kbd> | 撤销 / 重做 |
-| <kbd>⌘</kbd> <kbd>1</kbd> / <kbd>⌘</kbd> <kbd>0</kbd> | 适合窗口 / 实际大小 |
+| <kbd>H</kbd> Select · <kbd>R</kbd> Rectangle · <kbd>⇧</kbd> <kbd>R</kbd> Filled rectangle · <kbd>O</kbd> Ellipse · <kbd>L</kbd> Line · <kbd>A</kbd> Arrow · <kbd>F</kbd> Freehand | Shapes and lines |
+| <kbd>N</kbd> (or <kbd>1</kbd>) Number · <kbd>T</kbd> Text · <kbd>S</kbd> Highlight · <kbd>P</kbd> Pixelate · <kbd>B</kbd> Blur | Numbers, text and redaction |
+| <kbd>⌘</kbd> <kbd>C</kbd> | Copy the current image |
+| <kbd>⌘</kbd> <kbd>↩</kbd> | Done (save and close) |
+| <kbd>⌘</kbd> <kbd>S</kbd> / <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>S</kbd> | Save / Save As |
+| <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>C</kbd> | Crop |
+| <kbd>⌘</kbd> <kbd>Z</kbd> / <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>Z</kbd> | Undo / Redo |
+| <kbd>⌘</kbd> <kbd>1</kbd> / <kbd>⌘</kbd> <kbd>0</kbd> | Zoom to fit / Actual size |
 
-## 隐私与权限
+## Privacy and permissions
 
-截图、录屏原始轨道、编辑项目和转写文本都保存在 Mac 本地。语音转写在设备端运行，首次使用时系统可能需要下载语言模型；macOS 15 上使用系统的设备端听写模型，同样不会改用服务器识别。文件只会在手动上传或已启用自动上传时，发送到你自己配置的服务。
+Screenshots, raw recording tracks, edit projects and transcripts are stored locally on your Mac. Speech transcription runs on device; the system may download a language model on first use. On macOS 15 it uses the system's on-device dictation model and likewise never falls back to server recognition. Files are sent only to the service you configured, and only when you upload manually or have turned on automatic upload.
 
-| 权限 | 用途 |
+| Permission | Used for |
 | --- | --- |
-| 屏幕与系统音频录制 | 截图、录屏和系统音频 |
-| 摄像头 | 摄像头预览及独立视频轨道 |
-| 麦克风 | 旁白与提词器语音跟随 |
-| 语音识别（仅 macOS 15） | 字幕转写与提词器语音跟随 |
-| 输入监控 | 可编辑的按键字幕 |
+| Screen & System Audio Recording | Screenshots, screen recording and system audio |
+| Camera | Camera preview and a separate camera track |
+| Microphone | Narration and teleprompter speech tracking |
+| Speech Recognition (macOS 15 only) | Caption transcription and teleprompter speech tracking |
+| Input Monitoring | Editable keystroke overlays |
 
-摄像头、麦克风、语音识别和输入监控只在用到相应功能时才请求；语音识别在开启提词器或首次转写时请求，不会在录制过程中弹出。截图和录屏默认排除 Framecho 自身窗口；需要录制预览卡片、控制条或设置界面时，可在通用设置中开启「捕获自身窗口」。
+Camera, microphone, speech recognition and input monitoring are requested only when you use the related feature. Speech recognition is requested when you turn on the teleprompter or transcribe for the first time, never in the middle of a recording. Framecho's own windows are excluded from captures by default; to record the preview card, controls or settings, turn on "Include Framecho windows in captures" in General settings.
 
-## 壁纸资源包
+## Wallpaper packs
 
-壁纸包在点击安装时下载，保存在 `~/Library/Application Support/Framecho/Wallpapers/`，截图和视频编辑器都可以使用；也可以直接选择自己的图片作为背景。
+Wallpaper packs are downloaded when you install them and stored in `~/Library/Application Support/Framecho/Wallpapers/`. Both the image and video editors can use them, and you can also pick any image of your own as a background.
 
-| 包 ID | 资源包 | 原作者 | 图片数 | 下载地址 |
+| Pack ID | Pack | Author | Images | Download |
 | --- | --- | --- | --- | --- |
 | `uihssn` | UIHSSN | [Ahmed Hassan](https://x.com/uihssn) | 12 | [uihssn-wallpaper-pack.zip](https://r2.jarin.me/Frameecho/uihssn-wallpaper-pack.zip) |
 | `fayaz` | Fayazara | [Fayaz Ahmed](https://x.com/fayazara) | 5 | [fayaz-wallpaper-pack.zip](https://r2.jarin.me/Frameecho/fayaz-wallpaper-pack.zip) |
 
-下载失败时，仍可使用已安装的壁纸、纯色、渐变或自定义图片。壁纸来自 Screendrop 的壁纸包，版权归原作者所有，本仓库的 CC0 许可不适用于这些图片。托管细节见 [壁纸包托管](docs/wallpaper-hosting.md)。
+If a download fails, installed wallpapers, solid colors, gradients and custom images remain available. The wallpapers come from Screendrop's wallpaper packs and are copyrighted by their authors; this repository's CC0 license does not apply to them. See [Wallpaper hosting](docs/wallpaper-hosting.md) for hosting details.
 
-## 云端分享
+## Cloud sharing
 
-Framecho 不提供公共上传服务器，云端分享需要部署到你自己的 Cloudflare 账号。配套服务由本项目维护：[Framecho-worker](https://github.com/helson-lin/Framecho-worker)，截图和录屏分享使用 Workers + R2 + D1，壁纸下载桶可以独立使用。
+Framecho has no public upload server; cloud sharing is deployed to your own Cloudflare account. The companion service is maintained by this project: [Framecho-worker](https://github.com/helson-lin/Framecho-worker). Screenshot and recording sharing uses Workers + R2 + D1; the wallpaper bucket can be used on its own.
 
-1. 打开 **设置 → 云端**，复制生成的上传令牌。
-2. 通过设置中的部署入口，将 Worker 部署到自己的 Cloudflare 账号。
-3. 将上传令牌配置为 Worker 的 `UPLOAD_TOKEN` secret，并完成 R2 / D1 绑定。
-4. 把 Worker URL 填回 Framecho，验证连接后即可上传。
+1. Open **Settings → Cloud** and copy the generated upload token.
+2. Deploy the Worker to your Cloudflare account from the deploy link in Settings.
+3. Set the upload token as the Worker's `UPLOAD_TOKEN` secret and finish the R2 / D1 bindings.
+4. Paste the Worker URL into Framecho, verify the connection, and start uploading.
 
-手动部署时，可以用 Wrangler 设置令牌：
+When deploying manually, set the token with Wrangler:
 
 ```bash
 npx wrangler secret put UPLOAD_TOKEN
 ```
 
-首次部署只需要 `UPLOAD_TOKEN`；用于评论和点赞的 GitHub / Google OAuth 可在部署后选配。上传令牌保存在 macOS 钥匙串中。
+The first deployment only needs `UPLOAD_TOKEN`; GitHub / Google OAuth for comments and likes can be added afterwards. The upload token is stored in the macOS Keychain.
 
-## 开发
+## Development
 
-### 从源码构建
+### Build from source
 
-需要 Xcode 27.1（发布版与 CI 使用的版本），构建出的 App 支持 macOS 15 及更高版本。Xcode 会自动解析 Sparkle 和 DockProgress 依赖。
+Building requires Xcode 27.1 (the version used for releases and CI); the app runs on macOS 15 and later. Xcode resolves the Sparkle and DockProgress dependencies automatically.
 
 ```bash
 git clone https://github.com/helson-lin/Framecho.git
-cd Screendrop
+cd Framecho
 
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
   -project Framecho.xcodeproj \
@@ -266,43 +273,43 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 ```
 
 > [!TIP]
-> - Studio 的运动模糊使用 Metal 着色器。构建提示缺少 Metal Toolchain 时，先运行 `xcodebuild -downloadComponent MetalToolchain`。
-> - 签名配置使用维护者的 Apple 开发者团队。请在 Xcode 中换成自己的团队；只做本地编译验证时，可在命令后加 `CODE_SIGNING_ALLOWED=NO`，这样的产物不用于分发。
+> - Studio's motion blur uses a Metal shader. If the build reports a missing Metal Toolchain, run `xcodebuild -downloadComponent MetalToolchain` first.
+> - Signing is configured for the maintainer's Apple developer team. Switch to your own team in Xcode, or append `CODE_SIGNING_ALLOWED=NO` to the command for a local compile check; such builds are not for distribution.
 
-工程为 `Framecho.xcodeproj`，生成的应用为 `Framecho.app`，Bundle ID 为 `com.jarinhe.Framecho`。共享 scheme 有三个：`Framecho`；`Framecho Dev`，构建独立的 `Framecho Dev.app`（Bundle ID `com.jarinhe.Framecho.dev`），可与正式版并存；`Framecho Demo`，以 `--demo-mode` 启动。
+The project is `Framecho.xcodeproj`, the app is `Framecho.app`, and the bundle ID is `com.jarinhe.Framecho`. There are three shared schemes: `Framecho`; `Framecho Dev`, which builds a separate `Framecho Dev.app` (bundle ID `com.jarinhe.Framecho.dev`) that can be installed alongside the release; and `Framecho Demo`, which launches with `--demo-mode`.
 
-### 自动检查
+### Automated checks
 
-项目没有 Xcode 测试 target。`scripts/` 中的独立检查会直接编译相关的生产代码并运行，不需要启动应用：
+There is no Xcode test target. The standalone checks in `scripts/` compile the production code they exercise and run it, without launching the app:
 
 ```bash
 scripts/run-checks.sh
 ```
 
-发布工具的测试：
+Tests for the release tool:
 
 ```bash
 go test ./cmd/...
 ```
 
-新增的 `scripts/check-*.swift` 必须在 `run-checks.sh` 中运行，或列入其中的 `not_run`，否则脚本会报错。需要被检查的逻辑应放在不依赖应用即可编译的文件里。
+Every new `scripts/check-*.swift` must be run by `run-checks.sh` or listed in its `not_run`, or the script fails. Logic that needs checking should live in files that compile without the app.
 
-性能专项检查见 [视频导出性能](docs/export-performance.md) 和 [编辑器性能](docs/editor-performance.md)。
+For performance checks, see [Video export performance](docs/export-performance.md) and [Editor performance](docs/editor-performance.md).
 
-每个 Pull Request 和推送到 `main` 的提交都会运行 [GitHub Actions](.github/workflows/ci.yml)；只改动 `appcast.xml`、文档或 Markdown 的推送会跳过。
+[GitHub Actions](.github/workflows/ci.yml) runs on every pull request and push to `main`; pushes that only touch `appcast.xml`, docs, Markdown or `website/` are skipped.
 
-| 检查 | 内容 |
+| Check | What it does |
 | --- | --- |
-| Build app | 在 GitHub `xcode-27` 镜像上用 Xcode 27.1 做不签名的 Debug 构建 |
-| Standalone checks | 运行 `scripts/run-checks.sh` |
-| Release tool | 在 Linux 上对发布工具运行 `go vet` 和 `go test` |
+| Build app | Unsigned Debug build with Xcode 27.1 on GitHub's `xcode-27` image |
+| Standalone checks | Runs `scripts/run-checks.sh` |
+| Release tool | `go vet` and `go test` for the release tool on Linux |
 
-`xcode-27` 镜像目前仍是 beta，GitHub 调整其中的 Xcode 版本时，需要同步更新工作流。
+The `xcode-27` image is still in beta; when GitHub changes the Xcode versions it ships, the workflow needs updating.
 
-发布流程见 [docs/releasing.md](docs/releasing.md)。
+See [docs/releasing.md](docs/releasing.md) for the release process.
 
-## 致谢与许可
+## Credits and license
 
-感谢 [Screendrop](https://github.com/fayazara/Screendrop) 及其贡献者提供项目基础。Framecho 的发布与维护在本仓库进行，问题请提交到 [Framecho Issues](https://github.com/helson-lin/Framecho/issues)。
+Thanks to [Screendrop](https://github.com/fayazara/Screendrop) and its contributors for the foundation of this project. Framecho is released and maintained in this repository; please file issues at [Framecho Issues](https://github.com/helson-lin/Framecho/issues).
 
-本仓库沿用 [CC0 1.0 Universal](LICENSE)。外部壁纸、第三方依赖和云端 Worker 的许可请分别查看各自来源，本仓库的许可不自动适用于它们。
+This repository remains under [CC0 1.0 Universal](LICENSE). External wallpapers, third-party dependencies and the cloud Worker have their own licenses; this repository's license does not automatically apply to them.
