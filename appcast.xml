@@ -27,6 +27,28 @@
     -->
 
     <item>
+      <title>Version 0.44.1</title>
+      <sparkle:version>48</sparkle:version>
+      <sparkle:shortVersionString>0.44.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 27 Oct 2026 03:34:39 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.44.1</h2>
+        <ul>
+          <li>支持 macOS 15：在较早版本系统上也可使用截图、录屏、Studio 剪辑、语音转写与提词器跟读。 / Now supports macOS 15, including screenshots, screen recording, Studio editing, transcription, and teleprompter speech tracking.</li>
+          <li>新增截图后自动应用默认背景预设：可在设置中开启，在拷贝、保存或上传前完成美化，并保留可编辑的原图与设置。 / Automatically apply your default screenshot background preset before copying, saving, or uploading, while keeping the original and editable settings.</li>
+          <li>截图背景留白最低支持 0%，小于 4% 的留白在预设导入、导出和保存后保持一致。 / Screenshot background padding now goes down to 0%, and values below 4% are preserved when importing, exporting, and saving presets.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Framecho/releases/download/v0.44.1/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="MP9DkJurY2JUtCpqcwqELI/kh1R9ijuAKkXiXjtw9QiiKyOkcBj0vjxLcLo+hx5ypVJ0V2e8pCOajiKEd5XNCA=="
+        length="10471716"
+      />
+    </item>
+
+    <item>
       <title>Version 0.44.0</title>
       <sparkle:version>47</sparkle:version>
       <sparkle:shortVersionString>0.44.0</sparkle:shortVersionString>
