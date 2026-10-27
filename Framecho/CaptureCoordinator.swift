@@ -24,10 +24,11 @@ final class CaptureCoordinator {
     
     static let shared = CaptureCoordinator()
     
-    /// Set by the App to open the preview window. Returns the URL the
-    /// capture was imported to in history, so awaitable capture callers
-    /// (App Intents) can hand the finished file to their result.
-    var onShowPreview: ((URL, CGDirectDisplayID?) -> URL)?
+    /// Set by the App to open the preview window after the screenshot has
+    /// been styled and imported into History.
+    var onShowPreview: ((URL, CGDirectDisplayID?) -> Void)?
+
+    @ObservationIgnored private var pendingCaptureFinish: Task<URL, Never>?
     
     private init() {}
     
@@ -100,7 +101,7 @@ final class CaptureCoordinator {
             displayID: displayID
         ) else { return nil }
         guard let url = await ScreenshotManager.shared.captureFullscreen(displayID: displayID) else { return nil }
-        return finishCapture(url: url, displayID: displayID)
+        return await finishCapture(url: url, displayID: displayID)
     }
 
     @discardableResult
@@ -113,7 +114,7 @@ final class CaptureCoordinator {
             delaySeconds: FramechoPreferences.captureDelaySeconds
         ) else { return nil }
         let displayID = ActiveDisplayResolver.activeDisplayID(preferPointer: true)
-        return finishCapture(url: url, displayID: displayID)
+        return await finishCapture(url: url, displayID: displayID)
     }
 
     @discardableResult
@@ -126,7 +127,7 @@ final class CaptureCoordinator {
             delaySeconds: FramechoPreferences.captureDelaySeconds
         ) else { return nil }
         let displayID = ActiveDisplayResolver.activeDisplayID(preferPointer: true)
-        return finishCapture(url: url, displayID: displayID)
+        return await finishCapture(url: url, displayID: displayID)
     }
 
     /// Pins the drawn area straight to the screen. The capture still goes to
@@ -219,7 +220,7 @@ final class CaptureCoordinator {
         let displayID = ActiveDisplayResolver.activeDisplayID(preferPointer: true)
         PreviewWindowPlacement.shared.setTargetDisplayID(displayID)
         guard let url = await ScreenshotManager.shared.captureFullscreen(displayID: displayID) else { return nil }
-        return finishCapture(url: url, displayID: displayID)
+        return await finishCapture(url: url, displayID: displayID)
     }
 
     func recordFullscreen(_ display: SCDisplay) {
@@ -267,22 +268,61 @@ final class CaptureCoordinator {
 
     @discardableResult
     @MainActor
-    private func finishCapture(url: URL, displayID: CGDirectDisplayID?) -> URL {
+    private func finishCapture(url: URL, displayID: CGDirectDisplayID?) async -> URL {
         if FramechoPreferences.playSounds {
             CaptureFeedbackSound.play()
         }
-        return showPreview(url: url, displayID: displayID)
-    }
 
-    @discardableResult
-    private func showPreview(url: URL, displayID: CGDirectDisplayID?) -> URL {
-        guard let onShowPreview else {
-            let historyURL = ScreenshotHistoryStore.shared.importScreenshot(from: url, movingSource: true)
-            ScreenshotPreviewStack.shared.add(url: historyURL, displayID: displayID)
+        // Snapshot the choice now, and finish captures in order so a slower
+        // preset render can't overwrite a newer capture on the clipboard.
+        let preset = FramechoPreferences.autoApplyScreenshotPreset
+            ? AnnotationBackgroundPresetStore.shared.activePreset : nil
+        let previous = pendingCaptureFinish
+        let finish = Task {
+            _ = await previous?.value
+            var renderedURL: URL?
+            if let preset {
+                do {
+                    renderedURL = try await AnnotationRenderer.renderToTemporaryFileInBackground(
+                        sourceURL: url,
+                        shapes: [],
+                        backgroundSettings: preset.settings
+                    )
+                } catch {
+                    print("Failed to render screenshot preset: \(error)")
+                }
+            }
+            defer {
+                if let renderedURL { try? FileManager.default.removeItem(at: renderedURL) }
+            }
+
+            var historyURL = ScreenshotHistoryStore.shared.importScreenshot(from: url, movingSource: true)
+            if let preset, let renderedURL {
+                do {
+                    historyURL = try ScreenshotHistoryStore.shared.commitAnnotations(
+                        displayURL: historyURL,
+                        baseURL: historyURL,
+                        renderedURL: renderedURL,
+                        document: AnnotationDocument(shapes: [], background: preset.settings)
+                    )
+                } catch {
+                    print("Failed to apply screenshot preset: \(error)")
+                }
+            }
+            showPreview(url: historyURL, displayID: displayID)
             return historyURL
         }
+        pendingCaptureFinish = finish
+        return await finish.value
+    }
 
-        return onShowPreview(url, displayID)
+    private func showPreview(url: URL, displayID: CGDirectDisplayID?) {
+        guard let onShowPreview else {
+            ScreenshotPreviewStack.shared.add(url: url, displayID: displayID)
+            return
+        }
+
+        onShowPreview(url, displayID)
     }
 }
 

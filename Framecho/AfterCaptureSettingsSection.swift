@@ -13,11 +13,63 @@ struct AfterCaptureActionsSection: View {
 
     var body: some View {
         Section {
+            if type == .screenshot {
+                ScreenshotCapturePresetSettings()
+            }
             ForEach(AfterCaptureAction.actions(for: type)) { action in
                 AfterCaptureToggleRow(action: action, type: type)
             }
         } header: {
             Text(title)
+        }
+    }
+}
+
+private struct ScreenshotCapturePresetSettings: View {
+    @AppStorage(FramechoPreferences.autoApplyScreenshotPresetKey) private var autoApplyPreset = false
+    private let presetStore = AnnotationBackgroundPresetStore.shared
+
+    private var availablePresets: [AnnotationBackgroundPreset] {
+        presetStore.presets.filter { !$0.hasMissingWallpaper }
+    }
+
+    var body: some View {
+        Toggle(isOn: $autoApplyPreset) {
+            SettingsControlLabel(
+                "Automatically apply preset",
+                detail: "Apply the default screenshot preset before copying, saving, or uploading."
+            )
+        }
+
+        if autoApplyPreset {
+            Picker(selection: Binding(
+                get: { presetStore.activePreset?.id },
+                set: { presetStore.setActivePreset(id: $0) }
+            )) {
+                Text("None").tag(Optional<AnnotationBackgroundPreset.ID>.none)
+                ForEach(availablePresets) { preset in
+                    Text(verbatim: preset.name).tag(Optional(preset.id))
+                }
+            } label: {
+                SettingsControlLabel(
+                    "Default Preset",
+                    detail: "Also used when opening new screenshots in the annotation editor."
+                )
+            }
+
+            if presetStore.activePreset == nil {
+                Group {
+                    if presetStore.presets.isEmpty {
+                        Text("Save a preset in the annotation editor first.")
+                    } else if availablePresets.isEmpty {
+                        Text("Saved presets have missing wallpapers. Restore a wallpaper or save a new preset in the annotation editor.")
+                    } else {
+                        Text("Choose a default preset to apply it automatically.")
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
         }
     }
 }
