@@ -186,7 +186,7 @@ struct PortableBackgroundSettings: Codable {
             output.style = .gradient(Self.sanitizedGradient(gradient))
         }
 
-        output.padding = CGFloat(Self.clamp(padding, to: 0.04...0.45))
+        output.padding = CGFloat(Self.clamp(padding, to: 0...0.45))
         output.cornerRadius = CGFloat(Self.clamp(cornerRadius, to: 0...0.12))
         output.shadow = CGFloat(Self.clamp(shadow, to: 0...1))
         output.shadowStyle = shadowStyle.flatMap(AnnotationShadowStyle.init(rawValue:)) ?? .soft

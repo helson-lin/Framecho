@@ -20,6 +20,7 @@ struct AnnotationDocumentChecks {
         let fixture = try! Data(contentsOf: URL(fileURLWithPath: "scripts/fixtures/annotation-document-v2.json"))
         checkFixture(fixture)
         checkRoundTrip(fixture)
+        checkPresetPadding()
         checkOlderDocuments(fixture)
         checkTolerance(fixture)
         checkMeasurements(fixture)
@@ -102,6 +103,26 @@ struct AnnotationDocumentChecks {
         let reopened = try! decode(try! JSONEncoder().encode(saved))
         expect(reopened.version == AnnotationDocument.currentVersion, "New documents use the current version")
         expect(reopened.backgroundSettings == settings, "Background settings survive a save")
+    }
+
+    static func checkPresetPadding() {
+        for padding in [0.0, 0.01, 0.03, 0.45] {
+            var settings = AnnotationBackgroundSettings()
+            settings.style = .solid(.graphite)
+            settings.padding = CGFloat(padding)
+            let preset = AnnotationBackgroundPreset(name: "Edge to edge", settings: settings)
+            let transfer = AnnotationBackgroundPresetTransferFile(preset: preset)
+            let imported = try! JSONDecoder().decode(
+                AnnotationBackgroundPresetTransferFile.self,
+                from: transfer.encodedData()
+            ).validatedPresets()[0].settings.annotationSettings
+            expect(abs(imported.padding - settings.padding) < 1e-9,
+                   "Preset export/import preserves padding \(padding), got \(imported.padding)")
+            let document = AnnotationDocument(shapes: [], background: imported)
+            let reopened = try! decode(try! JSONEncoder().encode(document))
+            expect(abs(reopened.backgroundSettings.padding - settings.padding) < 1e-9,
+                   "Saving and reopening the imported preset preserves padding \(padding)")
+        }
     }
 
     static func checkOlderDocuments(_ fixture: Data) {

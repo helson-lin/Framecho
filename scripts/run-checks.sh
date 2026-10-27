@@ -131,6 +131,7 @@ check annotation-engine -default-isolation MainActor -parse-as-library \
 check annotation-document -default-isolation MainActor -parse-as-library \
   "${engine[@]}" Framecho/AnnotationDocument.swift Framecho/AnnotationBackground.swift \
   Framecho/AnnotationPresetStore.swift Framecho/AnnotationShadowStyle.swift Framecho/AnnotationMetrics.swift \
+  Framecho/AnnotationBackgroundPresetStore.swift Framecho/AnnotationBackgroundPresetTransfer.swift \
   scripts/check-annotation-document.swift
 
 check history-metadata "${strict[@]}" \

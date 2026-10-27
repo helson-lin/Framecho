@@ -50,7 +50,7 @@ struct AnnotationCompositionInspector: View {
             InspectorSlider(
                 "Padding",
                 value: $settings.padding,
-                range: 0.04...0.45,
+                range: 0...0.45,
                 format: .percent()
             )
 
