@@ -26,7 +26,7 @@ const zh = {
     language: '切换界面语言',
   },
   hero: {
-    release: 'Studio 现在居中近全屏打开，项目在后台加载',
+    release: '支持 macOS 15，截图后可自动应用背景预设',
     titleHtml: `一键截下，<br>把${mark('重点')}讲清楚。`,
     lede: 'Framecho 是原生 macOS 截图、录屏与编辑工具。标注、美化、剪辑、加字幕都在本地完成，原图永远不被改动。',
     download: '下载 Framecho.dmg',
@@ -230,7 +230,7 @@ const en: UI = {
     language: 'Interface language',
   },
   hero: {
-    release: 'Studio now opens centered and nearly full screen, loading projects in the background',
+    release: 'Now supports macOS 15 and automatic screenshot background presets',
     titleHtml: `Capture it.<br>Make the ${mark('point')} clear.`,
     lede: 'Framecho is a native macOS app for screenshots, screen recordings and editing. Annotate, polish, cut and caption on your Mac — the original is never touched.',
     download: 'Download Framecho.dmg',
