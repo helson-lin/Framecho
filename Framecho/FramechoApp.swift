@@ -97,9 +97,7 @@ struct FramechoApp: App {
             }
             PreviewPanelPresenter.shared.onEditVideo = openVideoEditor
 
-            let historyURL = ScreenshotHistoryStore.shared.importScreenshot(from: url, movingSource: true)
-            ScreenshotPreviewStack.shared.add(url: historyURL, displayID: displayID)
-            return historyURL
+            ScreenshotPreviewStack.shared.add(url: url, displayID: displayID)
         }
 
         appDelegate.onOpenFiles = { [openWindow] urls in

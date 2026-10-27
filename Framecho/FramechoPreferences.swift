@@ -13,6 +13,7 @@ enum FramechoPreferences {
     static let autoSaveKey = "autoSaveScreenshots"
     static let saveButtonUsesFolderKey = "saveButtonUsesConfiguredFolder"
     static let autoCopyKey = "autoCopyScreenshotsToClipboard"
+    static let autoApplyScreenshotPresetKey = "autoApplyScreenshotPreset"
     static let autoCompressKey = "autoCompressScreenshots"
     static let exportFormatKey = "exportFormat"
     static let compressionQualityKey = "compressionQuality"
@@ -58,6 +59,10 @@ enum FramechoPreferences {
     
     static var autoCopy: Bool {
         UserDefaults.standard.bool(forKey: autoCopyKey)
+    }
+
+    static var autoApplyScreenshotPreset: Bool {
+        UserDefaults.standard.bool(forKey: autoApplyScreenshotPresetKey)
     }
     
     static var autoCompress: Bool {
