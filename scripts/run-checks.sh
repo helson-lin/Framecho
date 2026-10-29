@@ -104,6 +104,9 @@ check text-recognition -default-isolation MainActor -parse-as-library \
 check pinned-geometry "${strict[@]}" \
   Framecho/PinnedScreenshotGeometry.swift scripts/check-pinned-geometry.swift
 
+check scrolling-capture "${strict[@]}" \
+  Framecho/ScrollingCaptureStitcher.swift scripts/check-scrolling-capture.swift
+
 check app-permissions "${strict[@]}" \
   Framecho/AppPermission.swift scripts/check-app-permissions.swift
 
