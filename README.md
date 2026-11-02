@@ -13,7 +13,7 @@ Local library · Non-destructive editing · English and Simplified Chinese · Cl
 [![Latest release](https://img.shields.io/github/v/release/helson-lin/Framecho?label=release)](https://github.com/helson-lin/Framecho/releases/latest)
 [![CI](https://github.com/helson-lin/Framecho/actions/workflows/ci.yml/badge.svg)](https://github.com/helson-lin/Framecho/actions/workflows/ci.yml)
 ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black)
-[![License: CC0](https://img.shields.io/badge/license-CC0%201.0-lightgrey)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
 <p>
   <a href="https://github.com/helson-lin/Framecho/releases/latest/download/Framecho.dmg"><img src="docs/images/button-download-en.svg" alt="Download Framecho.dmg" width="252" height="56"></a>
@@ -236,7 +236,7 @@ Wallpaper packs are downloaded when you install them and stored in `~/Library/Ap
 | `uihssn` | UIHSSN | [Ahmed Hassan](https://x.com/uihssn) | 12 | [uihssn-wallpaper-pack.zip](https://r2.jarin.me/Frameecho/uihssn-wallpaper-pack.zip) |
 | `fayaz` | Fayazara | [Fayaz Ahmed](https://x.com/fayazara) | 5 | [fayaz-wallpaper-pack.zip](https://r2.jarin.me/Frameecho/fayaz-wallpaper-pack.zip) |
 
-If a download fails, installed wallpapers, solid colors, gradients and custom images remain available. The wallpapers come from Screendrop's wallpaper packs and are copyrighted by their authors; this repository's CC0 license does not apply to them. See [Wallpaper hosting](docs/wallpaper-hosting.md) for hosting details.
+If a download fails, installed wallpapers, solid colors, gradients and custom images remain available. The wallpapers come from Screendrop's wallpaper packs and are copyrighted by their authors; this repository's Apache 2.0 license does not apply to them. See [Wallpaper hosting](docs/wallpaper-hosting.md) for hosting details.
 
 ## Cloud sharing
 
@@ -312,4 +312,4 @@ See [docs/releasing.md](docs/releasing.md) for the release process.
 
 Thanks to [Screendrop](https://github.com/fayazara/Screendrop) and its contributors for the foundation of this project. Framecho is released and maintained in this repository; please file issues at [Framecho Issues](https://github.com/helson-lin/Framecho/issues).
 
-This repository remains under [CC0 1.0 Universal](LICENSE). External wallpapers, third-party dependencies and the cloud Worker have their own licenses; this repository's license does not automatically apply to them.
+Framecho is licensed under the [Apache License 2.0](LICENSE). Screendrop, which it builds on, was released under CC0 1.0 Universal. External wallpapers, third-party dependencies and the cloud Worker have their own licenses; this repository's license does not automatically apply to them.

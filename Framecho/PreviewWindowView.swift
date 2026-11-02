@@ -241,6 +241,10 @@ struct PreviewWindowView: View {
                     onCopyText: {
                         previewStack.copyText(id: item.id)
                     },
+                    onTranslate: {
+                        previewStack.markEngaged(id: item.id)
+                        PinnedScreenshotPresenter.shared.translate(url: item.url)
+                    },
                     onDragBegan: {
                         previewStack.beginDrag(id: item.id)
                     },

@@ -47,7 +47,7 @@ export function structuredData({ lang, pageUrl, siteUrl, ogImage, screenshots }:
         inLanguage: ['en', 'zh-CN'],
         isAccessibleForFree: true,
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-        license: 'https://creativecommons.org/publicdomain/zero/1.0/',
+        license: 'https://www.apache.org/licenses/LICENSE-2.0',
         image: ogImage,
         screenshot: screenshots,
         featureList: [

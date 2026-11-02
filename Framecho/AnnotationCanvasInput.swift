@@ -9,6 +9,9 @@ struct AnnotationCanvasInputHandler: NSViewRepresentable {
     let onBeginPinch: (CGPoint) -> Void
     let onPinch: (CGFloat) -> Void
     let onEndPinch: () -> Void
+    /// Leaves zooming (pinch, and scrolling with ⌘ or ⌥) to the window, for
+    /// a canvas that is its window's whole picture, such as a pin.
+    var leavesZoomToWindow = false
 
     func makeNSView(context: Context) -> InputView {
         let view = InputView()
@@ -22,6 +25,7 @@ struct AnnotationCanvasInputHandler: NSViewRepresentable {
         view.onBeginPinch = onBeginPinch
         view.onPinch = onPinch
         view.onEndPinch = onEndPinch
+        view.leavesZoomToWindow = leavesZoomToWindow
     }
 
     static func dismantleNSView(_ view: InputView, coordinator: ()) { view.detach() }
@@ -32,6 +36,7 @@ struct AnnotationCanvasInputHandler: NSViewRepresentable {
         var onBeginPinch: ((CGPoint) -> Void)?
         var onPinch: ((CGFloat) -> Void)?
         var onEndPinch: (() -> Void)?
+        var leavesZoomToWindow = false
 
         private lazy var magnifier: NSMagnificationGestureRecognizer = {
             let recognizer = NSMagnificationGestureRecognizer(target: self, action: #selector(magnifyCanvas(_:)))
@@ -70,7 +75,8 @@ struct AnnotationCanvasInputHandler: NSViewRepresentable {
         }
 
         func gestureRecognizerShouldBegin(_ gestureRecognizer: NSGestureRecognizer) -> Bool {
-            guard let window, window.isKeyWindow, !(window.firstResponder is NSTextView) else { return false }
+            guard !leavesZoomToWindow, let window, window.isKeyWindow,
+                  !(window.firstResponder is NSTextView) else { return false }
             return bounds.contains(convert(window.mouseLocationOutsideOfEventStream, from: nil))
         }
 
@@ -108,7 +114,12 @@ struct AnnotationCanvasInputHandler: NSViewRepresentable {
                     return nil
                 }
             }
-            if event.modifierFlags.intersection([.command, .option]).isEmpty {
+            if leavesZoomToWindow {
+                // The canvas always fills its window, so there is nothing to
+                // pan; panning would also stop it refitting when the window
+                // is zoomed.
+                return event.modifierFlags.intersection([.command, .option]).isEmpty ? nil : event
+            } else if event.modifierFlags.intersection([.command, .option]).isEmpty {
                 onPan?(event.scrollingDeltaX, event.scrollingDeltaY)
             } else {
                 onZoom?(exp(event.scrollingDeltaY * 0.0025), anchor)

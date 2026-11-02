@@ -44,6 +44,44 @@ enum ImageTextRecognizer {
     /// it misread, and the pass costs well under a second even on a full
     /// 5K screenshot.
     nonisolated private static func recognizeText(in image: CGImage, preferredLanguages: [String]) -> String {
+        paragraphs(recognizedLines(in: image, preferredLanguages: preferredLanguages))
+            .map(\.text).joined(separator: "\n")
+    }
+
+    /// The text in `image` as blocks with their place in it, for laying
+    /// something over the text, as translation does. A block is a line, or
+    /// several wrapped lines joined the way the copied text joins them.
+    /// Synchronous and slow (up to a second on a large image): call it off
+    /// the main thread.
+    nonisolated static func recognizeBlocks(
+        in image: CGImage,
+        preferredLanguages: [String] = Locale.preferredLanguages
+    ) -> [RecognizedTextBlock] {
+        let imageHeight = CGFloat(image.height)
+        let lines = recognizedLines(in: image, preferredLanguages: preferredLanguages, splittingAtGaps: true)
+        return paragraphGroups(lines).map { group in
+            let extent = group.dropFirst().reduce(group[0].rect) { $0.union($1.rect) }
+            let lineHeight = group.map(\.rect.height).reduce(0, +) / CGFloat(group.count)
+            return RecognizedTextBlock(
+                text: joinedParagraph(group).text,
+                // Vision's origin is bottom-left; blocks are top-left like the
+                // rest of the app's image coordinates.
+                rect: CGRect(
+                    x: extent.minX, y: imageHeight - extent.maxY,
+                    width: extent.width, height: extent.height
+                ),
+                lineHeight: lineHeight,
+                lineCount: group.count
+            )
+        }
+    }
+
+    /// `splittingAtGaps` keeps runs of text that sit far apart on one line
+    /// as separate lines: a label and a button across a window are one line
+    /// to read, but two places to draw over.
+    nonisolated private static func recognizedLines(
+        in image: CGImage, preferredLanguages: [String], splittingAtGaps: Bool = false
+    ) -> [Fragment] {
         let imageSize = CGSize(width: image.width, height: image.height)
         // Tiles are regions of interest on one handler rather than cropped
         // images: Core Image can read past the end of a cropped PNG-backed
@@ -62,7 +100,7 @@ enum ImageTextRecognizer {
             return (tile, detected, cjkFirst)
         }
         let handler = VNImageRequestHandler(cgImage: image, options: [:])
-        guard (try? handler.perform(passes.map(\.1))) != nil else { return "" }
+        guard (try? handler.perform(passes.map(\.1))) != nil else { return [] }
         // A tile the first pass found nothing in holds nothing for the second
         // either; skipping it halves the cost of the empty parts of a screen.
         let cjkPasses = passes.filter { !($0.1.results ?? []).isEmpty }.map(\.2)
@@ -75,8 +113,10 @@ enum ImageTextRecognizer {
         let detectedFragments = passes.flatMap { fragments($0.1.results ?? [], in: $0.0) }
         let cjkFragments = passes.flatMap { fragments($0.2.results ?? [], in: $0.0) }
 
-        let lines = merging(cjkLines: visualLines(cjkFragments), into: visualLines(detectedFragments))
-        return paragraphs(lines).map(\.text).joined(separator: "\n")
+        return merging(
+            cjkLines: visualLines(cjkFragments, splittingAtGaps: splittingAtGaps),
+            into: visualLines(detectedFragments, splittingAtGaps: splittingAtGaps)
+        )
     }
 
     // MARK: - Tiling
@@ -356,23 +396,42 @@ enum ImageTextRecognizer {
     /// Rejoins lines that are clearly a wrapped paragraph instead of leaving
     /// them hard-broken, so the copied text reads like the original.
     nonisolated private static func paragraphs(_ lines: [Fragment]) -> [Fragment] {
-        guard var paragraph = lines.first else { return [] }
+        paragraphGroups(lines).map(joinedParagraph)
+    }
 
-        var paragraphs: [Fragment] = []
+    /// Splits top-down lines into runs that each form one paragraph.
+    nonisolated private static func paragraphGroups(_ lines: [Fragment]) -> [[Fragment]] {
+        guard let first = lines.first else { return [] }
+
+        var groups: [[Fragment]] = []
+        var group = [first]
+        // Compared with the paragraph so far, which is as wide as its widest
+        // line and as tall as its last.
+        var paragraph = first
         for line in lines.dropFirst() {
             if continuesParagraph(paragraph, with: line) {
-                paragraph.text = joinedAcrossWrap(paragraph.text, line.text)
-                paragraph.rect = paragraph.rect.union(line.rect)
-                // Keep a single line's height: the union now spans several.
-                paragraph.rect.size.height = line.rect.height
-                paragraph.rect.origin.y = line.rect.minY
+                group.append(line)
+                paragraph = joinedParagraph(group)
             } else {
-                paragraphs.append(paragraph)
+                groups.append(group)
+                group = [line]
                 paragraph = line
             }
         }
-        paragraphs.append(paragraph)
-        return paragraphs
+        groups.append(group)
+        return groups
+    }
+
+    nonisolated private static func joinedParagraph(_ group: [Fragment]) -> Fragment {
+        var paragraph = group[0]
+        for line in group.dropFirst() {
+            paragraph.text = joinedAcrossWrap(paragraph.text, line.text)
+            paragraph.rect = paragraph.rect.union(line.rect)
+            // Keep a single line's height: the union now spans several.
+            paragraph.rect.size.height = line.rect.height
+            paragraph.rect.origin.y = line.rect.minY
+        }
+        return paragraph
     }
 
     /// Vision returns observations in no documented order, which scrambles
@@ -382,7 +441,7 @@ enum ImageTextRecognizer {
     /// Done as an explicit grouping pass rather than one clever comparator:
     /// a tolerance-based comparator is not a strict weak ordering, and
     /// `sorted(by:)` gives undefined results when handed one.
-    nonisolated private static func visualLines(_ fragments: [Fragment]) -> [Fragment] {
+    nonisolated private static func visualLines(_ fragments: [Fragment], splittingAtGaps: Bool = false) -> [Fragment] {
         // The origin is bottom-left, so a larger midY sits higher on the page.
         let topDown = fragments.sorted { $0.rect.midY > $1.rect.midY }
 
@@ -395,6 +454,11 @@ enum ImageTextRecognizer {
             guard var merged = ordered.first else { return }
             for fragment in ordered.dropFirst() {
                 let gap = fragment.rect.minX - merged.rect.maxX
+                if splittingAtGaps, gap > max(merged.rect.height, fragment.rect.height) * 2 {
+                    lines.append(merged)
+                    merged = fragment
+                    continue
+                }
                 merged.text = joinedOnLine(
                     merged.text, fragment.text,
                     isTight: gap < max(merged.rect.height, fragment.rect.height)
@@ -508,4 +572,15 @@ enum ImageTextRecognizer {
             false
         }
     }
+}
+
+/// A paragraph or line of recognized text and where it sits in the image, in
+/// pixels with a top-left origin.
+nonisolated struct RecognizedTextBlock: Sendable, Equatable {
+    var text: String
+    /// Covers every line of the block.
+    var rect: CGRect
+    /// The average height of one line's box.
+    var lineHeight: CGFloat
+    var lineCount: Int
 }

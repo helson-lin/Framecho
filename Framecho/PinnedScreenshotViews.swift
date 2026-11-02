@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import Translation
 
 struct PinnedScreenshotView: View {
     let pin: PinnedScreenshot
@@ -20,7 +21,7 @@ struct PinnedScreenshotView: View {
             .clipShape(shape)
             .overlay {
                 // The accent ring marks the pin keys act on.
-                let isActive = pin.isSelected || pin.editor != nil
+                let isActive = pin.isSelected || pin.editor != nil || pin.translationMode != nil
                 shape
                     .strokeBorder(isActive ? Color.accentColor : .white.opacity(0.25), lineWidth: isActive ? 2 : 1)
                     .allowsHitTesting(false)
@@ -31,12 +32,31 @@ struct PinnedScreenshotView: View {
                         .transition(.opacity)
                 }
             }
+            // One session for either kind of translation: annotating a
+            // capture swaps its base image, a translating pin shows it.
+            .translationTask(pin.translation?.configuration ?? pin.translationMode?.model.configuration) { session in
+                if let translation = pin.translation {
+                    await translation.run(session)
+                    controller.finishTranslation()
+                } else if let model = pin.translationMode?.model {
+                    await model.run(session)
+                }
+            }
+            .onChange(of: pin.translationMode?.model.phase) {
+                controller.translationPhaseChanged()
+            }
     }
 
     @ViewBuilder
     private var content: some View {
-        if let editor = pin.editor, let image = editor.previewImage {
-            AnnotationCanvas(model: editor, image: image, onEditorInteraction: {}, fitInsets: .zero)
+        if let mode = pin.translationMode {
+            PinnedTranslationImage(model: mode.model, isPeekingOriginal: pin.isPeekingOriginal)
+        } else if let editor = pin.editor, let image = editor.previewImage {
+            // Zooming resizes the pin, as it does outside annotating, so the
+            // image always fills it.
+            AnnotationCanvas(
+                model: editor, image: image, onEditorInteraction: {}, fitInsets: .zero, leavesZoomToWindow: true
+            )
                 .background(AnnotationKeyCommandHandler(
                     isEnabled: { !editor.isCommitting },
                     onDelete: editor.deleteSelectedAnnotation,
@@ -47,10 +67,10 @@ struct PinnedScreenshotView: View {
                     onRedo: editor.redo,
                     onSelectAll: editor.selectAllAnnotations,
                     onSelectTool: editor.selectTool,
-                    onZoomIn: editor.zoomIn,
-                    onZoomOut: editor.zoomOut,
+                    onZoomIn: { controller.zoom(by: PinnedScreenshotController.zoomStep) },
+                    onZoomOut: { controller.zoom(by: 1 / PinnedScreenshotController.zoomStep) },
                     onFitCanvas: editor.fitCanvas,
-                    onActualSize: { editor.setZoomPercent(100) },
+                    onActualSize: controller.zoomToActualSize,
                     // A pin has no crop: it would change the pin's shape.
                     onToggleCrop: {},
                     onApplyCrop: {},
@@ -79,7 +99,11 @@ struct PinnedScreenshotToolbar: View {
 
     var body: some View {
         Group {
-            if let editor = pin.editor {
+            if let mode = pin.translationMode {
+                PinnedTranslationBar(mode: mode, controller: controller)
+            } else if let editor = pin.editor, pin.isEditingCapture {
+                PinnedCaptureBar(editor: editor, controller: controller)
+            } else if let editor = pin.editor {
                 PinnedAnnotationBar(editor: editor, controller: controller)
             } else {
                 viewingBar
@@ -187,13 +211,22 @@ private struct PinnedFeedbackBadge: View {
             switch feedback {
             case .zoom(let percent): Text("\(percent)%")
             case .opacity(let percent): Text("\(percent)%")
+            case .recognizing: Text("Recognizing text…")
+            case .translating: Text("Translating…")
+            case .note(let note): Text(note)
+            case .message(let message): Text(message)
             }
         } icon: {
             switch feedback {
             case .zoom: Image(systemName: "plus.magnifyingglass")
             case .opacity: Image(systemName: "circle.lefthalf.filled")
+            case .recognizing, .translating: ProgressView().controlSize(.small)
+            case .note: Image(systemName: "checkmark.circle")
+            case .message: Image(systemName: "exclamationmark.circle")
             }
         }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: 320)
         .font(.system(size: 13, weight: .semibold).monospacedDigit())
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
@@ -207,7 +240,210 @@ private struct PinnedFeedbackBadge: View {
         switch feedback {
         case .zoom(let percent): Text("Zoom \(percent)%")
         case .opacity(let percent): Text("Opacity \(percent)%")
+        case .recognizing: Text("Recognizing text…")
+        case .translating: Text("Translating…")
+        case .note(let note): Text(note)
+        case .message(let message): Text(message)
         }
+    }
+}
+
+// MARK: - Translating
+
+/// The original under the translation, so the translation fades in over
+/// it and the toggle and a Space peek just reveal what's beneath.
+private struct PinnedTranslationImage: View {
+    let model: ScreenshotTranslation
+    let isPeekingOriginal: Bool
+
+    var body: some View {
+        ZStack {
+            Image(nsImage: model.originalImage)
+                .resizable()
+                .interpolation(.high)
+            if let translated = model.translatedImage {
+                Image(nsImage: translated)
+                    .resizable()
+                    .interpolation(.high)
+                    .opacity(model.showsOriginal || isPeekingOriginal ? 0 : 1)
+                    .transition(.opacity)
+            }
+        }
+        .animation(PinnedScreenshotController.translationFade, value: model.translatedImage)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(model.showsOriginal || isPeekingOriginal ? Text("Original Text") : Text("Translation"))
+    }
+}
+
+/// Translation, language, what to take away, and the ways out, in the
+/// order and sizes of the capture toolbar, so the two read as one tool.
+private struct PinnedTranslationBar: View {
+    let mode: PinnedTranslationMode
+    let controller: PinnedScreenshotController
+
+    private var model: ScreenshotTranslation { mode.model }
+
+    var body: some View {
+        HStack(spacing: 2) {
+            PinnedTranslationToggle(
+                showsOriginal: model.showsOriginal,
+                onSelect: controller.setShowsOriginal
+            )
+            .disabled(model.phase != .translated)
+            .help("Translation or original. Hold Space to glance at the original.")
+
+            PinnedToolbarDivider()
+
+            PinnedLanguageMenu(
+                target: model.target,
+                targets: model.targets,
+                onSelect: controller.translate(to:)
+            )
+            .disabled(model.phase == .recognizing)
+
+            PinnedToolbarDivider()
+
+            PinnedToolbarButton(
+                title: "Copy Text",
+                systemImage: "text.quote",
+                help: "Copy Translated Text (⇧⌘C)",
+                action: controller.copyTranslatedText
+            )
+            .disabled(model.phase != .translated)
+            PinnedToolbarButton(
+                title: "Save…",
+                systemImage: "square.and.arrow.down",
+                help: "Save… (⌘S)",
+                action: controller.saveTranslation
+            )
+
+            PinnedToolbarDivider()
+
+            if mode.isStandalone {
+                PinnedToolbarButton(
+                    title: "Keep Pinned",
+                    systemImage: "pin",
+                    help: "Keep Pinned",
+                    action: controller.keepTranslation
+                )
+                PinnedToolbarButton(
+                    title: "Cancel",
+                    systemImage: "xmark",
+                    help: "Close without copying (Esc)",
+                    tint: .red,
+                    action: controller.discardTranslation
+                )
+                PinnedToolbarButton(
+                    title: "Copy and Close",
+                    systemImage: "checkmark",
+                    help: "Copy and close (Return)",
+                    tint: .green,
+                    action: controller.copyTranslationAndClose
+                )
+            } else {
+                PinnedToolbarButton(
+                    title: "Show Original",
+                    systemImage: "xmark",
+                    help: "Back to the original (Esc)",
+                    tint: .red,
+                    action: controller.discardTranslation
+                )
+                PinnedToolbarButton(
+                    title: "Keep Translation",
+                    systemImage: "pin",
+                    help: "Pin the translation in place of the original (Return)",
+                    action: controller.keepTranslation
+                )
+            }
+        }
+        .padding(4)
+        .glassSurface(in: .rect(cornerRadius: 14))
+    }
+}
+
+/// Drawn by hand like the toolbar's buttons: a system segmented control
+/// draws as disabled in the toolbar's window, which never becomes key.
+private struct PinnedTranslationToggle: View {
+    let showsOriginal: Bool
+    let onSelect: (Bool) -> Void
+
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        HStack(spacing: 2) {
+            PinnedSegment(title: "Translation", isSelected: !showsOriginal) { onSelect(false) }
+            PinnedSegment(title: "Original Text", isSelected: showsOriginal) { onSelect(true) }
+        }
+        .opacity(isEnabled ? 1 : 0.35)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+private struct PinnedSegment: View {
+    let title: LocalizedStringResource
+    let isSelected: Bool
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(isSelected ? Color.white : Color.primary)
+                .padding(.horizontal, 10)
+                .frame(height: 28)
+                .background {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(isSelected ? Color.accentColor : (isHovering ? Color.primary.opacity(0.08) : .clear))
+                }
+                .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .focusEffectDisabled()
+        .onHover { isHovering = $0 }
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+/// The target language, named, with the others a click away.
+private struct PinnedLanguageMenu: View {
+    let target: String
+    let targets: [String]
+    let onSelect: (String) -> Void
+
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        Menu {
+            ForEach(targets, id: \.self) { language in
+                Toggle(isOn: Binding(
+                    get: { language == target },
+                    set: { _ in onSelect(language) }
+                )) {
+                    Text(ScreenshotTranslation.displayName(for: language))
+                }
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "translate")
+                    .font(.system(size: 14, weight: .medium))
+                Text(ScreenshotTranslation.displayName(for: target))
+                    .font(.system(size: 13, weight: .medium))
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 28)
+            .opacity(isEnabled ? 1 : 0.35)
+            .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Translate to \(ScreenshotTranslation.displayName(for: target))")
     }
 }
 
@@ -216,15 +452,13 @@ private struct PinnedAnnotationBar: View {
     @Bindable var editor: AnnotationEditorModel
     let controller: PinnedScreenshotController
 
-    /// The colours worth a click on a small toolbar; the full editor has the rest.
-    private static let swatches: [AnnotationSwatch] = [.red, .orange, .yellow, .green, .blue, .black, .white]
-
     var body: some View {
         VStack(alignment: .trailing, spacing: 6) {
             AnnotationToolStrip(selectedTool: editor.selectedTool, onSelect: editor.selectTool)
 
             HStack(spacing: 6) {
-                swatchRow
+                PinnedSwatchRow(editor: editor)
+                    .glassSurface(in: .capsule)
                 AnnotationHistoryControl(model: editor, onAction: {})
 
                 PinnedTextButton(title: "Discard", isProminent: false, action: controller.discardAnnotating)
@@ -236,7 +470,96 @@ private struct PinnedAnnotationBar: View {
         }
     }
 
-    private var swatchRow: some View {
+}
+
+/// A capture being marked up straight after Capture Area and Pin: the
+/// editor's tool strip, and below it colour and every way out, nothing
+/// behind a menu, so a capture can be marked up and copied with ✓ in one go.
+/// Laid out like `PinnedAnnotationBar`, so the two read as one family.
+private struct PinnedCaptureBar: View {
+    @Bindable var editor: AnnotationEditorModel
+    let controller: PinnedScreenshotController
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 6) {
+            AnnotationToolStrip(selectedTool: editor.selectedTool, onSelect: editor.selectTool)
+
+            HStack(spacing: 6) {
+                PinnedSwatchRow(editor: editor)
+                    .glassSurface(in: .capsule)
+                actions
+            }
+        }
+        .disabled(editor.isCommitting)
+    }
+
+    private var actions: some View {
+        HStack(spacing: 2) {
+            PinnedToolbarButton(
+                title: "Translate Image",
+                systemImage: "translate",
+                help: "Translate the text where it is",
+                action: controller.translateInPlace
+            )
+            .disabled(controller.pin.translation != nil)
+            PinnedToolbarButton(
+                title: "Copy Text from Image",
+                systemImage: "text.viewfinder",
+                help: "Copy Text from Image",
+                action: controller.copyText
+            )
+
+            PinnedToolbarDivider()
+            PinnedToolbarButton(
+                title: "Undo",
+                systemImage: "arrow.uturn.backward",
+                help: "Undo (⌘Z)",
+                action: editor.undo
+            )
+            .disabled(!editor.canUndo)
+
+            PinnedToolbarDivider()
+            PinnedToolbarButton(
+                title: "Save…",
+                systemImage: "square.and.arrow.down",
+                help: "Save… (⌘S)",
+                action: controller.saveAnnotatedImage
+            )
+            PinnedToolbarButton(
+                title: "Keep Pinned",
+                systemImage: "pin",
+                help: "Keep pinned with these annotations",
+                action: controller.keepCapturePinned
+            )
+
+            PinnedToolbarDivider()
+            PinnedToolbarButton(
+                title: "Cancel",
+                systemImage: "xmark",
+                help: "Close without copying (Esc)",
+                tint: .red,
+                action: controller.cancelEditingCapture
+            )
+            PinnedToolbarButton(
+                title: "Copy and Close",
+                systemImage: "checkmark",
+                help: "Copy and close (Return)",
+                tint: .green,
+                action: controller.copyCaptureAndClose
+            )
+        }
+        .padding(4)
+        .glassSurface(in: .rect(cornerRadius: 14))
+    }
+}
+
+/// The colours worth a click on a small toolbar; the full editor has the rest.
+private struct PinnedSwatchRow: View {
+    @Bindable var editor: AnnotationEditorModel
+
+    private static let swatches: [AnnotationSwatch] = [.red, .orange, .yellow, .green, .blue, .black, .white]
+
+    var body: some View {
         HStack(spacing: 4) {
             ForEach(Self.swatches) { swatch in
                 let isSelected = editor.selectedSwatch == swatch
@@ -263,7 +586,6 @@ private struct PinnedAnnotationBar: View {
         }
         .padding(.horizontal, 6)
         .frame(height: 30)
-        .glassSurface(in: .capsule)
         .disabled(!editor.isColorStyleAvailable)
         .opacity(editor.isColorStyleAvailable ? 1 : 0.4)
         .accessibilityElement(children: .contain)
@@ -278,17 +600,21 @@ private struct PinnedToolbarButton: View {
     let systemImage: String
     let help: LocalizedStringResource
     var isActive = false
+    /// Colours the symbol, as ✕ and ✓ are.
+    var tint: Color?
     let action: () -> Void
 
+    @Environment(\.isEnabled) private var isEnabled
     @State private var isHovering = false
 
     var body: some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 14, weight: tint == nil ? .medium : .bold))
                 .contentTransition(.symbolEffect(.replace))
                 .frame(width: 32, height: 28)
-                .foregroundStyle(isActive ? Color.white : Color.primary)
+                .foregroundStyle(isActive ? Color.white : (tint ?? Color.primary))
+                .opacity(isEnabled ? 1 : 0.35)
                 .background {
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
                         .fill(isActive ? Color.accentColor : (isHovering ? Color.primary.opacity(0.08) : .clear))

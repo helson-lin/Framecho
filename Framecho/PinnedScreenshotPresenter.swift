@@ -4,6 +4,7 @@
 //
 
 import AppKit
+import ImageIO
 import SwiftUI
 
 /// Pins a screenshot to the screen as a floating, always-on-top window the user
@@ -16,15 +17,49 @@ final class PinnedScreenshotPresenter {
 
     private init() {}
 
-    func pin(url: URL) {
+    /// - Parameters:
+    ///   - frame: Where on screen the pin goes, at that size: over the area
+    ///     it was captured from. Cascaded from the centre when nil.
+    ///   - editingCapture: Opens straight into annotating a fresh capture,
+    ///     with the toolbar whose ✓ copies and closes.
+    func pin(url: URL, frame: CGRect? = nil, editingCapture: Bool = false) {
         guard let controller = PinnedScreenshotController(url: url) else { return }
         controller.onClose = { [weak self, weak controller] in
             self?.pins.removeAll { $0 === controller }
         }
-        controller.show(at: cascadedOrigin(for: controller.panel.frame.size))
+        if let frame {
+            controller.show(in: frame)
+        } else {
+            controller.show(at: cascadedOrigin(for: controller.panel.frame.size))
+        }
         pins.append(controller)
         // Selected straight away, so its keys work without a click first.
         controller.panel.makeKey()
+        if editingCapture {
+            controller.beginEditingCapture()
+        }
+    }
+
+    /// Shows `url` as a pin translating its text where it was captured.
+    /// - Parameter ownsFile: The capture was made only to be translated; the
+    ///   pin deletes it unless 📌 keeps the result.
+    func translate(url: URL, frame: CGRect? = nil, ownsFile: Bool = false) {
+        guard let controller = PinnedScreenshotController(url: url) else {
+            if ownsFile { try? FileManager.default.removeItem(at: url) }
+            NSSound.beep()
+            return
+        }
+        controller.onClose = { [weak self, weak controller] in
+            self?.pins.removeAll { $0 === controller }
+        }
+        if let frame {
+            controller.show(in: frame)
+        } else {
+            controller.show(at: cascadedOrigin(for: controller.panel.frame.size))
+        }
+        pins.append(controller)
+        controller.panel.makeKey()
+        controller.beginTranslating(.standalone(ownsFile: ownsFile))
     }
 
     /// Pins the newest screenshot in History, the one just taken.
@@ -59,6 +94,33 @@ enum PinnedScreenshotFeedback: Equatable {
     /// Percent of the image's actual size.
     case zoom(Int)
     case opacity(Int)
+    case recognizing
+    case translating
+    /// Something worth knowing that went fine, such as a copy.
+    case note(String)
+    /// Why a translation didn't happen.
+    case message(String)
+}
+
+/// A pin showing a translation of its image, with its own toolbar. How it
+/// was opened decides what ✕ and 📌 do.
+@MainActor
+struct PinnedTranslationMode {
+    enum Entry: Equatable {
+        /// Capture and Translate, or a preview card: ✕ closes the pin,
+        /// ✓ copies and closes, 📌 keeps the result in History.
+        /// `ownsFile` marks a capture made only for this, deleted on close.
+        case standalone(ownsFile: Bool)
+        /// An existing pin: ✕ goes back to its image, 📌 replaces it.
+        case pinned
+    }
+
+    let model: ScreenshotTranslation
+    let entry: Entry
+
+    var isStandalone: Bool {
+        if case .standalone = entry { true } else { false }
+    }
 }
 
 /// What a pin's image view and its toolbar both show.
@@ -80,6 +142,15 @@ final class PinnedScreenshot {
     fileprivate(set) var opacity: CGFloat = 1
     /// Present while annotating in place.
     fileprivate(set) var editor: AnnotationEditorModel?
+    /// Annotating a capture just taken with Capture Area and Pin: one flat
+    /// toolbar, where ✓ copies the result and closes the pin.
+    fileprivate(set) var isEditingCapture = false
+    /// Present while the capture is being translated in place.
+    fileprivate(set) var translation: ScreenshotTranslation?
+    /// Present while the pin shows a translation of its image.
+    fileprivate(set) var translationMode: PinnedTranslationMode?
+    /// Space is held: the original shows through the translation.
+    fileprivate(set) var isPeekingOriginal = false
 
     init(url: URL, image: NSImage) {
         self.url = url
@@ -108,6 +179,7 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
     private var keyMonitor: Any?
     private var copyFeedbackTask: Task<Void, Never>?
     private var feedbackTask: Task<Void, Never>?
+    private var translationTask: Task<Void, Never>?
 
     private static let previewPixelSize: CGFloat = 1600
     private static let toolbarGap: CGFloat = 8
@@ -147,6 +219,13 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
         panel.orderFrontRegardless()
     }
 
+    /// Shows the pin at `frame`'s size rather than the usual one.
+    func show(in frame: CGRect) {
+        panel.contentAspectRatio = frame.size
+        panel.setFrame(frame, display: false)
+        panel.orderFrontRegardless()
+    }
+
     func close() {
         if let keyMonitor {
             NSEvent.removeMonitor(keyMonitor)
@@ -154,6 +233,11 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
         }
         copyFeedbackTask?.cancel()
         feedbackTask?.cancel()
+        translationTask?.cancel()
+        if case .standalone(ownsFile: true) = pin.translationMode?.entry {
+            try? FileManager.default.removeItem(at: pin.url)
+        }
+        pin.translationMode = nil
         pin.editor?.releaseEditorResources()
         pin.editor = nil
         setToolbarVisible(false)
@@ -173,6 +257,7 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
             .separator,
             .action(String(localized: "Copy"), { [weak self] in self?.copyImage() }),
             .action(String(localized: "Copy Text from Image"), { [weak self] in self?.copyText() }),
+            .action(String(localized: "Translate Image"), { [weak self] in self?.translate() }),
             .action(String(localized: "Save…"), { [weak self] in self?.save() }),
             .separator,
             .action(String(localized: "Zoom In (⌘+)"), { [weak self] in self?.zoom(by: Self.zoomStep) }),
@@ -197,6 +282,10 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
         Task {
             await CaptureCoordinator.shared.copyRecognizedText(at: url, from: .image)
         }
+    }
+
+    func translate() {
+        beginTranslating(.pinned)
     }
 
     func save() {
@@ -257,6 +346,279 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
         pin.editor = editor
         panel.makeKey()
         updateToolbarVisibility()
+    }
+
+    // MARK: Translating
+
+    /// Shows the image translated where it is. The original shows first and
+    /// the translation fades in over it; progress and errors use the pin's
+    /// own badge. The view runs the Translation session, which only a
+    /// SwiftUI modifier can create.
+    func beginTranslating(_ entry: PinnedTranslationMode.Entry) {
+        guard pin.editor == nil, pin.translationMode == nil else { return }
+        guard let source = CGImageSourceCreateWithURL(pin.url as CFURL, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            if entry != .pinned { close() }
+            NSSound.beep()
+            return
+        }
+        let model = ScreenshotTranslation(image: image, pointSize: actualSize)
+        pin.isLiveTextActive = false
+        pin.translationMode = PinnedTranslationMode(model: model, entry: entry)
+        panel.makeKey()
+        updateToolbarVisibility()
+        translationPhaseChanged()
+        translationTask = Task { await model.start() }
+    }
+
+    /// Keeps the badge in step with the translation.
+    func translationPhaseChanged() {
+        guard let model = pin.translationMode?.model else { return }
+        switch model.phase {
+        case .recognizing:
+            showFeedback(.recognizing, for: nil)
+        case .translating:
+            showFeedback(.translating, for: nil)
+        case .translated:
+            feedbackTask?.cancel()
+            withAnimation(.easeOut(duration: 0.2)) { pin.feedback = nil }
+        case .nothingToTranslate:
+            showFeedback(.note(String(
+                localized: "The text is already in \(ScreenshotTranslation.displayName(for: model.target))."
+            )), for: .seconds(3))
+        case .failed(let message):
+            // Stays until the user acts: it explains why nothing changed.
+            showFeedback(.message(message), for: nil)
+        }
+    }
+
+    func translate(to target: String) {
+        guard let model = pin.translationMode?.model else { return }
+        translationTask?.cancel()
+        translationTask = Task { await model.translate(to: target) }
+    }
+
+    func setShowsOriginal(_ showsOriginal: Bool) {
+        guard let model = pin.translationMode?.model, model.phase == .translated else { return }
+        withAnimation(Self.translationFade) { model.showsOriginal = showsOriginal }
+    }
+
+    /// Instant, unlike the toggle: a peek is a glance, not a change.
+    fileprivate func setPeekingOriginal(_ peeking: Bool) {
+        guard pin.isPeekingOriginal != peeking else { return }
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { pin.isPeekingOriginal = peeking }
+    }
+
+    static var translationFade: Animation? {
+        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .easeOut(duration: 0.2)
+    }
+
+    func copyTranslatedText() {
+        guard let model = pin.translationMode?.model, model.phase == .translated else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(model.translatedText, forType: .string)
+        showFeedback(.note(String(localized: "Copied")))
+    }
+
+    /// ⌘C: copies what the pin shows and leaves it up.
+    func copyTranslationImage() {
+        guard let url = pin.translationMode?.model.writeDisplayedImage() else { return NSSound.beep() }
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        do {
+            try ScreenshotFileActions.copyPNGToClipboard(from: url)
+            showFeedback(.note(String(localized: "Copied")))
+        } catch {
+            NSSound.beep()
+        }
+    }
+
+    /// ✓: copies what the pin shows and closes it.
+    func copyTranslationAndClose() {
+        guard pin.translationMode?.isStandalone == true,
+              let url = pin.translationMode?.model.writeDisplayedImage() else { return NSSound.beep() }
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        do {
+            try ScreenshotFileActions.copyPNGToClipboard(from: url)
+            close()
+        } catch {
+            FailureAlert.present(message: String(localized: "Failed to copy image"), error: error)
+        }
+    }
+
+    /// Saves what the pin shows to a file the user picks, and to History:
+    /// a translation worth saving is worth finding again.
+    func saveTranslation() {
+        guard let url = pin.translationMode?.model.writeDisplayedImage() else { return NSSound.beep() }
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [ScreenshotFileActions.exportContentType]
+        savePanel.nameFieldStringValue = ScreenshotFileActions.exportFileName(for: url)
+        savePanel.canCreateDirectories = true
+        savePanel.title = String(localized: "Save Screenshot")
+        savePanel.begin { response in
+            defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+            guard response == .OK, let destination = savePanel.url else { return }
+            do {
+                try ScreenshotFileActions.save(from: url, to: destination)
+                _ = ScreenshotHistoryStore.shared.importScreenshot(from: url)
+            } catch {
+                FailureAlert.present(message: String(localized: "Failed to save image"), error: error)
+            }
+        }
+    }
+
+    /// 📌: what the pin shows becomes the pin's image, kept in History, and
+    /// the pin stays where it is.
+    func keepTranslation() {
+        guard let mode = pin.translationMode else { return }
+        let showsTranslation = mode.model.translatedImage != nil && !mode.model.showsOriginal
+        // An existing pin already shows its original; nothing to keep.
+        guard showsTranslation || mode.isStandalone else { return endTranslating() }
+        guard let url = mode.model.writeDisplayedImage() else { return NSSound.beep() }
+        let historyURL = ScreenshotHistoryStore.shared.importScreenshot(from: url, movingSource: true)
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        if case .standalone(ownsFile: true) = mode.entry {
+            try? FileManager.default.removeItem(at: pin.url)
+        }
+        endTranslating()
+        reloadImage(from: historyURL)
+    }
+
+    /// ✕ and Escape: a capture made to be translated goes; an existing pin
+    /// goes back to its own image.
+    func discardTranslation() {
+        guard let mode = pin.translationMode else { return }
+        if mode.isStandalone {
+            close()
+        } else {
+            endTranslating()
+        }
+    }
+
+    private func endTranslating() {
+        translationTask?.cancel()
+        translationTask = nil
+        pin.translationMode = nil
+        pin.isPeekingOriginal = false
+        feedbackTask?.cancel()
+        withAnimation(.easeOut(duration: 0.2)) { pin.feedback = nil }
+        updateToolbarVisibility()
+    }
+
+    // MARK: Editing a capture
+
+    func beginEditingCapture() {
+        pin.isEditingCapture = true
+        beginAnnotating()
+        if pin.editor == nil { pin.isEditingCapture = false }
+    }
+
+    /// ✓: saves the annotations, copies the result and closes the pin, so
+    /// marking up a capture and pasting it takes one click.
+    func copyCaptureAndClose() {
+        guard let editor = pin.editor, !editor.isCommitting else { return }
+        editor.commitTextEditing()
+        let url = pin.url
+        Task {
+            do {
+                let resultURL = editor.hasUnsavedChanges ? try await editor.commitEdits() : nil
+                try ScreenshotFileActions.copyPNGToClipboard(from: resultURL ?? url)
+                close()
+            } catch {
+                FailureAlert.present(message: String(localized: "Failed to copy image"), error: error)
+            }
+        }
+    }
+
+    /// Translates the capture where it is: the translated picture takes the
+    /// original's place under the annotations, so ✓ copies it and Undo
+    /// brings the original back. The view runs the translation itself,
+    /// since Apple's Translation sessions come from a SwiftUI modifier.
+    func translateInPlace() {
+        guard let editor = pin.editor, pin.translation == nil else { return }
+        let url = editor.baseImageURL ?? pin.url
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            NSSound.beep()
+            return
+        }
+        let translation = ScreenshotTranslation(image: image, pointSize: panel.frame.size)
+        pin.translation = translation
+        showFeedback(.translating, for: nil)
+        Task {
+            await translation.start()
+            // When there is something to translate, the view's translation
+            // task carries on and finishes it.
+            if translation.phase != .translating { finishTranslation() }
+        }
+    }
+
+    func finishTranslation() {
+        guard let translation = pin.translation else { return }
+        pin.translation = nil
+        switch translation.phase {
+        case .translated:
+            guard let url = translation.writeDisplayedImage() else {
+                showFeedback(.message(String(localized: "Unable to replace the image.")), for: .seconds(3))
+                return
+            }
+            guard let editor = pin.editor else {
+                try? FileManager.default.removeItem(at: url)
+                return
+            }
+            editor.replaceBaseImage(with: url)
+            withAnimation(.easeOut(duration: 0.2)) { pin.feedback = nil }
+        case .nothingToTranslate:
+            showFeedback(.message(String(
+                localized: "The text is already in \(ScreenshotTranslation.displayName(for: translation.target))."
+            )), for: .seconds(3))
+        case .failed(let message):
+            showFeedback(.message(message), for: .seconds(3))
+        case .recognizing, .translating:
+            withAnimation(.easeOut(duration: 0.2)) { pin.feedback = nil }
+        }
+    }
+
+    /// ✕: drops the pin and its annotations. The capture stays in History.
+    func cancelEditingCapture() {
+        guard pin.editor?.isCommitting != true else { return }
+        close()
+    }
+
+    /// Pin: saves the annotations and keeps the capture pinned.
+    func keepCapturePinned() {
+        pin.isEditingCapture = false
+        finishAnnotating()
+    }
+
+    /// Saves what the editor shows, annotations included, to a file the
+    /// user picks, without leaving the editor.
+    func saveAnnotatedImage() {
+        guard let editor = pin.editor else { return }
+        editor.commitTextEditing()
+        let name = ScreenshotFileActions.exportFileName(for: pin.url)
+        Task {
+            do {
+                let renderedURL = try await editor.renderCurrentImage()
+                let savePanel = NSSavePanel()
+                savePanel.allowedContentTypes = [ScreenshotFileActions.exportContentType]
+                savePanel.nameFieldStringValue = name
+                savePanel.canCreateDirectories = true
+                savePanel.title = String(localized: "Save Screenshot")
+                savePanel.begin { response in
+                    defer { try? FileManager.default.removeItem(at: renderedURL) }
+                    guard response == .OK, let destURL = savePanel.url else { return }
+                    do {
+                        try ScreenshotFileActions.save(from: renderedURL, to: destURL)
+                    } catch {
+                        print("Failed to save pinned screenshot: \(error)")
+                    }
+                }
+            } catch {
+                FailureAlert.present(message: String(localized: "Failed to save annotation"), error: error)
+            }
+        }
     }
 
     /// Saves the annotations into the screenshot and goes back to viewing.
@@ -321,6 +683,7 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
     private func endAnnotating() {
         pin.editor?.releaseEditorResources()
         pin.editor = nil
+        pin.isEditingCapture = false
         updateToolbarVisibility()
     }
 
@@ -397,11 +760,13 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
         showFeedback(.opacity(Int((opacity * 100).rounded())))
     }
 
-    private func showFeedback(_ feedback: PinnedScreenshotFeedback) {
+    /// - Parameter duration: How long it stays up; nil keeps it until replaced.
+    private func showFeedback(_ feedback: PinnedScreenshotFeedback, for duration: Duration? = .seconds(1.2)) {
         pin.feedback = feedback
         feedbackTask?.cancel()
+        guard let duration else { return }
         feedbackTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(1.2))
+            try? await Task.sleep(for: duration)
             guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.2)) { self?.pin.feedback = nil }
         }
@@ -412,7 +777,7 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
     /// The toolbar is up while the pin is selected, and stays up while a mode
     /// that needs it is on, so the way back out is always visible.
     private func updateToolbarVisibility() {
-        setToolbarVisible(pin.isSelected || pin.editor != nil || pin.isLiveTextActive)
+        setToolbarVisible(pin.isSelected || pin.editor != nil || pin.isLiveTextActive || pin.translationMode != nil)
     }
 
     private func setToolbarVisible(_ visible: Bool) {
@@ -453,6 +818,7 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
     }
 
     func windowDidResignKey(_ notification: Notification) {
+        setPeekingOriginal(false)
         withAnimation(.easeOut(duration: 0.15)) { pin.isSelected = false }
         updateToolbarVisibility()
     }
@@ -470,8 +836,14 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
     /// Keys act on the selected pin only. While annotating, the canvas's own
     /// key handler takes everything but Escape.
     private func installKeyMonitor() {
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
             guard let self, self.panel.isKeyWindow else { return event }
+            if event.type == .keyUp {
+                // Releasing Space ends a peek at the original.
+                guard event.keyCode == 49, self.pin.isPeekingOriginal else { return event }
+                self.setPeekingOriginal(false)
+                return nil
+            }
             return self.handleKey(event) ? nil : event
         }
     }
@@ -480,8 +852,48 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
         let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
         let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
 
+        if let mode = pin.translationMode {
+            switch (modifiers, event.keyCode, key) {
+            case ([], 53, _):
+                discardTranslation()
+                return true
+            case ([], 36, _), ([], 76, _):
+                // Return does what the toolbar's last button does.
+                if mode.isStandalone { copyTranslationAndClose() } else { keepTranslation() }
+                return true
+            case ([], 49, _):
+                if mode.model.phase == .translated, !mode.model.showsOriginal {
+                    setPeekingOriginal(true)
+                }
+                return true
+            case (.command, _, "c"):
+                copyTranslationImage()
+                return true
+            case ([.command, .shift], _, "c"):
+                copyTranslatedText()
+                return true
+            case (.command, _, "s"):
+                saveTranslation()
+                return true
+            default:
+                // Zoom, nudge and opacity work as they do on any pin;
+                // nothing starts annotating.
+                break
+            }
+        }
+
         if pin.editor != nil {
-            guard event.keyCode == 53, !(panel.firstResponder is NSTextView) else { return false }
+            guard !(panel.firstResponder is NSTextView) else { return false }
+            // A fresh capture: Return copies it, Escape throws it away.
+            if pin.isEditingCapture {
+                switch event.keyCode {
+                case 36 where modifiers.isEmpty, 76 where modifiers.isEmpty: copyCaptureAndClose()
+                case 53: cancelEditingCapture()
+                default: return false
+                }
+                return true
+            }
+            guard event.keyCode == 53 else { return false }
             finishAnnotating()
             return true
         }
@@ -528,11 +940,11 @@ final class PinnedScreenshotController: NSObject, NSWindowDelegate {
             setOpacity(panel.alphaValue - Self.opacityStep)
         case ([], 30, _):   // ]
             setOpacity(panel.alphaValue + Self.opacityStep)
-        case ([], _, "e"):
+        case ([], _, "e") where pin.translationMode == nil:
             beginAnnotating()
         default:
             // A tool's key starts annotating with that tool.
-            guard !pin.isLiveTextActive,
+            guard !pin.isLiveTextActive, pin.translationMode == nil,
                   modifiers.subtracting(.shift).isEmpty,
                   key.count == 1,
                   let tool = AnnotationTool.forShortcut(key: key, shift: modifiers.contains(.shift)) else {
@@ -572,8 +984,8 @@ final class PinnedPanel: NSPanel {
     /// Change opacity by a delta.
     var onFade: ((CGFloat) -> Void)?
 
-    /// Pinch to zoom around the pointer. While annotating, the canvas takes
-    /// the pinch and zooms inside the pin instead.
+    /// Pinch to zoom around the pointer. While annotating too: the canvas
+    /// leaves zooming to the pin, so the image keeps filling it.
     override func magnify(with event: NSEvent) {
         onZoom?(1 + event.magnification, NSEvent.mouseLocation)
     }

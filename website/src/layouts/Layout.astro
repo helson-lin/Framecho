@@ -70,6 +70,7 @@ const jsonLd = structuredData({ lang, pageUrl, siteUrl, ogImage, screenshots });
 
     <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd).replace(/</g, '\\u003c')} />
     <script is:inline>document.documentElement.classList.add('js');</script>
+    <script defer src="https://ana.jarin.me/script.js" data-website-id="efc77dde-8a4d-4fa2-9b3a-5561a696c303"></script>
   </head>
   <body>
     <slot />

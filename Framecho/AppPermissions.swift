@@ -9,6 +9,7 @@
 //
 
 import AppKit
+import ApplicationServices
 import AVFoundation
 import IOKit.hid
 import Observation
@@ -30,6 +31,7 @@ final class AppPermissionCenter {
     @ObservationIgnored private var pollTask: Task<Void, Never>?
 
     private static let screenRecordingRequestedKey = "permissions.screenRecordingRequested"
+    private static let accessibilityRequestedKey = "permissions.accessibilityRequested"
 
     private init() {
         refresh()
@@ -54,6 +56,7 @@ final class AppPermissionCenter {
         statuses[.speechRecognition] = Self.speechRecognitionStatus()
         statuses[.camera] = Self.status(for: .video)
         statuses[.inputMonitoring] = Self.inputMonitoringStatus()
+        statuses[.accessibility] = Self.accessibilityStatus()
         Task {
             let settings = await UNUserNotificationCenter.current().notificationSettings()
             statuses[.notifications] = switch settings.authorizationStatus {
@@ -113,6 +116,15 @@ final class AppPermissionCenter {
         }
     }
 
+    private static func accessibilityStatus() -> AppPermissionStatus {
+        // Posting events is covered by the Accessibility grant; either
+        // check may be the one that sees it.
+        AppPermissionRules.screenRecordingStatus(
+            isGranted: AXIsProcessTrusted() || CGPreflightPostEventAccess(),
+            wasRequested: UserDefaults.standard.bool(forKey: accessibilityRequestedKey)
+        )
+    }
+
     private static func inputMonitoringStatus() -> AppPermissionStatus {
         switch IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) {
         case kIOHIDAccessTypeGranted: .granted
@@ -161,6 +173,16 @@ final class AppPermissionCenter {
                 sentToSettings.insert(.inputMonitoring)
             }
             refresh()
+        case .accessibility:
+            UserDefaults.standard.set(true, forKey: Self.accessibilityRequestedKey)
+            // Shows a dialog that leads to System Settings, where the grant
+            // itself happens.
+            let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+            if !AXIsProcessTrustedWithOptions(options) {
+                sentToSettings.insert(.accessibility)
+                ScreenRecordingPermissionPresenter.shared.show(for: .accessibility)
+            }
+            refresh()
         case .notifications:
             Task {
                 _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
@@ -199,8 +221,10 @@ final class AppPermissionCenter {
         sentToSettings.insert(permission)
         guard let url = permission.settingsURL else { return }
         NSWorkspace.shared.open(url)
-        if permission == .screenRecording, status(of: permission) != .granted {
-            ScreenRecordingPermissionPresenter.shared.show()
+        // Both are granted by adding Framecho to a list, which the guide's
+        // icon can be dragged into.
+        if permission == .screenRecording || permission == .accessibility, status(of: permission) != .granted {
+            ScreenRecordingPermissionPresenter.shared.show(for: permission)
         }
     }
 
@@ -217,6 +241,15 @@ final class AppPermissionCenter {
             return true
         }
         OnboardingWindowController.show(page: .permissions, reason: .screenRecordingNeeded)
+        return false
+    }
+
+    /// Call before posting events. Asks the first time; after that a hint
+    /// where the request came from has to say what's missing.
+    func ensureAccessibility() -> Bool {
+        refresh()
+        guard status(of: .accessibility) != .granted else { return true }
+        request(.accessibility)
         return false
     }
 

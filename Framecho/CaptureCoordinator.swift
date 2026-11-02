@@ -54,8 +54,16 @@ final class CaptureCoordinator {
         Task { await performCaptureAreaAndPin() }
     }
 
+    func captureAndTranslate() {
+        Task { await performCaptureAndTranslate() }
+    }
+
     func captureOnTimer() {
         Task { await performCaptureOnTimer() }
+    }
+
+    func captureScrolling() {
+        Task { await performCaptureScrolling() }
     }
 
     // MARK: - Awaitable Capture Actions
@@ -130,20 +138,66 @@ final class CaptureCoordinator {
         return await finishCapture(url: url, displayID: displayID)
     }
 
-    /// Pins the drawn area straight to the screen. The capture still goes to
-    /// History, so the pin can be annotated and found again, but there is no
-    /// preview card or after-capture action: the pin is the result. Skips
-    /// the self-timer, which is for staging a screen, not grabbing a reference.
+    /// Scrolling Capture: the user draws an area and scrolls its content, and
+    /// the frames are stitched into one tall screenshot. Skips the self-timer:
+    /// the capture already waits for the user to finish scrolling.
+    @discardableResult
+    private func performCaptureScrolling() async -> URL? {
+        guard AppPermissionCenter.shared.ensureScreenRecording() else { return nil }
+        // Both would want the area highlight and the stream to themselves.
+        guard !ScreenRecordingManager.shared.isActive else {
+            NSSound.beep()
+            return nil
+        }
+        guard let url = await ScrollingCapturePresenter.shared.capture() else { return nil }
+        let displayID = ActiveDisplayResolver.activeDisplayID(preferPointer: true)
+        return await finishCapture(url: url, displayID: displayID)
+    }
+
+    /// Pins the drawn area straight to the screen, over the spot it was
+    /// drawn on and ready to annotate. The capture still goes to History, so
+    /// the pin can be found again, but there is no preview card or
+    /// after-capture action: the pin is the result. Skips the self-timer,
+    /// which is for staging a screen, not grabbing a reference.
     private func performCaptureAreaAndPin() async {
         guard AppPermissionCenter.shared.ensureScreenRecording() else { return }
+        let selection = AreaSelectionTracker()
+        selection.start()
         guard let url = await ScreenshotManager.shared.captureArea(
             includeShadow: FramechoPreferences.captureWindowShadow
-        ) else { return }
+        ) else {
+            selection.stop()
+            return
+        }
+        // Read before the file moves; nil (a window picked with Space) leaves
+        // the pin cascaded from the centre.
+        let frame = selection.capturedFrame(for: url)
         if FramechoPreferences.playSounds {
             CaptureFeedbackSound.play()
         }
         let historyURL = ScreenshotHistoryStore.shared.importScreenshot(from: url, movingSource: true)
-        PinnedScreenshotPresenter.shared.pin(url: historyURL)
+        PinnedScreenshotPresenter.shared.pin(url: historyURL, frame: frame, editingCapture: true)
+    }
+
+    /// Translates the drawn area where it was drawn, as a pin. Like Capture
+    /// Text it skips `finishCapture`: the capture is a means to the
+    /// translation, which the pin can keep or save, so it never reaches
+    /// History or the preview card on its own.
+    private func performCaptureAndTranslate() async {
+        guard AppPermissionCenter.shared.ensureScreenRecording() else { return }
+        let selection = AreaSelectionTracker()
+        selection.start()
+        guard let url = await ScreenshotManager.shared.captureArea(
+            delaySeconds: FramechoPreferences.captureDelaySeconds
+        ) else {
+            selection.stop()
+            return
+        }
+        let frame = selection.capturedFrame(for: url)
+        if FramechoPreferences.playSounds {
+            CaptureFeedbackSound.play()
+        }
+        PinnedScreenshotPresenter.shared.translate(url: url, frame: frame, ownsFile: true)
     }
 
     /// Capture Text is the odd one out: it recognizes the text inside the drawn

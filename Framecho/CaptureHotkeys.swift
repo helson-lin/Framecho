@@ -201,6 +201,7 @@ enum CaptureHotkeyAction: String, CaseIterable, Identifiable {
     case timedCapture
     case pinArea
     case pinLatest
+    case translateArea
 
     var id: Self { self }
 
@@ -214,6 +215,7 @@ enum CaptureHotkeyAction: String, CaseIterable, Identifiable {
         case .timedCapture: 6
         case .pinArea: 7
         case .pinLatest: 8
+        case .translateArea: 9
         }
     }
 
@@ -227,6 +229,7 @@ enum CaptureHotkeyAction: String, CaseIterable, Identifiable {
         case .timedCapture: String(localized: "Capture on Timer")
         case .pinArea: String(localized: "Capture Area and Pin")
         case .pinLatest: String(localized: "Pin Latest Screenshot")
+        case .translateArea: String(localized: "Capture and Translate")
         }
     }
 
@@ -248,6 +251,8 @@ enum CaptureHotkeyAction: String, CaseIterable, Identifiable {
             HotkeyShortcut(modifiers: [.option], keyCode: Int(kVK_ANSI_7))
         case .pinLatest:
             HotkeyShortcut(modifiers: [.option], keyCode: Int(kVK_ANSI_8))
+        case .translateArea:
+            HotkeyShortcut(modifiers: [.option], keyCode: Int(kVK_ANSI_9))
         }
     }
 

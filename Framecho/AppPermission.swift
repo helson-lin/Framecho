@@ -16,6 +16,8 @@ nonisolated enum AppPermission: String, CaseIterable, Identifiable {
     case speechRecognition
     case camera
     case inputMonitoring
+    /// Lets Scrolling Capture scroll for the user.
+    case accessibility
     case notifications
 
     var id: Self { self }
@@ -31,10 +33,10 @@ nonisolated enum AppPermission: String, CaseIterable, Identifiable {
         return true
     }
 
-    /// Speech Recognition is asked for the first time a transcription or the
-    /// teleprompter needs it rather than up front; the onboarding page is
-    /// also sized for the other five.
-    var isListedInOnboarding: Bool { self != .speechRecognition }
+    /// Speech Recognition and Accessibility are asked for the first time a
+    /// transcription, the teleprompter or auto scroll needs them rather than
+    /// up front; the onboarding page is also sized for the other five.
+    var isListedInOnboarding: Bool { self != .speechRecognition && self != .accessibility }
 
     /// Without it nothing can be captured; everything else adds to recordings.
     var isRequired: Bool { self == .screenRecording }
@@ -46,6 +48,7 @@ nonisolated enum AppPermission: String, CaseIterable, Identifiable {
         case .speechRecognition: String(localized: "Speech Recognition")
         case .camera: String(localized: "Camera")
         case .inputMonitoring: String(localized: "Input Monitoring")
+        case .accessibility: String(localized: "Accessibility")
         case .notifications: String(localized: "Notifications")
         }
     }
@@ -62,6 +65,8 @@ nonisolated enum AppPermission: String, CaseIterable, Identifiable {
             String(localized: "Shows you in a camera bubble while recording.")
         case .inputMonitoring:
             String(localized: "Shows the keys you press and smooths the pointer in recordings.")
+        case .accessibility:
+            String(localized: "Scrolls the page for you in Scrolling Capture.")
         case .notifications:
             String(localized: "Tells you when a recording has finished exporting.")
         }
@@ -74,6 +79,7 @@ nonisolated enum AppPermission: String, CaseIterable, Identifiable {
         case .speechRecognition: "waveform"
         case .camera: "video"
         case .inputMonitoring: "keyboard"
+        case .accessibility: "accessibility"
         case .notifications: "bell.badge"
         }
     }
@@ -95,6 +101,8 @@ nonisolated enum AppPermission: String, CaseIterable, Identifiable {
             "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"
         case .inputMonitoring:
             "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+        case .accessibility:
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
         case .notifications:
             "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(Bundle.main.bundleIdentifier ?? "")"
         }
@@ -115,9 +123,9 @@ nonisolated enum AppPermissionStatus: Equatable {
 /// The decisions about permissions that don't need macOS to answer them,
 /// checked by scripts/check-app-permissions.swift.
 nonisolated enum AppPermissionRules {
-    /// There's no "not determined" to read for Screen Recording: macOS
-    /// prompts only the first time it's asked, so whether Framecho has asked
-    /// before stands in for it.
+    /// There's no "not determined" to read for Screen Recording or
+    /// Accessibility: macOS prompts only the first time it's asked, so
+    /// whether Framecho has asked before stands in for it.
     static func screenRecordingStatus(isGranted: Bool, wasRequested: Bool) -> AppPermissionStatus {
         if isGranted { return .granted }
         return wasRequested ? .denied : .notDetermined

@@ -1,6 +1,296 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Keep Translation" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留译文"
+          }
+        }
+      }
+    },
+    "Show Original" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示原图"
+          }
+        }
+      }
+    },
+    "Back to the original (Esc)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回到原图（Esc）"
+          }
+        }
+      }
+    },
+    "Pin the translation in place of the original (Return)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用译文替换钉住的原图（Return）"
+          }
+        }
+      }
+    },
+    "Translation or original. Hold Space to glance at the original." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切换译文与原文。按住空格可临时查看原文。"
+          }
+        }
+      }
+    },
+    "Failed to save image" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存储图像失败"
+          }
+        }
+      }
+    },
+    "Translate the text where it is" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在原位置翻译文字"
+          }
+        }
+      }
+    },
+    "Unable to replace the image." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法替换图像。"
+          }
+        }
+      }
+    },
+    "Keep Pinned" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保持置顶"
+          }
+        }
+      }
+    },
+    "Keep pinned with these annotations" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留标注并保持置顶"
+          }
+        }
+      }
+    },
+    "Close without copying (Esc)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭且不拷贝（Esc）"
+          }
+        }
+      }
+    },
+    "Copy and Close" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拷贝并关闭"
+          }
+        }
+      }
+    },
+    "Copy and close (Return)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拷贝并关闭（Return）"
+          }
+        }
+      }
+    },
+    "Can't scroll this automatically - scroll by hand" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这里无法自动滚动，请手动滚动"
+          }
+        }
+      }
+    },
+    "Allow Framecho in Accessibility" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在「辅助功能」中允许 Framecho"
+          }
+        }
+      }
+    },
+    "Allow Accessibility" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允许辅助功能"
+          }
+        }
+      }
+    },
+    "Accessibility" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "辅助功能"
+          }
+        }
+      }
+    },
+    "Scrolls the page for you in Scrolling Capture." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "长截图时替你自动滚动页面。"
+          }
+        }
+      }
+    },
+    "Reached the end - click Done to save" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已滚动到底部，点击“完成”保存"
+          }
+        }
+      }
+    },
+    "Auto scroll needs Accessibility access" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动滚动需要辅助功能权限"
+          }
+        }
+      }
+    },
+    "Stop auto scroll" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止自动滚动"
+          }
+        }
+      }
+    },
+    "Auto scroll" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动滚动"
+          }
+        }
+      }
+    },
+    "Scrolling Capture" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "长截图"
+          }
+        }
+      }
+    },
+    "Couldn't start Scrolling Capture" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法开始长截图"
+          }
+        }
+      }
+    },
+    "Scroll slowly to capture more" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "慢慢向下滚动，继续截取"
+          }
+        }
+      }
+    },
+    "Scroll down to continue" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "向下滚动以继续"
+          }
+        }
+      }
+    },
+    "Scrolled too fast - scroll back up a little" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滚动太快了，请往回滚一点"
+          }
+        }
+      }
+    },
+    "Reached the maximum length" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已达到最大长度"
+          }
+        }
+      }
+    },
+    "Scrolling Capture · %lld px" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "长截图 · %lld px"
+          }
+        }
+      }
+    },
     "Automatically apply preset" : {
       "localizations" : {
         "zh-Hans" : {
@@ -14335,6 +14625,146 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "竖条"
+          }
+        }
+      }
+    },
+    "Capture and Translate" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "截图翻译"
+          }
+        }
+      }
+    },
+    "Translate Image" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻译图片"
+          }
+        }
+      }
+    },
+    "Translate Screenshot" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "截图翻译"
+          }
+        }
+      }
+    },
+    "No text found in this image." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片中没有识别到文字。"
+          }
+        }
+      }
+    },
+    "Translating %@ to %@ isn't supported." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不支持从%1$@翻译为%2$@。"
+          }
+        }
+      }
+    },
+    "Translate to %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻译为%@"
+          }
+        }
+      }
+    },
+    "The text is already in %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文字已经是%@。"
+          }
+        }
+      }
+    },
+    "Translation" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "译文"
+          }
+        }
+      }
+    },
+    "Original Text" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原文"
+          }
+        }
+      }
+    },
+    "Copy Text" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制文字"
+          }
+        }
+      }
+    },
+    "Copy Translated Text (⇧⌘C)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制译文 (⇧⌘C)"
+          }
+        }
+      }
+    },
+    "Copy Image (⌘C)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拷贝图片 (⌘C)"
+          }
+        }
+      }
+    },
+    "Pin to Screen" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "置顶到屏幕"
+          }
+        }
+      }
+    },
+    "Translating…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在翻译…"
           }
         }
       }

@@ -24,7 +24,7 @@ private enum CaptureHotkeyGroup: CaseIterable, Identifiable {
 
     var actions: [CaptureHotkeyAction] {
         switch self {
-        case .screenshots: [.fullscreen, .window, .area, .textCapture, .timedCapture]
+        case .screenshots: [.fullscreen, .window, .area, .textCapture, .translateArea, .timedCapture]
         case .pinning: [.pinArea, .pinLatest]
         case .recording: [.screenRecording]
         }

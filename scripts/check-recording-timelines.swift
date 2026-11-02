@@ -49,7 +49,7 @@ struct RecordingTimelineChecks {
         expect(one.count == 1, "One click, one zoom")
         near(one[0].start, 4.7, 1e-9, "Starts a moment before the click")
         near(one[0].end, 7.5, 1e-9, "Holds after it")
-        expect(one[0].zoom == 1.5 && one[0].anchorMode == .pointerAnchor, "Follows the pointer at 1.5×")
+        expect(one[0].zoom == 1.5 && one[0].anchorMode == .smartAnchor, "Smart zoom at 1.5×")
         expect(one[0].pinnedPoint == CGPoint(x: 0.2, y: 0.7), "Remembers where the click was")
 
         // Releases, clicks off the recording and clicks in the last second are ignored.

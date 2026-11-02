@@ -29,6 +29,7 @@ struct PinnedGeometryChecks {
         checkDisplaySize()
         checkResize()
         checkToolbar()
+        checkCapturedArea()
         checkOpacityAndPercent()
         print("Pinned geometry checks passed (\(checks) assertions).")
     }
@@ -121,6 +122,67 @@ struct PinnedGeometryChecks {
                "Kept off the left edge under a narrow pin")
         expect(toolbar(CGRect(x: 1650, y: 500, width: 160, height: 160)).maxX == screen.maxX - gap,
                "Kept off the right edge")
+    }
+
+    static func area(from start: CGPoint, to end: CGPoint, pixels: CGSize, scale: CGFloat = 2,
+                     on display: CGRect = CGRect(x: 0, y: 0, width: 1728, height: 1117)) -> CGRect? {
+        PinnedScreenshotGeometry.capturedAreaFrame(
+            dragStart: start, dragEnd: end, pixelSize: pixels, backingScale: scale, screenFrame: display
+        )
+    }
+
+    static func checkCapturedArea() {
+        let pixels = CGSize(width: 400, height: 200)
+        let expected = CGRect(x: 100, y: 600, width: 200, height: 100)
+
+        // Whichever way the area is drawn, it lands where it was.
+        same(area(from: CGPoint(x: 100, y: 700), to: CGPoint(x: 300, y: 600), pixels: pixels), expected,
+             "Drawn down and to the right")
+        same(area(from: CGPoint(x: 300, y: 600), to: CGPoint(x: 100, y: 700), pixels: pixels), expected,
+             "Drawn up and to the left")
+        same(area(from: CGPoint(x: 300, y: 700), to: CGPoint(x: 100, y: 600), pixels: pixels), expected,
+             "Drawn down and to the left")
+        same(area(from: CGPoint(x: 100, y: 600), to: CGPoint(x: 300, y: 700), pixels: pixels), expected,
+             "Drawn up and to the right")
+
+        // Drawn from the centre with Option: the release is still a corner.
+        same(area(from: CGPoint(x: 200, y: 650), to: CGPoint(x: 300, y: 600), pixels: pixels), expected,
+             "Drawn from the centre")
+        // Moved with Space after drawing: the corner travels with the pointer.
+        same(area(from: CGPoint(x: 0, y: 900), to: CGPoint(x: 300, y: 600), pixels: pixels), expected,
+             "Moved while drawing")
+
+        // The pointer's position is snapped to the pixels screencapture took.
+        same(area(from: CGPoint(x: 100, y: 700), to: CGPoint(x: 300.2, y: 599.8), pixels: pixels), expected,
+             "Sub-pixel pointer positions snap")
+        same(area(from: CGPoint(x: 100, y: 700), to: CGPoint(x: 300.5, y: 600), pixels: CGSize(width: 401, height: 200)),
+             CGRect(x: 100, y: 600, width: 200.5, height: 100), "An odd pixel count keeps its half point")
+
+        // The size is the image's, on the display's own scale.
+        same(area(from: CGPoint(x: 100, y: 700), to: CGPoint(x: 300, y: 600), pixels: CGSize(width: 200, height: 100), scale: 1),
+             expected, "A non-Retina display")
+
+        // On a second display, left of the main one.
+        let left = CGRect(x: -1920, y: 0, width: 1920, height: 1080)
+        same(area(from: CGPoint(x: -1000, y: 500), to: CGPoint(x: -800, y: 400), pixels: pixels, on: left),
+             CGRect(x: -1000, y: 400, width: 200, height: 100), "A display left of the main one")
+
+        // An area up to the display's edge is kept.
+        same(area(from: CGPoint(x: 1528, y: 1117), to: CGPoint(x: 1728, y: 1017), pixels: pixels),
+             CGRect(x: 1528, y: 1017, width: 200, height: 100), "Up to the top-right corner")
+
+        // A click picks a window with Space: no area was drawn.
+        expect(area(from: CGPoint(x: 500, y: 500), to: CGPoint(x: 501, y: 500), pixels: pixels) == nil,
+               "A click gives no area")
+        // A result off the display means the guess is wrong.
+        expect(area(from: CGPoint(x: 1700, y: 500), to: CGPoint(x: 1720, y: 400), pixels: CGSize(width: 1000, height: 200)) != nil,
+               "Inside the display after all")
+        expect(area(from: CGPoint(x: 10, y: 500), to: CGPoint(x: 100, y: 400), pixels: CGSize(width: 1000, height: 200)) == nil,
+               "An area that would hang off the display is rejected")
+        expect(area(from: CGPoint(x: 100, y: 700), to: CGPoint(x: 300, y: 600), pixels: .zero) == nil,
+               "No size, no area")
+        expect(area(from: CGPoint(x: 100, y: 700), to: CGPoint(x: 300, y: 600), pixels: pixels, scale: 0) == nil,
+               "No scale, no area")
     }
 
     static func checkOpacityAndPercent() {

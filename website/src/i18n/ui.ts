@@ -31,7 +31,7 @@ const zh = {
     lede: 'Framecho 是原生 macOS 截图、录屏与编辑工具。标注、美化、剪辑、加字幕都在本地完成，原图永远不被改动。',
     download: '下载 Framecho.dmg',
     explore: '看看能做什么 ↓',
-    facts: (macOS: string) => ['免费 · CC0 开源', `macOS ${macOS}+ · Apple Silicon 与 Intel`, 'Developer ID 签名并经 Apple 公证'],
+    facts: (macOS: string) => ['免费 · Apache 2.0 开源', `macOS ${macOS}+ · Apple Silicon 与 Intel`, 'Developer ID 签名并经 Apple 公证'],
     alt: {
       light: 'Framecho 图片编辑器（浅色外观）：一篇网页文章截图上有取色标注、编号、矩形框、手绘圈注、像素化、模糊和测量，并套用了壁纸背景',
       dark: 'Framecho 图片编辑器（深色外观）：一篇网页文章截图上有取色标注、编号、矩形框、手绘圈注、像素化、模糊和测量，并套用了壁纸背景',
@@ -162,7 +162,7 @@ const zh = {
       },
       {
         q: 'Framecho 免费吗？',
-        a: '免费。源代码以 CC0 1.0 许可发布在 GitHub 上，没有订阅，也没有内购。',
+        a: '免费。源代码以 Apache 2.0 许可发布在 GitHub 上，没有订阅，也没有内购。',
       },
       {
         q: '需要什么系统？',
@@ -199,7 +199,7 @@ const zh = {
     meta: (version: string, macOS: string) => `v${version} · macOS ${macOS} 或更高版本`,
   },
   footer: {
-    creditHtml: (screendrop: string) => `Framecho · CC0 1.0 · 基于 <a href="${screendrop}">Screendrop</a> 开发，由 helson-lin 独立维护`,
+    creditHtml: (screendrop: string) => `Framecho · Apache 2.0 · 基于 <a href="${screendrop}">Screendrop</a> 开发，由 helson-lin 独立维护`,
     issues: '反馈问题',
     worker: '分享服务',
   },
@@ -235,7 +235,7 @@ const en: UI = {
     lede: 'Framecho is a native macOS app for screenshots, screen recordings and editing. Annotate, polish, cut and caption on your Mac — the original is never touched.',
     download: 'Download Framecho.dmg',
     explore: 'See what it does ↓',
-    facts: (macOS: string) => ['Free · CC0 open source', `macOS ${macOS}+ · Apple silicon and Intel`, 'Developer ID signed, notarized by Apple'],
+    facts: (macOS: string) => ['Free · Apache 2.0 open source', `macOS ${macOS}+ · Apple silicon and Intel`, 'Developer ID signed, notarized by Apple'],
     alt: {
       light: 'The Framecho image editor in English (light appearance), with an annotated screenshot of the Chinese editor on a wallpaper background',
       dark: 'The Framecho image editor in English (dark appearance), with an annotated screenshot of the Chinese editor on a wallpaper background',
@@ -366,7 +366,7 @@ const en: UI = {
       },
       {
         q: 'Is Framecho free?',
-        a: 'Yes. The source code is published on GitHub under the CC0 1.0 license, with no subscription and no in-app purchases.',
+        a: 'Yes. The source code is published on GitHub under the Apache 2.0 license, with no subscription and no in-app purchases.',
       },
       {
         q: 'What does it run on?',
@@ -403,7 +403,7 @@ const en: UI = {
     meta: (version: string, macOS: string) => `v${version} · macOS ${macOS} or later`,
   },
   footer: {
-    creditHtml: (screendrop: string) => `Framecho · CC0 1.0 · Built on <a href="${screendrop}">Screendrop</a>, maintained independently by helson-lin`,
+    creditHtml: (screendrop: string) => `Framecho · Apache 2.0 · Built on <a href="${screendrop}">Screendrop</a>, maintained independently by helson-lin`,
     issues: 'Report an issue',
     worker: 'Sharing service',
   },
