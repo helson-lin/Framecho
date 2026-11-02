@@ -191,7 +191,7 @@ nonisolated enum AgentToolCatalog {
             MCPToolDefinition(
                 name: tool.rawValue,
                 title: "Add zoom",
-                description: "Zooms the camera in over a range. By default the zoom follows the pointer; `mode: smart` holds steady on where the pointer is working instead of chasing every move (calmer to watch), and `focus` holds on a fixed point. Zooms can't overlap: a range that runs into another zoom is shortened, and the reply gives the times actually used.",
+                description: "Zooms the camera in over a range. By default the zoom uses `mode: smart`, holding steady on where the pointer is working instead of chasing every move; `mode: pointer` tracks every pointer move, and `focus` holds on a fixed point. Zooms can't overlap: a range that runs into another zoom is shortened, and the reply gives the times actually used.",
                 inputSchema: AgentSchema.object([
                     "recording": AgentSchema.recording,
                     "start": AgentSchema.number("Zoom start, seconds."),
