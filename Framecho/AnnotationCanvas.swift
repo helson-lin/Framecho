@@ -36,6 +36,9 @@ struct AnnotationCanvas: View {
     let onEditorInteraction: () -> Void
     /// Room kept around the fitted canvas. A pin draws edge to edge.
     var fitInsets = CGSize(width: 34, height: 28)
+    /// Zoom gestures resize the window instead of zooming inside it, so the
+    /// image keeps filling it: for a pin, whose window is the image.
+    var leavesZoomToWindow = false
 
     @Environment(\.displayScale) private var displayScale
     @State private var hasActiveInteraction = false
@@ -156,7 +159,8 @@ struct AnnotationCanvas: View {
                         model.beginCanvasPinch(at: anchor, visibleViewport: viewport)
                     },
                     onPinch: model.updateCanvasPinch,
-                    onEndPinch: model.endCanvasPinch
+                    onEndPinch: model.endCanvasPinch,
+                    leavesZoomToWindow: leavesZoomToWindow
                 )
             )
             .gesture(interactionGesture(
@@ -167,6 +171,9 @@ struct AnnotationCanvas: View {
             ))
             .onChange(of: viewport.layout, initial: true) { _, layout in
                 if let layout { model.canvasViewport.configure(layout) }
+                // Whatever moved the view, a canvas that is its window's
+                // picture fills it again when the window changes size.
+                if leavesZoomToWindow { model.fitCanvas() }
             }
             .onContinuousHover { phase in
                 switch phase {

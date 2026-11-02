@@ -101,6 +101,10 @@ check cloud-image-transcode -default-isolation MainActor -parse-as-library \
 check text-recognition -default-isolation MainActor -parse-as-library \
   Framecho/ImageTextRecognizer.swift scripts/check-text-recognition.swift
 
+check screenshot-translation "${strict[@]}" \
+  Framecho/ImageTextRecognizer.swift Framecho/ScreenshotTranslation.swift \
+  scripts/check-screenshot-translation.swift
+
 check pinned-geometry "${strict[@]}" \
   Framecho/PinnedScreenshotGeometry.swift scripts/check-pinned-geometry.swift
 

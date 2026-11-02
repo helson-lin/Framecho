@@ -80,7 +80,7 @@ struct HotkeyChecks {
     static func checkActions() {
         let actions = CaptureHotkeyAction.allCases
         // Registered with Carbon by ID: changing one breaks the binding.
-        expect(actions.map(\.hotKeyID) == [1, 2, 3, 4, 5, 6, 7, 8], "Hotkey IDs: \(actions.map(\.hotKeyID))")
+        expect(actions.map(\.hotKeyID) == [1, 2, 3, 4, 5, 6, 7, 8, 9], "Hotkey IDs: \(actions.map(\.hotKeyID))")
         for action in actions {
             expect(CaptureHotkeyAction(hotKeyID: action.hotKeyID) == action, "\(action) is found by its ID")
             expect(!action.title.isEmpty, "\(action) has a title")
@@ -90,14 +90,14 @@ struct HotkeyChecks {
 
         let defaults = actions.map(\.defaultShortcut)
         expect(Set(defaults).count == defaults.count, "No two actions share a default shortcut")
-        let digits = [kVK_ANSI_1, kVK_ANSI_2, kVK_ANSI_3, kVK_ANSI_4, kVK_ANSI_5, kVK_ANSI_6, kVK_ANSI_7, kVK_ANSI_8]
-        expect(defaults == digits.map { shortcut(.option, $0) }, "Defaults are ⌥1 through ⌥8")
+        let digits = [kVK_ANSI_1, kVK_ANSI_2, kVK_ANSI_3, kVK_ANSI_4, kVK_ANSI_5, kVK_ANSI_6, kVK_ANSI_7, kVK_ANSI_8, kVK_ANSI_9]
+        expect(defaults == digits.map { shortcut(.option, $0) }, "Defaults are ⌥1 through ⌥9")
 
         // Users' saved shortcuts live under these names.
         let keys = [
             "captureHotkey.fullscreen", "captureHotkey.window", "captureHotkey.area",
             "captureHotkey.screenRecording", "captureHotkey.textCapture", "captureHotkey.timedCapture",
-            "captureHotkey.pinArea", "captureHotkey.pinLatest",
+            "captureHotkey.pinArea", "captureHotkey.pinLatest", "captureHotkey.translateArea",
         ]
         expect(actions.map(\.preferencesKey) == keys, "Preference keys: \(actions.map(\.preferencesKey))")
     }

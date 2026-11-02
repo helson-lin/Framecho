@@ -993,6 +993,30 @@ extension AnnotationEditorModel {
         errorMessage = nil
     }
 
+    /// Swaps the picture under the annotations for another of the same
+    /// size, such as the screenshot with its text translated in place. It
+    /// shares the crop's history, so Undo brings the old picture back, and
+    /// the editor takes ownership of the file.
+    func replaceBaseImage(with url: URL) {
+        guard !isCropping,
+              ScreenshotImageLoader.imageSize(at: url) == imageSize,
+              let snapshot = currentCropSnapshot() else {
+            try? FileManager.default.removeItem(at: url)
+            errorMessage = String(localized: "Unable to replace the image.")
+            return
+        }
+        commitTextEditing()
+        baseImageURL = url
+        ownedCropURLs.insert(url)
+        previewImage = makePreviewImage(from: url)
+        previewCGImage = previewImage?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        colorSampleImage = nil
+        cropUndoStack.append(snapshot)
+        cropRedoStack.removeAll()
+        revision &+= 1
+        errorMessage = nil
+    }
+
     /// Scale a shape's own dimensions, so a crop that changes the image's resolution keeps
     /// annotations the same size relative to the picture.
     private func scaleShapeContents(_ shape: inout AnnoShape, sx: Double, sy: Double, uniform: Double) {

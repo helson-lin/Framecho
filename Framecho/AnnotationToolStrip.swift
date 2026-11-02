@@ -49,7 +49,7 @@ struct AnnotationToolStrip: View {
     }
 }
 
-private struct AnnotationToolStripButton: View {
+struct AnnotationToolStripButton: View {
     let tool: AnnotationTool
     let isSelected: Bool
     let action: () -> Void

@@ -182,6 +182,8 @@ extension CaptureHotkeyAction {
             CaptureCoordinator.shared.captureAreaAndPin()
         case .pinLatest:
             PinnedScreenshotPresenter.shared.pinLatestScreenshot()
+        case .translateArea:
+            CaptureCoordinator.shared.captureAndTranslate()
         }
     }
 }

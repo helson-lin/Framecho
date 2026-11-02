@@ -33,6 +33,7 @@ struct PreviewCardView: View {
     let onView: () -> Void
     let onCompress: () -> Void
     let onCopyText: () -> Void
+    let onTranslate: () -> Void
     let onDragBegan: () -> Void
     let onDragEnded: () -> Void
 
@@ -134,6 +135,7 @@ struct PreviewCardView: View {
             .contextMenu {
                 if item.kind == .image {
                     Button("Copy Text from Image") { onCopyText() }
+                    Button("Translate Image") { onTranslate() }
                 }
             }
     }

@@ -74,6 +74,42 @@ nonisolated enum PinnedScreenshotGeometry {
         return CGRect(x: x.rounded(), y: y.rounded(), width: size.width, height: size.height)
     }
 
+    /// Where an area drawn with `screencapture -i` was on screen, so its pin
+    /// can cover it exactly. screencapture doesn't say, but the pointer's
+    /// release is always a corner of the final selection, the one the drag
+    /// headed for: also after moving it with Space or drawing it from the
+    /// centre with Option. The size comes from the captured pixels.
+    /// Coordinates are AppKit's, y up.
+    /// - Returns: nil for a click, which picks a window rather than drawing
+    ///   an area, or when the result doesn't fit on `screenFrame`, the
+    ///   display the drag was on.
+    static func capturedAreaFrame(
+        dragStart: CGPoint,
+        dragEnd: CGPoint,
+        pixelSize: CGSize,
+        backingScale: CGFloat,
+        screenFrame: CGRect
+    ) -> CGRect? {
+        guard backingScale > 0, pixelSize.width > 0, pixelSize.height > 0 else { return nil }
+        let dx = dragEnd.x - dragStart.x
+        let dy = dragEnd.y - dragStart.y
+        guard max(abs(dx), abs(dy)) >= 2 else { return nil }
+
+        // screencapture selects whole pixels.
+        func snapped(_ value: CGFloat) -> CGFloat { (value * backingScale).rounded() / backingScale }
+        let width = pixelSize.width / backingScale
+        let height = pixelSize.height / backingScale
+        let end = CGPoint(x: snapped(dragEnd.x), y: snapped(dragEnd.y))
+        let frame = CGRect(
+            x: dx >= 0 ? end.x - width : end.x,
+            y: dy >= 0 ? end.y - height : end.y,
+            width: width,
+            height: height
+        )
+        guard screenFrame.insetBy(dx: -1, dy: -1).contains(frame) else { return nil }
+        return frame
+    }
+
     static func clampedOpacity(_ opacity: CGFloat) -> CGFloat {
         min(1, max(minimumOpacity, opacity))
     }
