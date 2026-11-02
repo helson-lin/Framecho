@@ -19,7 +19,7 @@ export const GET: APIRoute = () => {
 
 - Latest version: ${release.version} (released ${release.date})
 - Requires: macOS ${release.minimumMacOS} or later, Apple silicon or Intel
-- Price: free; source code under CC0 1.0
+- Price: free; source code under Apache 2.0
 - Interface languages: English, Simplified Chinese
 - Download: ${links.download}
 - Source code: ${links.repo}

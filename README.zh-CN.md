@@ -13,7 +13,7 @@
 [![最新版本](https://img.shields.io/github/v/release/helson-lin/Framecho?label=%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC)](https://github.com/helson-lin/Framecho/releases/latest)
 [![CI](https://github.com/helson-lin/Framecho/actions/workflows/ci.yml/badge.svg)](https://github.com/helson-lin/Framecho/actions/workflows/ci.yml)
 ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black)
-[![License: CC0](https://img.shields.io/badge/license-CC0%201.0-lightgrey)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
 <p>
   <a href="https://github.com/helson-lin/Framecho/releases/latest/download/Framecho.dmg"><img src="docs/images/button-download.svg" alt="下载 Framecho.dmg" width="252" height="56"></a>
@@ -236,7 +236,7 @@ Framecho 以 [Screendrop](https://github.com/fayazara/Screendrop) v0.34.0（2026
 | `uihssn` | UIHSSN | [Ahmed Hassan](https://x.com/uihssn) | 12 | [uihssn-wallpaper-pack.zip](https://r2.jarin.me/Frameecho/uihssn-wallpaper-pack.zip) |
 | `fayaz` | Fayazara | [Fayaz Ahmed](https://x.com/fayazara) | 5 | [fayaz-wallpaper-pack.zip](https://r2.jarin.me/Frameecho/fayaz-wallpaper-pack.zip) |
 
-下载失败时，仍可使用已安装的壁纸、纯色、渐变或自定义图片。壁纸来自 Screendrop 的壁纸包，版权归原作者所有，本仓库的 CC0 许可不适用于这些图片。托管细节见 [壁纸包托管](docs/wallpaper-hosting.md)。
+下载失败时，仍可使用已安装的壁纸、纯色、渐变或自定义图片。壁纸来自 Screendrop 的壁纸包，版权归原作者所有，本仓库的 Apache 2.0 许可不适用于这些图片。托管细节见 [壁纸包托管](docs/wallpaper-hosting.md)。
 
 ## 云端分享
 
@@ -312,4 +312,4 @@ go test ./cmd/...
 
 感谢 [Screendrop](https://github.com/fayazara/Screendrop) 及其贡献者提供项目基础。Framecho 的发布与维护在本仓库进行，问题请提交到 [Framecho Issues](https://github.com/helson-lin/Framecho/issues)。
 
-本仓库沿用 [CC0 1.0 Universal](LICENSE)。外部壁纸、第三方依赖和云端 Worker 的许可请分别查看各自来源，本仓库的许可不自动适用于它们。
+Framecho 采用 [Apache License 2.0](LICENSE) 许可；其所基于的 Screendrop 以 CC0 1.0 Universal 发布。外部壁纸、第三方依赖和云端 Worker 的许可请分别查看各自来源，本仓库的许可不自动适用于它们。
