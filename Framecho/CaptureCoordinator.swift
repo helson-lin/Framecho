@@ -58,6 +58,10 @@ final class CaptureCoordinator {
         Task { await performCaptureOnTimer() }
     }
 
+    func captureScrolling() {
+        Task { await performCaptureScrolling() }
+    }
+
     // MARK: - Awaitable Capture Actions
 
     /// Awaitable variants for callers (App Intents / Shortcuts) that need the
@@ -126,6 +130,22 @@ final class CaptureCoordinator {
             includeShadow: FramechoPreferences.captureWindowShadow,
             delaySeconds: FramechoPreferences.captureDelaySeconds
         ) else { return nil }
+        let displayID = ActiveDisplayResolver.activeDisplayID(preferPointer: true)
+        return await finishCapture(url: url, displayID: displayID)
+    }
+
+    /// Scrolling Capture: the user draws an area and scrolls its content, and
+    /// the frames are stitched into one tall screenshot. Skips the self-timer:
+    /// the capture already waits for the user to finish scrolling.
+    @discardableResult
+    private func performCaptureScrolling() async -> URL? {
+        guard AppPermissionCenter.shared.ensureScreenRecording() else { return nil }
+        // Both would want the area highlight and the stream to themselves.
+        guard !ScreenRecordingManager.shared.isActive else {
+            NSSound.beep()
+            return nil
+        }
+        guard let url = await ScrollingCapturePresenter.shared.capture() else { return nil }
         let displayID = ActiveDisplayResolver.activeDisplayID(preferPointer: true)
         return await finishCapture(url: url, displayID: displayID)
     }

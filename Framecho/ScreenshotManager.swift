@@ -156,6 +156,19 @@ final class ScreenshotManager {
         CGImageDestinationFinalize(destination)
     }
 
+    // MARK: - Saving
+
+    /// Writes an image captured in-process (a scrolling capture) to a PNG in
+    /// the temporary folder, named like any other screenshot.
+    func saveCapturedImage(_ image: CGImage) -> URL? {
+        let url = URL(fileURLWithPath: generateTempPath(extension: "png"))
+        guard let destination = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil) else {
+            return nil
+        }
+        CGImageDestinationAddImage(destination, image, nil)
+        return CGImageDestinationFinalize(destination) ? url : nil
+    }
+
     // MARK: - Helpers
     
     /// Generates a unique temp file path for screenshots.

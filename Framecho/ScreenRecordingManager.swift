@@ -810,7 +810,7 @@ final class ScreenRecordingManager {
         )
     }
 
-    private static func sourceRect(
+    static func sourceRect(
         forAppKitSelectionRect selectionRect: CGRect,
         screenFrame: CGRect?,
         contentRect: CGRect

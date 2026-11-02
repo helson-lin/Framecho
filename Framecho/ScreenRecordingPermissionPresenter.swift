@@ -1,25 +1,30 @@
 import AppKit
 import SwiftUI
 
-/// Stays beside System Settings while the full-screen setup guide fades away.
+/// Stays beside System Settings while the full-screen setup guide fades
+/// away, with an icon to drag into the list. Used for the permissions macOS
+/// grants only by adding the app there: Screen Recording and Accessibility.
 @MainActor
 final class ScreenRecordingPermissionPresenter {
     static let shared = ScreenRecordingPermissionPresenter()
 
     private var panel: NSPanel?
+    private var permission: AppPermission?
 
     private init() {}
 
-    func show() {
-        if let panel {
+    func show(for permission: AppPermission = .screenRecording) {
+        if let panel, self.permission == permission {
             panel.orderFrontRegardless()
             return
         }
+        dismiss()
         let pointer = NSEvent.mouseLocation
         let screen = NSScreen.screens.first { NSMouseInRect(pointer, $0.frame, false) } ?? NSScreen.main
         let visibleFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let width = min(720, visibleFrame.width - 48)
         let hosting = NSHostingView(rootView: ScreenRecordingPermissionGuide(
+            permission: permission,
             onClose: { ScreenRecordingPermissionPresenter.shared.dismiss() }
         ).frame(width: width))
         let size = hosting.fittingSize
@@ -29,7 +34,9 @@ final class ScreenRecordingPermissionPresenter {
             backing: .buffered,
             defer: false
         )
-        panel.title = String(localized: "Allow Screen Recording")
+        panel.title = permission == .accessibility
+            ? String(localized: "Allow Accessibility")
+            : String(localized: "Allow Screen Recording")
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = true
@@ -49,6 +56,7 @@ final class ScreenRecordingPermissionPresenter {
         ))
         PreviewWindowCaptureExclusion.shared.register(window: panel)
         self.panel = panel
+        self.permission = permission
         AppPermissionCenter.shared.beginObserving()
         panel.orderFrontRegardless()
     }
@@ -58,6 +66,7 @@ final class ScreenRecordingPermissionPresenter {
         panel.orderOut(nil)
         panel.contentView = nil
         self.panel = nil
+        permission = nil
         AppPermissionCenter.shared.endObserving()
     }
 }
@@ -68,9 +77,17 @@ private final class PermissionGuidePanel: NSPanel {
 }
 
 private struct ScreenRecordingPermissionGuide: View {
+    let permission: AppPermission
     let onClose: () -> Void
 
     @State private var center = AppPermissionCenter.shared
+
+    /// Names the list as System Settings titles it.
+    private var title: String {
+        permission == .accessibility
+            ? String(localized: "Allow Framecho in Accessibility")
+            : String(localized: "Allow Framecho in Screen & System Audio Recording")
+    }
 
     var body: some View {
         HStack(spacing: 18) {
@@ -79,7 +96,7 @@ private struct ScreenRecordingPermissionGuide: View {
                 .help("Drag the Framecho icon into the list, then turn it on.")
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Allow Framecho in Screen & System Audio Recording")
+                Text(title)
                     .font(.system(size: 17, weight: .semibold))
                     .fixedSize(horizontal: false, vertical: true)
                 Text("Drag the Framecho icon into the list, then turn it on.")
@@ -87,12 +104,14 @@ private struct ScreenRecordingPermissionGuide: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 12) {
-                    Button("Open System Settings") { center.openSettings(for: .screenRecording) }
+                    Button("Open System Settings") { center.openSettings(for: permission) }
                     Button("Show in Finder") {
                         NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
                     }
-                    Button("Reopen") { center.relaunch() }
-                        .help("Turned it on in System Settings? Quit and reopen Framecho to apply it.")
+                    if permission.needsRelaunchAfterGrant {
+                        Button("Reopen") { center.relaunch() }
+                            .help("Turned it on in System Settings? Quit and reopen Framecho to apply it.")
+                    }
                 }
                 .buttonStyle(.link)
                 .font(.system(size: 12))
@@ -116,7 +135,7 @@ private struct ScreenRecordingPermissionGuide: View {
         .overlay {
             RoundedRectangle(cornerRadius: 18).strokeBorder(.separator, lineWidth: 1)
         }
-        .onChange(of: center.isScreenRecordingGranted) { _, granted in
+        .onChange(of: center.status(of: permission) == .granted) { _, granted in
             if granted { onClose() }
         }
     }

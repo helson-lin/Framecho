@@ -18,8 +18,9 @@ import CoreGraphics
 /// that scrolled into view are appended. A frame that moved back up, or so
 /// far that nothing overlaps, is reported and ignored; capturing carries on
 /// from the last accepted frame once the content is back within reach.
+/// Until the first rows are kept, such a frame replaces the first one.
 nonisolated struct ScrollingCaptureStitcher {
-    enum Outcome: Equatable {
+    enum Outcome: Equatable, Sendable {
         /// The first frame.
         case started
         /// The content scrolled down; `rows` new rows were added (none when
@@ -74,33 +75,45 @@ nonisolated struct ScrollingCaptureStitcher {
         // Only a sliver changed: a spinner or a blinking caret, not a scroll.
         guard bandHeight >= Self.minimumBand else { return .unchanged }
 
-        guard let shift = Self.shift(from: reference, to: frame, top: fixed.top, bottom: fixed.bottom) else {
-            return .noMatch
+        let shift = Self.shift(from: reference, to: frame, top: fixed.top, bottom: fixed.bottom)
+        if pieces.isEmpty, (shift ?? -1) <= 0 {
+            // Nothing is kept yet, so the capture starts over from this frame:
+            // the first one may have caught an overlay still fading out, or
+            // the user scrolled up to where they want to begin.
+            self.reference = frame
+            return shift == 0 ? .unchanged : .started
         }
+        guard let shift else { return .noMatch }
         if shift == 0 { return .unchanged }
         if shift < 0 { return .scrolledBackward }
 
+        // Rows near the bottom edge are held back until a later frame shows
+        // them higher up: on macOS 26 and later a scroll view tints what
+        // passes under its edges, and differently as the content moves.
+        // Only the last frame's are kept, as they were on screen.
+        let held = Self.heldBackFraction(of: height - fixed.top - fixed.bottom)
+        let end = height - fixed.bottom - held
         // Until a second frame arrives the footer isn't known, so the first
-        // frame's rows are taken now, down to this pair's footer.
-        let firstRows = pieces.isEmpty ? height - fixed.bottom : 0
-        let currentEnd = pieces.isEmpty ? height - fixed.bottom : endRow
-        // In the new frame, the canvas ends `shift` rows higher up.
+        // frame's rows are taken now, down to the same point.
+        let currentEnd = pieces.isEmpty ? end : endRow
+        // In the new frame, the canvas ends `shift` rows higher up. Rows
+        // that are under its header by now come from the last frame's
+        // held-back ones instead.
         let start = currentEnd - shift
-        let end = height - fixed.bottom
-        let newRows = max(0, end - start)
-        guard piecesHeight + firstRows + newRows + fixed.bottom <= maximumHeight else { return .reachedLimit }
+        let hidden = max(0, fixed.top - start)
+        let fromReference = (pieces.isEmpty ? 0 : currentEnd)..<(currentEnd + hidden)
+        let fromFrame = (start + hidden)..<max(start + hidden, end)
+        let added = fromReference.count + fromFrame.count
+        guard piecesHeight + added + fixed.bottom + held <= maximumHeight else { return .reachedLimit }
 
-        if firstRows > 0, let piece = Self.copyRows(of: reference.image, 0..<firstRows) {
+        for (image, rows) in [(reference.image, fromReference), (frame.image, fromFrame)] where !rows.isEmpty {
+            guard let piece = Self.copyRows(of: image, rows) else { continue }
             pieces.append(piece)
-            piecesHeight += firstRows
-        }
-        if newRows > 0, let piece = Self.copyRows(of: frame.image, start..<end) {
-            pieces.append(piece)
-            piecesHeight += newRows
+            piecesHeight += rows.count
         }
         endRow = max(start, end)
         self.reference = frame
-        return .appended(rows: newRows)
+        return .appended(rows: hidden + fromFrame.count)
     }
 
     /// The long screenshot: everything taken so far, then the rest of the
@@ -127,12 +140,20 @@ nonisolated struct ScrollingCaptureStitcher {
 
     // MARK: - Matching
 
+    /// A row whose bands differ from each other by more than this on
+    /// average (luma) has detail; below it, it is blank or evenly tinted.
+    static let detailLevel: Float = 2
     /// Rows that differ by less than this (mean luma, 0-255) count as the same.
     static let fixedTolerance: Float = 1
     /// A shift is accepted when the overlapping rows differ by at most this.
     static let matchTolerance: Float = 2
     /// The fewest rows outside the fixed bars worth matching.
     static let minimumBand = 24
+
+    /// The rows at the bottom of the moving band taken from a later frame.
+    static func heldBackFraction(of band: Int) -> Int {
+        max(0, band / 3)
+    }
 
     /// How many rows at the top and bottom are the same in both frames.
     private static func fixedRows(_ old: Frame, _ new: Frame) -> (top: Int, bottom: Int) {
@@ -149,6 +170,10 @@ nonisolated struct ScrollingCaptureStitcher {
     /// How many rows the content between the fixed bars moved up from `old`
     /// to `new` (negative when it moved down), or nil when no shift lines
     /// the two up.
+    ///
+    /// Written for speed without the optimizer: Debug builds run this on
+    /// every frame too, and standard-library loops there are some 70 times
+    /// slower, enough for a capture to lag seconds behind the screen.
     private static func shift(from old: Frame, to new: Frame, top: Int, bottom: Int) -> Int? {
         let end = new.height - bottom
         let band = end - top
@@ -156,36 +181,61 @@ nonisolated struct ScrollingCaptureStitcher {
         let minimumOverlap = max(12, band / 10)
         let maximumShift = band - minimumOverlap
         guard maximumShift >= 0 else { return nil }
+        let step = max(1, band / 160)
 
-        // Rows of `new` that land inside the band of `old` after the shift.
-        func error(_ shift: Int, step: Int) -> Float {
-            let first = max(top, top - shift)
-            let last = min(end, end - shift)
+        // Screen every shift on one number per row, then compare the most
+        // likely ones properly.
+        var screened: [(shift: Int, error: Float)] = []
+        screened.reserveCapacity(2 * maximumShift + 1)
+        var shift = -maximumShift
+        while shift <= maximumShift {
             var sum: Float = 0
             var count = 0
-            var row = first
+            var row = max(top, top - shift)
+            let last = min(end, end - shift)
             while row < last {
-                sum += rowDifference(new, row, old, row + shift)
-                count += 1
+                let a = new.profile[row]
+                let b = old.profile[row + shift]
+                if a > detailLevel || b > detailLevel {
+                    sum += a > b ? a - b : b - a
+                    count += 1
+                }
                 row += step
             }
-            return count == 0 ? .infinity : sum / Float(count)
+            screened.append((shift, count == 0 ? .infinity : sum / Float(count)))
+            shift += 1
+        }
+        screened.sort { $0.error < $1.error }
+
+        // Rows of `new` that land inside the band of `old` after the shift
+        // and have detail in either: their mean difference in shape. Blank
+        // rows line up at any shift, so on a page that is mostly white
+        // space they would let a wrong shift pass.
+        func error(_ shift: Int, step: Int) -> Float {
+            var sum: Float = 0
+            var count = 0
+            var row = max(top, top - shift)
+            let last = min(end, end - shift)
+            while row < last {
+                if new.profile[row] > detailLevel || old.profile[row + shift] > detailLevel {
+                    sum += shapeDifference(new, row, old, row + shift)
+                    count += 1
+                }
+                row += step
+            }
+            return count < 2 ? .infinity : sum / Float(count)
         }
 
-        // Score every shift on a sample of rows, then the best few on all of them.
-        let step = max(1, band / 160)
-        var scored: [(shift: Int, error: Float)] = []
-        scored.reserveCapacity(2 * maximumShift + 1)
-        for shift in -maximumShift...maximumShift {
-            scored.append((shift, error(shift, step: step)))
+        func isBetter(_ a: (shift: Int, error: Float), _ b: (shift: Int, error: Float)) -> Bool {
+            a.error < b.error || (a.error == b.error && abs(a.shift) < abs(b.shift))
         }
-        scored.sort { $0.error < $1.error || ($0.error == $1.error && abs($0.shift) < abs($1.shift)) }
-
-        let refined = scored.prefix(4).map { candidate in
-            (shift: candidate.shift, error: step == 1 ? candidate.error : error(candidate.shift, step: 1))
-        }
-        guard let best = refined.min(by: { $0.error < $1.error || ($0.error == $1.error && abs($0.shift) < abs($1.shift)) }),
-              best.error <= matchTolerance else { return nil }
+        let sampled = screened.prefix(24)
+            .map { (shift: $0.shift, error: error($0.shift, step: step)) }
+            .sorted(by: isBetter)
+        guard let best = sampled.prefix(4)
+            .map({ (shift: $0.shift, error: error($0.shift, step: 1)) })
+            .min(by: isBetter),
+            best.error <= matchTolerance else { return nil }
         if best.shift == 0 { return 0 }
 
         // A blank overlap lines up at any shift, so it says nothing.
@@ -202,19 +252,34 @@ nonisolated struct ScrollingCaptureStitcher {
         return nil
     }
 
+    /// Like `rowDifference`, on the rows' shapes rather than their
+    /// brightness, so a tint over part of a frame doesn't count.
+    private static func shapeDifference(_ a: Frame, _ rowA: Int, _ b: Frame, _ rowB: Int) -> Float {
+        let columns = a.columns
+        let rowOfA = a.shapes + rowA * columns
+        let rowOfB = b.shapes + rowB * columns
+        var sum: Float = 0
+        var column = 0
+        while column < columns {
+            let difference = rowOfA[column] - rowOfB[column]
+            sum += difference < 0 ? -difference : difference
+            column += 1
+        }
+        return sum / Float(columns)
+    }
+
     private static func rowDifference(_ a: Frame, _ rowA: Int, _ b: Frame, _ rowB: Int) -> Float {
         let columns = a.columns
-        return a.signatures.withUnsafeBufferPointer { sa in
-            b.signatures.withUnsafeBufferPointer { sb in
-                var sum: Float = 0
-                let ia = rowA * columns
-                let ib = rowB * columns
-                for column in 0..<columns {
-                    sum += abs(sa[ia + column] - sb[ib + column])
-                }
-                return sum / Float(columns)
-            }
+        let rowOfA = a.signatures + rowA * columns
+        let rowOfB = b.signatures + rowB * columns
+        var sum: Float = 0
+        var column = 0
+        while column < columns {
+            let difference = rowOfA[column] - rowOfB[column]
+            sum += difference < 0 ? -difference : difference
+            column += 1
         }
+        return sum / Float(columns)
     }
 
     // MARK: - Images
@@ -242,50 +307,99 @@ nonisolated struct ScrollingCaptureStitcher {
 
     /// A frame and a compact fingerprint of each of its rows: the mean luma
     /// of up to 128 column bands. Averaging across a band keeps an overlay
-    /// scroll bar or a little noise from spoiling a match.
-    private struct Frame {
+    /// scroll bar or a little noise from spoiling a match. `profile` sums
+    /// each row's changes from band to band, one number per row for a
+    /// quick first comparison. `shapes` are the signatures with each row's
+    /// mean taken away and divided by its mean deviation: a scroll view's
+    /// tint scales and offsets a row's brightness, which this undoes.
+    private final class Frame {
         let image: CGImage
         let width: Int
         let height: Int
         let columns: Int
         /// `columns` values per row, top row first.
-        let signatures: [Float]
+        let signatures: UnsafeMutablePointer<Float>
+        let profile: UnsafeMutablePointer<Float>
+        let shapes: UnsafeMutablePointer<Float>
 
         init?(_ image: CGImage) {
             let width = image.width
             let height = image.height
             guard width > 0, height > 0 else { return nil }
 
-            var luma = [UInt8](repeating: 0, count: width * height)
-            let drawn = luma.withUnsafeMutableBytes { buffer -> Bool in
-                guard let context = CGContext(
-                    data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8,
-                    bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(),
-                    bitmapInfo: CGImageAlphaInfo.none.rawValue
-                ) else { return false }
-                context.interpolationQuality = .none
-                context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
-                return true
-            }
-            guard drawn else { return nil }
+            let luma = UnsafeMutablePointer<UInt8>.allocate(capacity: width * height)
+            defer { luma.deallocate() }
+            guard let context = CGContext(
+                data: luma, width: width, height: height, bitsPerComponent: 8,
+                bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(),
+                bitmapInfo: CGImageAlphaInfo.none.rawValue
+            ) else { return nil }
+            context.interpolationQuality = .none
+            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
 
             let columns = min(128, width)
-            let band = (0..<width).map { $0 * columns / width }
-            var perBand = [Float](repeating: 0, count: columns)
-            for column in 0..<width { perBand[band[column]] += 1 }
+            let band = UnsafeMutablePointer<Int>.allocate(capacity: width)
+            defer { band.deallocate() }
+            let perBand = UnsafeMutablePointer<Float>.allocate(capacity: columns)
+            defer { perBand.deallocate() }
+            perBand.initialize(repeating: 0, count: columns)
+            var column = 0
+            while column < width {
+                band[column] = column * columns / width
+                perBand[band[column]] += 1
+                column += 1
+            }
 
-            var signatures = [Float](repeating: 0, count: height * columns)
-            luma.withUnsafeBufferPointer { pixels in
-                signatures.withUnsafeMutableBufferPointer { out in
-                    for row in 0..<height {
-                        let base = row * columns
-                        let source = row * width
-                        for column in 0..<width {
-                            out[base + band[column]] += Float(pixels[source + column])
-                        }
-                        for index in 0..<columns { out[base + index] /= perBand[index] }
-                    }
+            let signatures = UnsafeMutablePointer<Float>.allocate(capacity: height * columns)
+            signatures.initialize(repeating: 0, count: height * columns)
+            let profile = UnsafeMutablePointer<Float>.allocate(capacity: height)
+            let shapes = UnsafeMutablePointer<Float>.allocate(capacity: height * columns)
+            var row = 0
+            while row < height {
+                let out = signatures + row * columns
+                let pixels = luma + row * width
+                column = 0
+                while column < width {
+                    out[band[column]] += Float(pixels[column])
+                    column += 1
                 }
+                var energy: Float = 0
+                var index = 0
+                while index < columns {
+                    out[index] /= perBand[index]
+                    if index > 0 {
+                        let difference = out[index] - out[index - 1]
+                        energy += difference < 0 ? -difference : difference
+                    }
+                    index += 1
+                }
+                profile[row] = energy / Float(columns)
+
+                var mean: Float = 0
+                index = 0
+                while index < columns {
+                    mean += out[index]
+                    index += 1
+                }
+                mean /= Float(columns)
+                var deviation: Float = 0
+                index = 0
+                while index < columns {
+                    let difference = out[index] - mean
+                    deviation += difference < 0 ? -difference : difference
+                    index += 1
+                }
+                deviation /= Float(columns)
+                // Scaled to read like luma for a row of ordinary contrast;
+                // a blank row stays flat rather than magnifying noise.
+                let scale: Float = deviation > 1 ? 32 / deviation : 0
+                let shape = shapes + row * columns
+                index = 0
+                while index < columns {
+                    shape[index] = (out[index] - mean) * scale
+                    index += 1
+                }
+                row += 1
             }
 
             self.image = image
@@ -293,6 +407,14 @@ nonisolated struct ScrollingCaptureStitcher {
             self.height = height
             self.columns = columns
             self.signatures = signatures
+            self.profile = profile
+            self.shapes = shapes
+        }
+
+        deinit {
+            signatures.deallocate()
+            profile.deallocate()
+            shapes.deallocate()
         }
     }
 }

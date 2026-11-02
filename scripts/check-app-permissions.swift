@@ -40,8 +40,9 @@ struct AppPermissionChecks {
 
         // Speech Recognition is only for SFSpeechRecognizer, used before
         // macOS 26, and is asked for when first needed.
-        expect(all.filter { !$0.isListedInOnboarding } == [.speechRecognition],
-               "Onboarding lists everything but Speech Recognition")
+        // Accessibility is asked for when auto scroll first needs it.
+        expect(all.filter { !$0.isListedInOnboarding } == [.speechRecognition, .accessibility],
+               "Onboarding lists everything but Speech Recognition and Accessibility")
         let applicable = AppPermission.applicable
         expect(applicable.first == .screenRecording, "The required permission still comes first")
         if #available(macOS 26.0, *) {

@@ -20,6 +20,9 @@ struct ScrollingCaptureChecks {
         checkStickyBars()
         checkIgnoredFrames()
         checkNoiseAndScrollBar()
+        checkFadingFirstFrame()
+        checkTintedEdge()
+        checkSparsePage()
         checkLimit()
         checkEdgeCases()
         checkSpeed()
@@ -71,6 +74,105 @@ struct ScrollingCaptureChecks {
         let image = stitch(page, layout, offsets, expecting: .appended)
         // The overlay scroll bar moves with every frame and stays out of the comparison.
         same(image, layout.expected(page, through: 1920), "Noise and a scroll bar", columns: 0..<(320 - Layout.scrollBarWidth), tolerance: 3)
+    }
+
+    static func checkFadingFirstFrame() {
+        // The selection overlay was still fading out when the first frame
+        // was taken: it is a little darker than everything after it.
+        let page = Page.text(width: 320, height: 2400, seed: 8)
+        let layout = Layout(viewport: 480, footer: 4)
+        var stitcher = ScrollingCaptureStitcher()
+        var dimmed = Page(layout.frame(page, offset: 0))
+        for index in dimmed.pixels.indices where index % 4 != 3 {
+            dimmed.pixels[index] = UInt8(Int(dimmed.pixels[index]) * 9 / 10)
+        }
+        expect(stitcher.add(dimmed.image()) == .started, "Fading: start")
+        // Matched as the same view, or not matched at all: either way it
+        // takes the first frame's place, as nothing is kept yet.
+        let clean = stitcher.add(layout.frame(page, offset: 0))
+        expect(clean == .started || clean == .unchanged, "Fading: a clean frame replaces the first, got \(clean)")
+        for offset in [100, 250] {
+            let outcome = stitcher.add(layout.frame(page, offset: offset))
+            expect(outcome != .noMatch && outcome != .unchanged, "Fading: offset \(offset) got \(outcome)")
+        }
+        same(stitcher.makeImage(), layout.expected(page, through: 250), "Fading: no trace of the first frame")
+    }
+
+    static func checkTintedEdge() {
+        // A scroll view tints content passing under its bottom edge, more
+        // the nearer the edge, so the same line looks different from one
+        // frame to the next.
+        let page = Page.text(width: 320, height: 2400, seed: 9)
+        let layout = Layout(viewport: 480)
+        let tinted = 140
+        func frame(_ offset: Int) -> CGImage {
+            var frame = Page(layout.frame(page, offset: offset))
+            for row in (480 - tinted)..<480 {
+                let amount = (row - (480 - tinted)) * 40 / tinted
+                for column in 0..<320 {
+                    let index = (row * 320 + column) * 4
+                    frame.pixels[index + 1] = UInt8(Int(frame.pixels[index + 1]) * (100 - amount) / 100)
+                    frame.pixels[index + 2] = UInt8(Int(frame.pixels[index + 2]) * (100 - amount) / 100)
+                }
+            }
+            return frame.image()
+        }
+        var stitcher = ScrollingCaptureStitcher()
+        expect(stitcher.add(frame(0)) == .started, "Tint: start")
+        for offset in stride(from: 120, through: 1920, by: 120) {
+            let outcome = stitcher.add(frame(offset))
+            if case .appended = outcome { expect(true, "") } else {
+                expect(false, "Tint: offset \(offset) got \(outcome)")
+            }
+        }
+        // Everything above the last frame's tinted edge is clean.
+        let expected = layout.expected(page, through: 1920)
+        var clean = Page(width: 320, height: expected.height - tinted)
+        clean.pixels = Array(expected.pixels[0..<(clean.height * 320 * 4)])
+        guard let image = stitcher.makeImage() else { return expect(false, "Tint: no image") }
+        expect(image.height == expected.height, "Tint: height \(image.height), expected \(expected.height)")
+        same(image.cropping(to: CGRect(x: 0, y: 0, width: 320, height: clean.height)), clean, "Tint: no tinted rows inside")
+    }
+
+    static func checkSparsePage() {
+        // Mostly white space, like an article with generous line spacing:
+        // a wrong shift lines up most rows, which are blank, and only the
+        // few with text tell it apart. With the edge tint and some noise.
+        let page = Page.sparse(width: 320, height: 3000, seed: 10)
+        let layout = Layout(viewport: 480, noise: true)
+        let tinted = 140
+        var stitcher = ScrollingCaptureStitcher()
+        expect(stitcher.add(tint(layout.frame(page, offset: 0), rows: tinted)) == .started, "Sparse: start")
+        var offset = 0
+        for step in [30, 7, 90, 150, 33, 200, 64, 120, 15, 180, 250, 41, 160, 99, 222, 18, 140, 260, 75, 190] {
+            offset += step
+            let outcome = stitcher.add(tint(layout.frame(page, offset: offset), rows: tinted))
+            if case .appended = outcome { expect(true, "") } else {
+                expect(false, "Sparse: offset \(offset) got \(outcome)")
+            }
+        }
+        let expected = layout.expected(page, through: offset)
+        var clean = Page(width: 320, height: expected.height - tinted)
+        clean.pixels = Array(expected.pixels[0..<(clean.height * 320 * 4)])
+        guard let image = stitcher.makeImage() else { return expect(false, "Sparse: no image") }
+        expect(image.height == expected.height, "Sparse: height \(image.height), expected \(expected.height)")
+        same(image.cropping(to: CGRect(x: 0, y: 0, width: 320, height: clean.height)), clean, "Sparse page", tolerance: 3)
+    }
+
+    /// Darkens the bottom `rows` towards red, more the nearer the edge, as
+    /// a scroll view does to content passing under its edge.
+    static func tint(_ image: CGImage, rows: Int) -> CGImage {
+        var frame = Page(image)
+        let height = frame.height
+        for row in (height - rows)..<height {
+            let amount = (row - (height - rows)) * 40 / rows
+            for column in 0..<frame.width {
+                let index = (row * frame.width + column) * 4
+                frame.pixels[index + 1] = UInt8(Int(frame.pixels[index + 1]) * (100 - amount) / 100)
+                frame.pixels[index + 2] = UInt8(Int(frame.pixels[index + 2]) * (100 - amount) / 100)
+            }
+        }
+        return frame.image()
     }
 
     static func checkLimit() {
@@ -275,6 +377,28 @@ struct Page {
                 }
                 x += length + 6 + Int(random.next() % 10)
             }
+        }
+        return page
+    }
+
+    /// A heading or a line of text every so often on white, with the
+    /// gaps far taller than the text.
+    static func sparse(width: Int, height: Int, seed: UInt64) -> Page {
+        var page = Page(width: width, height: height)
+        var random = Random(seed: seed)
+        var top = 20
+        while top < height - 40 {
+            let lineHeight = random.next() % 4 == 0 ? 22 : 12
+            var x = 12 + Int(random.next() % 20)
+            while x < width - 40 {
+                let length = 6 + Int(random.next() % 30)
+                let ink = UInt8(30 + random.next() % 50)
+                for row in top..<min(top + lineHeight, height) {
+                    for column in x..<min(x + length, width - 16) { page.set(row, column, (ink, ink, ink)) }
+                }
+                x += length + 5 + Int(random.next() % 8)
+            }
+            top += lineHeight + 30 + Int(random.next() % 40)
         }
         return page
     }
