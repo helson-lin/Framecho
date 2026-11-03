@@ -27,6 +27,28 @@
     -->
 
     <item>
+      <title>Version 0.45.1</title>
+      <sparkle:version>50</sparkle:version>
+      <sparkle:shortVersionString>0.45.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 05:07:47 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.45.1</h2>
+        <ul>
+          <li>截图翻译时，贴图上以从左上到右下的扫光显示进度，不再在中间显示提示。 / Translating a screenshot now shows a light sweeping across the pin instead of a notice in the middle.</li>
+          <li>复制译文后，按钮会短暂变为对勾，不再弹出“已复制”提示。 / Copy Text briefly turns into a checkmark instead of showing "Copied" over the pin.</li>
+          <li>修复贴图上的“存储…”有时看似无反应的问题：存储面板会显示在最前面，存储完成后按钮会短暂变为对勾。 / Fixed Save… on a pin seeming to do nothing: the save panel now comes to the front, and the button shows a checkmark once the image is saved.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Framecho/releases/download/v0.45.1/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="5/M/FDRVcR0lC9qOKlQ4xdC4affk1DbUAxbuG5pjsS8ADgYl3EuBBemWhSIV/JAxWl6DSKdzXFnT4I6dwEwcCQ=="
+        length="11773185"
+      />
+    </item>
+
+    <item>
       <title>Version 0.45.0</title>
       <sparkle:version>49</sparkle:version>
       <sparkle:shortVersionString>0.45.0</sparkle:shortVersionString>
