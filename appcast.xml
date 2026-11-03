@@ -27,6 +27,27 @@
     -->
 
     <item>
+      <title>Version 0.45.3</title>
+      <sparkle:version>52</sparkle:version>
+      <sparkle:shortVersionString>0.45.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 08:10:37 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.45.3</h2>
+        <ul>
+          <li>新增匿名使用统计：每天发送一次各功能的使用次数，帮助决定先改进什么；不包含截图、文件名、文字内容或设备标识，可在“设置 › 通用”中关闭或查看发送的内容。 / Added anonymous usage statistics: once a day, Framecho sends counts of which features were used, to help decide what to improve. No captures, file names, text or device identifiers are sent; turn it off or see what's sent in Settings › General.</li>
+          <li>“设置 › 截图”中移除了“置顶到屏幕”选项，需要截图并置顶时请使用“截取区域并置顶”（⌥7）。 / Removed "Pin to screen" from Settings › Screenshots; use Capture Area and Pin (⌥7) to capture and pin a screenshot.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Framecho/releases/download/v0.45.3/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="k0qzpH30UkBHUuOu/pFWRdJKM1+ZhtgktC6gWFBlu6Kz+H0mszkmI4pICUJaMOiZKDDuVazNewEEJbK9cDG9DQ=="
+        length="10782446"
+      />
+    </item>
+
+    <item>
       <title>Version 0.45.2</title>
       <sparkle:version>51</sparkle:version>
       <sparkle:shortVersionString>0.45.2</sparkle:shortVersionString>
