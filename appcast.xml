@@ -19,12 +19,34 @@
              Improved upload flow"
            (-notes-file <path> reads bullets from a file instead.)
 
-      The release tool creates Framecho.dmg, signs it with Sparkle, prepends
-      this appcast, commits/pushes appcast.xml to main, and creates the GitHub
-      release with the DMG attached.
+      The release tool creates Framecho.dmg, signs it with Sparkle, creates the
+      GitHub release with the DMG attached, and updates only appcast.xml on the
+      public main branch. It never pushes local source commits.
 
       Newest release goes on top.
     -->
+
+    <item>
+      <title>Version 0.45.0</title>
+      <sparkle:version>49</sparkle:version>
+      <sparkle:shortVersionString>0.45.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 02:29:45 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.45.0</h2>
+        <ul>
+          <li>新增滚动截图，支持捕获长页面并自动拼接。 / Capture long pages with scrolling screenshots and automatic stitching.</li>
+          <li>截图可贴回原位，并支持直接识别和翻译截图文字。 / Pin screenshots over their original position and recognize or translate text in place.</li>
+          <li>优化菜单栏操作分组与 Studio 智能缩放锚点。 / Improved menu bar organization and smart zoom anchoring in Studio.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Framecho/releases/download/v0.45.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="cflTrT9/ZoDgPQnb36qXLIlvLVyYkmKkhAQMHlriINiYMqAe/RZm/biaMW82Nd57Mmox5WllkoZOL3gGTcUnDw=="
+        length="10707491"
+      />
+    </item>
 
     <item>
       <title>Version 0.44.1</title>
