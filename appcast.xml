@@ -27,6 +27,26 @@
     -->
 
     <item>
+      <title>Version 0.45.2</title>
+      <sparkle:version>51</sparkle:version>
+      <sparkle:shortVersionString>0.45.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 05:51:41 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.45.2</h2>
+        <ul>
+          <li>修复录屏在 Studio 中鼠标移动断续、看不到移动过程的问题：即使系统事件监听没有送来鼠标移动，也会持续记录鼠标位置。 / Fixed the cursor jumping in Studio instead of showing its movement: the pointer is now sampled continuously even when the system event tap delivers no moves.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Framecho/releases/download/v0.45.2/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="ukA1mg0pO/ejp7WEvm9UZkLKFUlmEHxeXdzZbLADlJAjQNezuEiVTKGDe2/FgOzovAq7WhLIjNTUOR3BvS1JAQ=="
+        length="10702259"
+      />
+    </item>
+
+    <item>
       <title>Version 0.45.1</title>
       <sparkle:version>50</sparkle:version>
       <sparkle:shortVersionString>0.45.1</sparkle:shortVersionString>
