@@ -31,20 +31,22 @@
       <sparkle:version>49</sparkle:version>
       <sparkle:shortVersionString>0.45.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <pubDate>Tue, 03 Nov 2026 02:29:45 +0000</pubDate>
+      <pubDate>Tue, 03 Nov 2026 03:11:01 +0000</pubDate>
       <description><![CDATA[
         <h2>What's New in 0.45.0</h2>
         <ul>
-          <li>新增滚动截图，支持捕获长页面并自动拼接。 / Capture long pages with scrolling screenshots and automatic stitching.</li>
-          <li>截图可贴回原位，并支持直接识别和翻译截图文字。 / Pin screenshots over their original position and recognize or translate text in place.</li>
-          <li>优化菜单栏操作分组与 Studio 智能缩放锚点。 / Improved menu bar organization and smart zoom anchoring in Studio.</li>
+          <li>新增滚动截图，自动拼接长页面内容。</li>
+          <li>截图可贴回原位，并直接在贴图上翻译文字。</li>
+          <li>重新整理菜单栏菜单，常用操作更易查找。</li>
+          <li>新建缩放默认使用智能锚点。</li>
+          <li>项目许可证更新为 Apache License 2.0。</li>
         </ul>
       ]]></description>
       <enclosure
         url="https://github.com/helson-lin/Framecho/releases/download/v0.45.0/Framecho.dmg"
         type="application/octet-stream"
-        sparkle:edSignature="cflTrT9/ZoDgPQnb36qXLIlvLVyYkmKkhAQMHlriINiYMqAe/RZm/biaMW82Nd57Mmox5WllkoZOL3gGTcUnDw=="
-        length="10707491"
+        sparkle:edSignature="V/HsynUmfvcodm4GdFTlX//hizDbOra9/VKkxxZlOSQLxwLRveqFvq2ycdWMQRlyvMDTCHQa5PFI+lul21MgBQ=="
+        length="10894706"
       />
     </item>
 
