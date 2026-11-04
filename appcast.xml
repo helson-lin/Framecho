@@ -27,6 +27,30 @@
     -->
 
     <item>
+      <title>Version 0.45.4</title>
+      <sparkle:version>53</sparkle:version>
+      <sparkle:shortVersionString>0.45.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Wed, 04 Nov 2026 15:07:05 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.45.4</h2>
+        <ul>
+          <li>区域截图改为在冻结的屏幕上选择：可直接在选区上标注，再复制、保存或置顶；在高分辨率屏幕上拖动选区更流畅。 / Area capture now selects on a frozen screen: annotate right on the selection before copying, saving or pinning it, with smooth dragging on high-resolution displays.</li>
+          <li>资料库可按截图中的文字搜索，已有截图会在后台自动识别。 / Search the Library by the text inside screenshots; existing screenshots are indexed in the background.</li>
+          <li>重新设计资料库与设置的侧边栏；在资料库中按空格键可快速查看。 / Redesigned the Library and Settings sidebars; press Space in the Library to Quick Look a capture.</li>
+          <li>截图后预览卡片出现得更快。 / The preview card appears sooner after a capture.</li>
+          <li>修复预览卡片折叠后再展开时按钮不显示，以及快速输入时搜索框打字被打断的问题。 / Fixed preview card buttons missing after collapsing and expanding, and typing in the search field being interrupted when typing fast.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Framecho/releases/download/v0.45.4/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="RqeJRMIOL7ZUR8PybDm4ATXnaWDTaWsdUJHVBlZPQcj8UArwjqKzMJW70AfJEtkF1h/ZFk08vr+lu9nIh7JMDQ=="
+        length="11052662"
+      />
+    </item>
+
+    <item>
       <title>Version 0.45.3</title>
       <sparkle:version>52</sparkle:version>
       <sparkle:shortVersionString>0.45.3</sparkle:shortVersionString>
