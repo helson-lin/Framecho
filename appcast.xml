@@ -27,6 +27,30 @@
     -->
 
     <item>
+      <title>Version 0.45.5</title>
+      <sparkle:version>54</sparkle:version>
+      <sparkle:shortVersionString>0.45.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Fri, 06 Nov 2026 06:12:50 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.45.5</h2>
+        <ul>
+          <li>重新设计图片编辑器与 Studio 视频编辑器：检查器分区可折叠，标注样式随选中对象显示，背景、3D 透视和 Studio 的卡片、字幕等设置可直接从预览图中挑选，导出进度显示在导出按钮上。 / Redesigned the image editor and the Studio video editor: collapsible inspector sections, a style bar for the selected annotation, backgrounds, 3D perspective and Studio's cards and captions picked from previews, and export progress shown in the Export button.</li>
+          <li>截图后默认拷贝到剪贴板，并在预览卡片上打勾确认。 / Screenshots are copied to the clipboard by default, confirmed with a checkmark on the preview card.</li>
+          <li>新增设置：区域截图标注后，✓ 只拷贝，不存入历史记录。 / New setting: after drawing on an area capture, ✓ only copies it, without keeping it in History.</li>
+          <li>移除「截取区域并置顶」，改用选区工具栏上的置顶按钮。 / Removed Capture Area and Pin; use the Pin button on the selection toolbar instead.</li>
+          <li>设置中显示存储占用，并可清理旧录屏；「设置 › 关于」新增捐赠入口；预览卡片出现得更快；保存、拷贝或上传失败时会说明原因。 / Settings show storage usage and can clean up old recordings; Settings › About adds a way to donate; the preview card appears sooner; failed saves, copies and uploads now explain what went wrong.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Framecho/releases/download/v0.45.5/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="Defz3zTUUnimU1jbMwbaKEaFy4irsQSTuSU9sdK1Xx57ARfEnR4QtThzZ2xTqPiATHKVNPWHwu6Tg3doXcphCw=="
+        length="11720477"
+      />
+    </item>
+
+    <item>
       <title>Version 0.45.4</title>
       <sparkle:version>53</sparkle:version>
       <sparkle:shortVersionString>0.45.4</sparkle:shortVersionString>
