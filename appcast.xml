@@ -27,6 +27,29 @@
     -->
 
     <item>
+      <title>Version 0.47.0</title>
+      <sparkle:version>56</sparkle:version>
+      <sparkle:shortVersionString>0.47.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Mon, 09 Nov 2026 09:33:10 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.47.0</h2>
+        <ul>
+          <li>早鸟授权：2026 年 12 月 15 日前在「设置 › 关于」免费领取，Framecho 正式收费后 1.x 所有版本对你永久免费。不需要账号或邮箱，领取时只发送一个随机编号和 App 版本。 / Founder license: claim it free in Settings › About by December 15, 2026, and every Framecho 1.x release stays free for you once Framecho is paid. No account or email; claiming sends only a random ID and the app version.</li>
+          <li>授权保存在钥匙串中，可在「设置 › 关于」拷贝，到另一台 Mac 上导入。 / The license is kept in your keychain; copy it in Settings › About to import on another Mac.</li>
+          <li>新增「反馈问题或建议…」：在菜单栏菜单或「设置 › 关于」中直接给开发者发邮件，邮件里会附上 App 和 macOS 版本。 / New Send Feedback… in the menu bar menu and Settings › About emails the developer, with the app and macOS versions included.</li>
+          <li>移除「设置 › 关于」中的捐赠入口。 / Removed the donation link from Settings › About.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Framecho/releases/download/v0.47.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="z5Y0QsyagJ1xHXw5SSjc9YeM64DN2hsu72gstEUddJgF4MNf8uShEN0dnMtPx29pGHxjogH6P6s5sLY4L7CGDw=="
+        length="11898965"
+      />
+    </item>
+
+    <item>
       <title>Version 0.46.0</title>
       <sparkle:version>55</sparkle:version>
       <sparkle:shortVersionString>0.46.0</sparkle:shortVersionString>
