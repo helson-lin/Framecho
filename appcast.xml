@@ -27,6 +27,29 @@
     -->
 
     <item>
+      <title>Version 0.47.1</title>
+      <sparkle:version>57</sparkle:version>
+      <sparkle:shortVersionString>0.47.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Mon, 09 Nov 2026 14:51:27 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.47.1</h2>
+        <ul>
+          <li>Studio 导出新增 4:3 和 3:4 画面比例，图片编辑器的构图新增 3:4。 / Studio exports add 4:3 and 3:4 aspect ratios, and the image editor's Composition adds 3:4.</li>
+          <li>资源库右上角的「新建」菜单新增长截图。 / The Library's New menu now includes Scrolling Capture.</li>
+          <li>长截图新增默认快捷键 ⌥7，可在「设置 › 快捷键」中修改。 / Scrolling Capture gets a default ⌥7 shortcut, changeable in Settings › Shortcuts.</li>
+          <li>长截图的自动滚动现在也支持浏览器、Electron 应用等没有系统滚动条的应用。 / Auto scroll in Scrolling Capture now also works in browsers, Electron apps and other apps without a native scroll bar.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Framecho/releases/download/v0.47.1/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="dL46HPaewSnLobqbAwFTRgPhHRu4xKaAeTikHmgfnItkd0CVo0FNNddIyi6fKhGNvJQ9uHe6BtE4yoGuG+bsBw=="
+        length="11917415"
+      />
+    </item>
+
+    <item>
       <title>Version 0.47.0</title>
       <sparkle:version>56</sparkle:version>
       <sparkle:shortVersionString>0.47.0</sparkle:shortVersionString>
