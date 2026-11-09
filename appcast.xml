@@ -27,6 +27,29 @@
     -->
 
     <item>
+      <title>Version 0.46.0</title>
+      <sparkle:version>55</sparkle:version>
+      <sparkle:shortVersionString>0.46.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Mon, 09 Nov 2026 07:39:07 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.46.0</h2>
+        <ul>
+          <li>图片编辑器、Studio 与资源库的标题栏和画布控件改为统一绘制，macOS 15 与 macOS 26 上外观一致。 / The image editor, Studio and the Library draw their headers and canvas controls the same way on macOS 15 and macOS 26.</li>
+          <li>图片编辑器的主按钮改为保存后不关闭窗口，可以继续标注。 / The image editor's main button now saves without closing the window, so you can keep marking up.</li>
+          <li>修复 macOS 15 上资源库标题栏按钮挤在标题后面的问题。 / Fixed the Library's header buttons bunching up behind the title on macOS 15.</li>
+          <li>匿名使用统计新增 Studio 导出所用功能的计数，不包含任何内容或文件信息，可在「设置 › 通用」中关闭。 / Anonymous usage statistics now count which Studio features exported videos use, with no content or file details; turn them off in Settings › General.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Framecho/releases/download/v0.46.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="MDFBoTyAGUFNa3HuM2EW+m5Sygf/Haqjk2AGeb4xA2zNZx6kGfk0xozLJIKS7tApnkuwSmIojSy0k+U1OdDwDg=="
+        length="11806832"
+      />
+    </item>
+
+    <item>
       <title>Version 0.45.5</title>
       <sparkle:version>54</sparkle:version>
       <sparkle:shortVersionString>0.45.5</sparkle:shortVersionString>
