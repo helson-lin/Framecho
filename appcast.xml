@@ -27,6 +27,34 @@
     -->
 
     <item>
+      <title>Version 0.48.0</title>
+      <sparkle:version>59</sparkle:version>
+      <sparkle:shortVersionString>0.48.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 10 Nov 2026 12:31:51 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.48.0</h2>
+        <ul>
+          <li>自动打码现在也能识别头像和用户名：聊天列表里的头像，头像旁边的名字、@ 提及、「标签: 值」里的值都会被打码，同一个名字在别处出现也会一起打码。 / Auto redaction now finds avatars and usernames: avatars in chat lists, the name beside an avatar, @ mentions and the value in "label: value" pairs, plus the same name wherever else it appears.</li>
+          <li>自动打码菜单新增「敏感文字」「用户名」「头像」开关，可以按类别选择要打码的内容。 / The auto redaction menu adds Sensitive Text, Usernames and Avatars switches, so you can choose what gets redacted.</li>
+          <li>区域截图工具栏新增自动打码，框选时就能一键打码。 / The area selection toolbar adds auto redaction, so you can redact while selecting.</li>
+          <li>F1–F20 功能键可以不加修饰键，单独设为快捷键。 / Function keys F1–F20 can be used as shortcuts on their own, without a modifier.</li>
+          <li>修复 macOS 15.8 和 macOS 27 上设置和资源库窗口显示为空白的问题。 / Fixed Settings and the Library appearing blank on macOS 15.8 and macOS 27.</li>
+          <li>修复图片编辑器里的自动打码找到了区域却没有加上的问题。 / Fixed auto redaction in the image editor finding regions but not adding them.</li>
+          <li>修复头像打码框与头像对不齐的问题。 / Fixed avatar redaction boxes that didn't line up with the avatar.</li>
+          <li>自动打码现在能识别 5K 等大尺寸截图里的文字。 / Auto redaction now reads text in large captures such as 5K screenshots.</li>
+          <li>区域截图、预览卡片和贴图出现时不再有系统的缩放弹出动画。 / The area selection, preview card and pinned screenshot no longer pop in with the system's scale animation.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Framecho/releases/download/v0.48.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="CSBKNlWPDGUkRwC/A+s9SVQSXoe4HEg9G/g6I6p8SgyqQFjsi2FXFfT+1v/tlz2XFQJ+rDelyCKolgDCcIi6Cw=="
+        length="12006626"
+      />
+    </item>
+
+    <item>
       <title>Version 0.47.2</title>
       <sparkle:version>58</sparkle:version>
       <sparkle:shortVersionString>0.47.2</sparkle:shortVersionString>
