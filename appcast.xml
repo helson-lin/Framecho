@@ -27,6 +27,29 @@
     -->
 
     <item>
+      <title>Version 0.47.2</title>
+      <sparkle:version>58</sparkle:version>
+      <sparkle:shortVersionString>0.47.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 10 Nov 2026 11:40:01 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.47.2</h2>
+        <ul>
+          <li>修复大尺寸截图上「复制文字」提示没有文字的问题。 / Fixed Copy Text reporting no text on large captures.</li>
+          <li>文字识别无法运行时，「复制文字」和翻译会明确提示识别失败，而不是提示没有文字。 / When text recognition can't run, Copy Text and translation now say so instead of reporting no text.</li>
+          <li>修复多显示器区域截图时，标注工具可能显示另一块屏幕画面的问题。 / Fixed area capture on multiple displays, where a drawing tool could show another display's picture.</li>
+          <li>区域选择工具栏和贴图工具栏现在会显示按钮提示。 / The area selection and pin toolbars now show tooltips.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Framecho/releases/download/v0.47.2/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="RBSQZXazT2xC3H2KH3npK4Zg08MAwwCvKVDJSbcUwt+auYma9b4B9wJi5xtQah9KPk7XjfisLtzI+k5KDfqlBg=="
+        length="11935713"
+      />
+    </item>
+
+    <item>
       <title>Version 0.47.1</title>
       <sparkle:version>57</sparkle:version>
       <sparkle:shortVersionString>0.47.1</sparkle:shortVersionString>
