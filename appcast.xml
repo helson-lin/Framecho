@@ -27,6 +27,38 @@
     -->
 
     <item>
+      <title>Version 0.49.0</title>
+      <sparkle:version>60</sparkle:version>
+      <sparkle:shortVersionString>0.49.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Wed, 11 Nov 2026 11:21:28 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.49.0</h2>
+        <ul>
+          <li>录制条全新设计：录制前选择来源、倒计时和录制中共用同一个条，切换时平滑过渡；更多选项收进条上方的抽屉。 / A redesigned recording bar: choosing a source, the countdown and the recording share one bar that morphs between them, with more options in a drawer above it.</li>
+          <li>直接在屏幕上选择录制来源：全屏模式点显示器名称切换显示器，窗口模式点选窗口，区域模式拖出区域后可移动和拖动八个控制点调整。 / Choose what to record on the screen itself: click a display's name to switch displays, click a window to record it, or drag out a region and move or resize it by its eight handles.</li>
+          <li>录制分辨率可选 4K、1440p、1080p、720p 或自定义尺寸，会在屏幕中央放一个对应大小的区域。 / Pick a recording resolution, 4K, 1440p, 1080p, 720p or a custom size, which places a region of that size in the middle of the screen.</li>
+          <li>开始录制前的倒计时显示在录制条上，可以随时按 Esc 或点「取消」。 / The start countdown runs in the recording bar, and Esc or Cancel stops it.</li>
+          <li>录制条上显示麦克风和系统声音的音量；麦克风不可用或没有声音时会提前标出来。 / The recording bar shows microphone and system audio levels, and marks a microphone that's unavailable or silent before you start.</li>
+          <li>录制中「重新开始」和「丢弃」需要再点一次确认，避免误点丢掉录像。 / Start Over and Discard during a recording ask for a second click, so a stray click can't throw a recording away.</li>
+          <li>磁盘写满时录制会停下并保存已录内容，录制条会说明情况并提供在 Studio 中打开。 / When the disk fills up, the recording stops and keeps what was recorded; the bar says so and offers to open it in Studio.</li>
+          <li>出错时的提示会说明发生了什么、内容是否安全以及接下来怎么做；以前只发出提示音的失败现在都有文字说明。 / Failure messages now say what happened, whether your work is safe and what to do next; failures that only beeped now explain themselves.</li>
+          <li>自动上传或自动复制失败时会显示提示，并提供「重试」或「设置」按钮。 / Failed automatic uploads and copies now show a message with a Retry or Set Up button.</li>
+          <li>贴图可以放大到超过屏幕大小，方便查看长截图。 / Pinned screenshots can be enlarged beyond the screen, handy for long captures.</li>
+          <li>资源库里双击即可打开编辑器，检查器和右键菜单也加入了编辑按钮。 / Double-click in the Library opens the editor, and the inspector and context menu gain an Edit action.</li>
+          <li>编辑器、资源库和设置里的提示气泡改为统一样式，悬停 0.7 秒后显示；修复 macOS 27 上编辑器提示不出现的问题。 / Tooltips in the editors, the Library and Settings share one style and appear after 0.7 seconds; fixes editor tooltips not appearing on macOS 27.</li>
+          <li>区域截图在框选之后按 Esc 也能直接退出。 / Esc now leaves area capture even after a selection is made.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Framecho/releases/download/v0.49.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="smNAyRsAmTyEtKOBda2aIib3V0vLQQW3fWEwg70rveMTTC3XcznmHBl/mLhP6wEzE/ZjiULHx36txmUsJKz+BQ=="
+        length="12376412"
+      />
+    </item>
+
+    <item>
       <title>Version 0.48.0</title>
       <sparkle:version>59</sparkle:version>
       <sparkle:shortVersionString>0.48.0</sparkle:shortVersionString>
