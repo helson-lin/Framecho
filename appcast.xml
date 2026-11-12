@@ -27,6 +27,30 @@
     -->
 
     <item>
+      <title>Version 0.50.0</title>
+      <sparkle:version>61</sparkle:version>
+      <sparkle:shortVersionString>0.50.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Thu, 12 Nov 2026 08:15:25 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.50.0</h2>
+        <ul>
+          <li>新增「从剪贴板置顶」：把剪贴板里的图片、文件或文字直接钉在屏幕上。 / Pin from Clipboard: pin the image, file or text on the clipboard straight to your screen.</li>
+          <li>区域截图时显示放大镜和快捷键提示；选区工具条换成编辑器的样式栏和线宽选择，也能用按键调整线宽。 / Area capture shows a loupe and a shortcut hint while you select, and its bar now uses the editor's style bar and stroke picker, with keys for line width.</li>
+          <li>界面新增繁体中文和俄语。 / Framecho is now available in Traditional Chinese and Russian.</li>
+          <li>在 Finder 中拷贝图片文件后置顶，现在钉上去的是图片本身，而不是文件图标。 / Pinning a copied image file now pins the image, not the icon Finder puts beside it.</li>
+          <li>录制开始时如果音频出错，会明确说明没有录下内容。 / If audio fails as a recording starts, Framecho now says that nothing was recorded.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Framecho/releases/download/v0.50.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="h1mUsS9AE99Puf7WFOa4rg2hjzG3E45EOGoXFRKh2ent/NfBe9NFqB3oJpp4WGs3e6ZUBEi82ifUyextrFDxCA=="
+        length="12516735"
+      />
+    </item>
+
+    <item>
       <title>Version 0.49.0</title>
       <sparkle:version>60</sparkle:version>
       <sparkle:shortVersionString>0.49.0</sparkle:shortVersionString>
