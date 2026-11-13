@@ -27,6 +27,29 @@
     -->
 
     <item>
+      <title>Version 0.51.0</title>
+      <sparkle:version>62</sparkle:version>
+      <sparkle:shortVersionString>0.51.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Fri, 13 Nov 2026 13:42:22 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.51.0</h2>
+        <ul>
+          <li>Studio 可以把录屏导出为 GIF：可选宽度和帧率，有声音或时长较长时会提示，超过 5 分钟需导出为视频。 / Studio can export recordings as GIF, with a choice of width and frame rate, a note when sound would be dropped or the clip is long, and a 5-minute limit.</li>
+          <li>滚动截图在 macOS 26 的模糊工具栏下、或选区里有侧边栏时，也能正常拼接。 / Scrolling capture now stitches under macOS 26's blurred toolbars and when the area includes a sidebar.</li>
+          <li>「滚动太快」只在连续多帧对不上时才提示；自动滚动无法继续时会说明原因。 / "Scrolled too fast" only appears when frames keep missing, and auto scroll says why when it can't go on.</li>
+          <li>长截图在编辑器的预览中保持清晰，不再缩成一条模糊的细图。 / Long screenshots stay legible in the editor's preview instead of shrinking to a blurry strip.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/helson-lin/Framecho/releases/download/v0.51.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="oyjFZhS7kwJVtSByhADWbI/T2TTmvTTU/mHeQGJIdQ8I1G7sjjjQ9JKoqROe340ri2cNaQYfoVCh6/V9zR1zCA=="
+        length="12633619"
+      />
+    </item>
+
+    <item>
       <title>Version 0.50.0</title>
       <sparkle:version>61</sparkle:version>
       <sparkle:shortVersionString>0.50.0</sparkle:shortVersionString>
