@@ -4,7 +4,7 @@
   xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
     <title>Framecho Updates</title>
-    <link>https://raw.githubusercontent.com/helson-lin/Framecho/main/appcast.xml</link>
+    <link>https://dl.getframecho.com/appcast.xml</link>
     <language>en</language>
 
     <!--
@@ -19,12 +19,43 @@
              Improved upload flow"
            (-notes-file <path> reads bullets from a file instead.)
 
-      The release tool creates Framecho.dmg, signs it with Sparkle, creates the
-      GitHub release with the DMG attached, and updates only appcast.xml on the
-      public main branch. It never pushes local source commits.
+      The release tool creates Framecho.dmg, signs it with Sparkle, keeps a
+      GitHub release as a backup, and publishes this feed to dl.getframecho.com.
+      Every enclosure URL points there. It never pushes local source commits.
 
       Newest release goes on top.
     -->
+
+    <item>
+      <title>Version 0.51.1</title>
+      <sparkle:version>63</sparkle:version>
+      <sparkle:shortVersionString>0.51.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Sun, 15 Nov 2026 13:53:27 +0000</pubDate>
+      <description><![CDATA[
+        <h2>What's New in 0.51.1</h2>
+        <ul>
+          <li>设置 › 云端可改用 S3 兼容对象存储，支持 Cloudflare R2、AWS S3、阿里云 OSS、腾讯 COS、Backblaze B2、MinIO 及自定义端点；截图与录屏上传后可照常拷贝分享链接。</li>
+          <li>In Settings › Cloud you can upload to S3-compatible storage—Cloudflare R2, AWS S3, Alibaba OSS, Tencent COS, Backblaze B2, MinIO, or a custom endpoint—and still copy a share link after upload.</li>
+          <li>公开桶可生成 Framecho 分享页；私有桶使用带有效期的签名链接，链接过期后可在资料库中重新签发。</li>
+          <li>Public buckets can get a Framecho share page; private buckets use expiring signed links, and you can re-sign an expired link from the Library.</li>
+          <li>识别文字会在选区旁显示面板，可先阅读再拷贝全部或选中部分；区域截图和「识别文字」不再自动写入剪贴板。</li>
+          <li>Recognized text appears in a panel beside your selection so you can read it and copy all or part; area capture and Capture Text no longer auto-fill the clipboard.</li>
+          <li>预览卡片和贴图仍会直接拷贝全部文字，并打开同一面板便于校对或再拷一段。</li>
+          <li>Preview cards and pins still copy all the text at once and open the same panel so you can review it or copy a selection.</li>
+          <li>截图快捷键可以清除，不再必须保留已设组合键。</li>
+          <li>Capture shortcuts can be cleared instead of staying assigned.</li>
+          <li>创始人许可证可以导出并在另一台 Mac 上导入。</li>
+          <li>Founder licenses can be exported and imported on another Mac.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://dl.getframecho.com/download/v0.51.1/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="cjAeQzJ76RHghi0CMGtC/reiDvtWmCycmRzjhMPpG+LmsKd8a94ctsRzlAAUUv0/m8PoVVO3cFKJlGG1KS36Cg=="
+        length="13490763"
+      />
+    </item>
 
     <item>
       <title>Version 0.51.0</title>
@@ -42,7 +73,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.51.0/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.51.0/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="oyjFZhS7kwJVtSByhADWbI/T2TTmvTTU/mHeQGJIdQ8I1G7sjjjQ9JKoqROe340ri2cNaQYfoVCh6/V9zR1zCA=="
         length="12633619"
@@ -66,7 +97,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.50.0/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.50.0/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="h1mUsS9AE99Puf7WFOa4rg2hjzG3E45EOGoXFRKh2ent/NfBe9NFqB3oJpp4WGs3e6ZUBEi82ifUyextrFDxCA=="
         length="12516735"
@@ -98,7 +129,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.49.0/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.49.0/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="smNAyRsAmTyEtKOBda2aIib3V0vLQQW3fWEwg70rveMTTC3XcznmHBl/mLhP6wEzE/ZjiULHx36txmUsJKz+BQ=="
         length="12376412"
@@ -126,7 +157,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.48.0/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.48.0/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="CSBKNlWPDGUkRwC/A+s9SVQSXoe4HEg9G/g6I6p8SgyqQFjsi2FXFfT+1v/tlz2XFQJ+rDelyCKolgDCcIi6Cw=="
         length="12006626"
@@ -149,7 +180,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.47.2/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.47.2/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="RBSQZXazT2xC3H2KH3npK4Zg08MAwwCvKVDJSbcUwt+auYma9b4B9wJi5xtQah9KPk7XjfisLtzI+k5KDfqlBg=="
         length="11935713"
@@ -172,7 +203,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.47.1/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.47.1/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="dL46HPaewSnLobqbAwFTRgPhHRu4xKaAeTikHmgfnItkd0CVo0FNNddIyi6fKhGNvJQ9uHe6BtE4yoGuG+bsBw=="
         length="11917415"
@@ -195,7 +226,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.47.0/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.47.0/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="z5Y0QsyagJ1xHXw5SSjc9YeM64DN2hsu72gstEUddJgF4MNf8uShEN0dnMtPx29pGHxjogH6P6s5sLY4L7CGDw=="
         length="11898965"
@@ -218,7 +249,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.46.0/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.46.0/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="MDFBoTyAGUFNa3HuM2EW+m5Sygf/Haqjk2AGeb4xA2zNZx6kGfk0xozLJIKS7tApnkuwSmIojSy0k+U1OdDwDg=="
         length="11806832"
@@ -242,7 +273,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.45.5/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.45.5/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="Defz3zTUUnimU1jbMwbaKEaFy4irsQSTuSU9sdK1Xx57ARfEnR4QtThzZ2xTqPiATHKVNPWHwu6Tg3doXcphCw=="
         length="11720477"
@@ -266,7 +297,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.45.4/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.45.4/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="RqeJRMIOL7ZUR8PybDm4ATXnaWDTaWsdUJHVBlZPQcj8UArwjqKzMJW70AfJEtkF1h/ZFk08vr+lu9nIh7JMDQ=="
         length="11052662"
@@ -287,7 +318,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.45.3/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.45.3/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="k0qzpH30UkBHUuOu/pFWRdJKM1+ZhtgktC6gWFBlu6Kz+H0mszkmI4pICUJaMOiZKDDuVazNewEEJbK9cDG9DQ=="
         length="10782446"
@@ -307,7 +338,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.45.2/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.45.2/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="ukA1mg0pO/ejp7WEvm9UZkLKFUlmEHxeXdzZbLADlJAjQNezuEiVTKGDe2/FgOzovAq7WhLIjNTUOR3BvS1JAQ=="
         length="10702259"
@@ -329,7 +360,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.45.1/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.45.1/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="5/M/FDRVcR0lC9qOKlQ4xdC4affk1DbUAxbuG5pjsS8ADgYl3EuBBemWhSIV/JAxWl6DSKdzXFnT4I6dwEwcCQ=="
         length="11773185"
@@ -353,7 +384,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.45.0/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.45.0/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="V/HsynUmfvcodm4GdFTlX//hizDbOra9/VKkxxZlOSQLxwLRveqFvq2ycdWMQRlyvMDTCHQa5PFI+lul21MgBQ=="
         length="10894706"
@@ -375,7 +406,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.44.1/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.44.1/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="MP9DkJurY2JUtCpqcwqELI/kh1R9ijuAKkXiXjtw9QiiKyOkcBj0vjxLcLo+hx5ypVJ0V2e8pCOajiKEd5XNCA=="
         length="10471716"
@@ -398,7 +429,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.44.0/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.44.0/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="osyd64VxADkETLan0BNcCTMBXhO+cNg96pFHHuTFRXhtfGxXnrqmZY+iv5RP+yGKDpHSqRAZOBWUFKrr9tojAQ=="
         length="10218756"
@@ -424,7 +455,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.43.0/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.43.0/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="ej7beHf5fE/prSZucPQH6U3hQLB+8OKh9bDZJdxKQDwVjmGfPcHJsHaPU+8sjRuYYCEkcdf4wX0/ix5o88NHCg=="
         length="10144454"
@@ -452,7 +483,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Framecho/releases/download/v0.42.0/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.42.0/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="T88RYRvQ0OEcEpcSQipxxQu1eq70udOt7ttkYepy+S/h2r26ApJ4PfVs/CJQvEaugyim5lB5XrwSWpDSIaETDw=="
         length="9451850"
@@ -477,7 +508,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Screendrop/releases/download/v0.41.0/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.41.0/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="2REwSFqhVKiVDEBZU84zNkj+qO3Gm5yJvwzLriCrr0TeI1/Prn/06uQEl3ugiFdZ9lAMzpLz6U+QGpfKLnj4AA=="
         length="8423452"
@@ -504,7 +535,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Screendrop/releases/download/v0.40.0/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.40.0/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="4/cwMzrnNSckwA7evUWaPlGEWgzBSj032QvC3wjh1cFCTcGK2SMhxfrCB5RMt9QqxFZ8vUf2Qz23iiSJ7o8NCQ=="
         length="9630412"
@@ -532,7 +563,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Screendrop/releases/download/v0.39.0/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.39.0/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="cK8v02MvoPkXj2Oc0ri3ZYejx9G1SOeODXjAznbeLIiI1O3av9yJS9OWrWqLhberR90BCEhZIYBeR6eSG4+fCg=="
         length="9515900"
@@ -558,7 +589,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Screendrop/releases/download/v0.38.0/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.38.0/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="AZzHLllZf6ZX/v86rGqu5b4WFhWSy1A3hvuzOouBJvLc7jrOFUA+/jE/SphKbYTfjVJo1lujG+Pnv9G49HlKCg=="
         length="9120279"
@@ -584,7 +615,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Screendrop/releases/download/v0.37.0/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.37.0/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="ZPWzfjsBpzX/DthiWKuI13GVAl9l2O2r4XBkOje+4+ynJ7wtlfBLjvUIlU1jECmYY8OrsJJ5X0IAT+h1pBVFBg=="
         length="9084655"
@@ -613,7 +644,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Screendrop/releases/download/v0.36.0/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.36.0/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="i5lbaHLYNLxVc+gPs4hRaShDq0KGdZ+R75aiQqJJNNlOV01sFrqpwvhqrNqnp4e6Li6GGreLhsTXdFMDInaYDg=="
         length="9030969"
@@ -634,7 +665,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Screendrop/releases/download/v0.35.3/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.35.3/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="CMH4n5EBjoLvgsLu+3WtdYjy/jQyV4ak9JkHhc0Ey9vYS37DF6DZS0pQV6gIYrwFCvsRekMnmAh6BOi0bjPYBA=="
         length="8971469"
@@ -657,7 +688,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Screendrop/releases/download/v0.35.2/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.35.2/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="TS7w336OMZdqk3ksjf7IBGiCB0O/rgwW6JorRRg8qdSuk5cN3g2+cVMOonQPbO6dXeluZAF7pDfXr0A8ZiyGAQ=="
         length="8968491"
@@ -679,7 +710,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Screendrop/releases/download/v0.35.1/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.35.1/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="NcqTBfrRTrqQ+Z2P2wIgkoaaIbqYQZHNwphlm8QLxscbZ46zKHSvHpLTEQim94jKupLshHF12Fwrw9IqegVaDg=="
         length="8983445"
@@ -702,7 +733,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Screendrop/releases/download/v0.35.0/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.35.0/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="q5U7flJBHyOrzZGFI0odmQICW2QyMfOm3FguJ1rsEjrszXhmJtQowrsPXzls+q1lLjgG9TifYP7TdVm/X0MdCg=="
         length="8958845"
@@ -724,7 +755,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Screendrop/releases/download/v0.34.2/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.34.2/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="7uuQuZI78wjdFJ3VwwfOesHF5yxlfehMT/m7fjtDsqPtEcXnBRA8GJVTEXhExdC9YscWWK+TtUyeHtTdPVzrDA=="
         length="8674837"
@@ -751,7 +782,7 @@
         </ul>
       ]]></description>
       <enclosure
-        url="https://github.com/helson-lin/Screendrop/releases/download/v0.34.1/Framecho.dmg"
+        url="https://dl.getframecho.com/download/v0.34.1/Framecho.dmg"
         type="application/octet-stream"
         sparkle:edSignature="idXqTEn9+SAffwh87GvwZ/0zOrYoaTbmdTT9ywKbSuXnsK2K3lk0EfW5oBgsIVMavaalGvxLe23D8/g9Yc0EAQ=="
         length="8674787"
