@@ -27,6 +27,46 @@
     -->
 
     <item>
+      <title>Version 0.51.2</title>
+      <sparkle:version>64</sparkle:version>
+      <sparkle:shortVersionString>0.51.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Thu, 19 Nov 2026 12:58:50 +0000</pubDate>
+      <description xml:lang="en"><![CDATA[
+        <h2>What's New in 0.51.2</h2>
+        <ul>
+          <li>In area capture, stroke width stays visible; scroll through the common widths in order and continue fine-tuning, with a clearer selection.</li>
+          <li>Fixed Chinese input in text annotations and adjusted the default text size to the screenshot.</li>
+          <li>Scroll over a pinned screenshot to zoom, or hold Command while scrolling to adjust its opacity.</li>
+          <li>When recording a window, the selected window stays highlighted during the countdown.</li>
+          <li>Settings now opens centered on the current screen; recordings with dimensions unsupported by HEVC automatically fall back to H.264.</li>
+          <li>The founder offer has ended. Existing founder licenses remain valid and attempt to activate this Mac automatically when online (one device per license); the server records the device name and public key. All features remain free for now.</li>
+          <li>Image edits now save when the editor closes; fixed toolbar movement when opening the editor.</li>
+          <li>Area capture can select overlapping windows and start a scrolling capture from the selection.</li>
+        </ul>
+      ]]></description>
+      <description xml:lang="zh"><![CDATA[
+        <h2>更新内容：0.51.2</h2>
+        <ul>
+          <li>区域截图标注的线条粗细始终显示，滚动可依次切换常用档位并继续细调，当前选中项更清晰。</li>
+          <li>修复文字标注使用中文输入法时的输入问题，并让新文字的默认大小适应截图尺寸。</li>
+          <li>贴图支持直接滚动缩放，按住 Command 滚动调整透明度。</li>
+          <li>录制窗口时，倒计时期间会继续高亮选中的窗口。</li>
+          <li>设置窗口打开时会在当前屏幕居中；部分不受 HEVC 支持的录屏尺寸会自动改用 H.264。</li>
+          <li>早鸟领取活动已结束；已有早鸟授权会保留，并在联网时自动尝试激活当前 Mac（每份授权一个设备席位）；服务端会记录设备名称和公钥。当前所有功能仍可免费使用。</li>
+          <li>图片编辑器关闭时自动保存修改；修复打开时工具栏的位置变化。</li>
+          <li>区域截图支持选择重叠窗口，并可从选区开始长截图。</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://dl.getframecho.com/download/v0.51.2/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="cufHpGGVgW5cC2EmVuhuBF/tZNVcf5q/j6+xnV7WjacdiIyCwzclhS06zwpOKgEcuKcjg/ZiG3VwZymmn1G1DQ=="
+        length="13888164"
+      />
+    </item>
+
+    <item>
       <title>Version 0.51.1</title>
       <sparkle:version>63</sparkle:version>
       <sparkle:shortVersionString>0.51.1</sparkle:shortVersionString>
