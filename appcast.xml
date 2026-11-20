@@ -27,6 +27,42 @@
     -->
 
     <item>
+      <title>Version 0.52.0</title>
+      <sparkle:version>65</sparkle:version>
+      <sparkle:shortVersionString>0.52.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Fri, 20 Nov 2026 09:20:29 +0000</pubDate>
+      <description xml:lang="en"><![CDATA[
+        <h2>What's New in 0.52.0</h2>
+        <ul>
+          <li>Added Japanese and Korean, with an app language choice in Settings.</li>
+          <li>Screenshot translation covers a paragraph that quotes another language, and the result pastes into Figma and Sketch.</li>
+          <li>Area and scrolling captures keep their real resolution, so they no longer look soft in Sketch.</li>
+          <li>Text recognition is more accurate for a small area capture.</li>
+          <li>Recognized text can be selected before it is copied.</li>
+          <li>Founder licenses can be transferred between Macs again.</li>
+        </ul>
+      ]]></description>
+      <description xml:lang="zh"><![CDATA[
+        <h2>更新内容：0.52.0</h2>
+        <ul>
+          <li>新增日文和韩文界面，可在设置中选择应用语言。</li>
+          <li>截图翻译会译出引用了另一种语言的整段文字，译完的图片可以贴进 Figma 和 Sketch。</li>
+          <li>区域截图和滚动截图按实际分辨率写入，导入 Sketch 不再发糊。</li>
+          <li>小区域截图的文字识别更准确。</li>
+          <li>识别出的文字可以先选择再复制。</li>
+          <li>创始人授权可以再次转移设备。</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://dl.getframecho.com/download/v0.52.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="2ImlGpl4KTeKws0DbjxWuqgo+H2m8yeg5EQ34BdyjqDGV3a+z+cQay9rVxRCgZwAInKFhRfJgwF7p+PX5RWtCA=="
+        length="14111877"
+      />
+    </item>
+
+    <item>
       <title>Version 0.51.2</title>
       <sparkle:version>64</sparkle:version>
       <sparkle:shortVersionString>0.51.2</sparkle:shortVersionString>
