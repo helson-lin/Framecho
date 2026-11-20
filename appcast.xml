@@ -27,6 +27,34 @@
     -->
 
     <item>
+      <title>Version 0.52.1</title>
+      <sparkle:version>66</sparkle:version>
+      <sparkle:shortVersionString>0.52.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Fri, 20 Nov 2026 10:22:15 +0000</pubDate>
+      <description xml:lang="en"><![CDATA[
+        <h2>What's New in 0.52.1</h2>
+        <ul>
+          <li>Stroke width is a slider in the style bar, so pinch-to-zoom no longer changes it.</li>
+          <li>A shape stays selected after you draw it, so the next color or width change applies to it.</li>
+        </ul>
+      ]]></description>
+      <description xml:lang="zh"><![CDATA[
+        <h2>更新内容：0.52.1</h2>
+        <ul>
+          <li>描边粗细改由样式栏滑块调节，双指缩放不再改变线宽。</li>
+          <li>刚画完的形状会保持选中，接着改颜色和粗细就会作用在它上面。</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://dl.getframecho.com/download/v0.52.1/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="sdN4hr29Agva5tuhBBgwf3V512Ezjv28HPkOEN64icHnxy6kAsBRfiscMuFugoIPLyP4qK85K2fcevqevOUTCA=="
+        length="14111251"
+      />
+    </item>
+
+    <item>
       <title>Version 0.52.0</title>
       <sparkle:version>65</sparkle:version>
       <sparkle:shortVersionString>0.52.0</sparkle:shortVersionString>
