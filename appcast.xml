@@ -27,6 +27,42 @@
     -->
 
     <item>
+      <title>Version 0.52.2</title>
+      <sparkle:version>67</sparkle:version>
+      <sparkle:shortVersionString>0.52.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Sat, 21 Nov 2026 11:14:04 +0000</pubDate>
+      <description xml:lang="en"><![CDATA[
+        <h2>What's New in 0.52.2</h2>
+        <ul>
+          <li>Press ⇧P after selecting an area to pin the capture.</li>
+          <li>Pick colors during area capture; press C to copy the color under the pointer.</li>
+          <li>Snap lines and arrows to horizontal or vertical while drawing.</li>
+          <li>Make area capture annotations more responsive and keep them in place when adjusting the selection.</li>
+          <li>Reduce memory use during scrolling captures.</li>
+          <li>Improve the Library toolbar's appearance and layout on macOS 15.</li>
+        </ul>
+      ]]></description>
+      <description xml:lang="zh"><![CDATA[
+        <h2>更新内容：0.52.2</h2>
+        <ul>
+          <li>区域截图框选后按 ⇧P 即可钉图。</li>
+          <li>区域截图支持取色，按 C 复制鼠标下方的颜色。</li>
+          <li>绘制直线和箭头时可吸附到水平或垂直方向。</li>
+          <li>改善区域截图标注的响应速度，调整选区时保留标注位置。</li>
+          <li>降低滚动截图的内存占用。</li>
+          <li>改善 macOS 15 上资料库工具栏的显示和布局。</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://dl.getframecho.com/download/v0.52.2/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="+0H8uOPuTmW2RUg0OhVPaSlHdq00c5ZOgD7Tdt8iRDwIeMExgZoIkfkuCFZS8g7YKGSwjFsIHO/a5e3M7RDzBg=="
+        length="14123204"
+      />
+    </item>
+
+    <item>
       <title>Version 0.52.1</title>
       <sparkle:version>66</sparkle:version>
       <sparkle:shortVersionString>0.52.1</sparkle:shortVersionString>
