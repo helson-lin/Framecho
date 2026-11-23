@@ -27,6 +27,38 @@
     -->
 
     <item>
+      <title>Version 0.53.0</title>
+      <sparkle:version>68</sparkle:version>
+      <sparkle:shortVersionString>0.53.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Mon, 23 Nov 2026 16:13:07 +0000</pubDate>
+      <description xml:lang="en"><![CDATA[
+        <h2>What's New in 0.53.0</h2>
+        <ul>
+          <li>Added OneDrive and Google Drive cloud sharing, with in-place updates that keep the existing share link</li>
+          <li>Redesigned Settings › Cloud and Settings › AI with step-by-step setup wizards, connection testing, and clearer MCP setup instructions</li>
+          <li>Double-clicking inside an area selection now finishes the capture even with a drawing tool armed, and a single click no longer drops a default shape</li>
+          <li>Refined the screenshot-copied toast placement and duration, and set automatic updates to check every two hours and install in the background by default</li>
+        </ul>
+      ]]></description>
+      <description xml:lang="zh"><![CDATA[
+        <h2>更新内容：0.53.0</h2>
+        <ul>
+          <li>新增 OneDrive 与 Google Drive 云端分享支持，重新上传同一条内容可原地覆盖并保持分享链接不变</li>
+          <li>重构「设置 › 云端」与「设置 › AI」，提供分步配置向导、连接测试与清晰的外部 AI 助手（MCP）接入指引</li>
+          <li>区域截图选中绘图工具后仍可直接双击完成，单击不再误落默认形状</li>
+          <li>优化截图拷贝完成提示的显示位置与时长，并将自动更新调整为每 2 小时检查且默认后台安装</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://dl.getframecho.com/download/v0.53.0/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="7Xruk5NzfMarv9aUXnkU7vCg9cfX665DMw1mAVv5OrQJy3dakgDlMyuzt8bEK6F1S0wW9lv2PnIYrJ4+2qQKAg=="
+        length="15005933"
+      />
+    </item>
+
+    <item>
       <title>Version 0.52.2</title>
       <sparkle:version>67</sparkle:version>
       <sparkle:shortVersionString>0.52.2</sparkle:shortVersionString>
