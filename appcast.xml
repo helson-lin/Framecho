@@ -27,6 +27,34 @@
     -->
 
     <item>
+      <title>Version 0.53.1</title>
+      <sparkle:version>69</sparkle:version>
+      <sparkle:shortVersionString>0.53.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 24 Nov 2026 14:28:21 +0000</pubDate>
+      <description xml:lang="en"><![CDATA[
+        <h2>What's New in 0.53.1</h2>
+        <ul>
+          <li>Screenshot copy confirmations now fit their text and can be disabled in Settings</li>
+          <li>Show a confirmation when copying a translated area capture</li>
+        </ul>
+      ]]></description>
+      <description xml:lang="zh"><![CDATA[
+        <h2>更新内容：0.53.1</h2>
+        <ul>
+          <li>截图复制提示自适应宽度，并可在设置中关闭</li>
+          <li>区域截图翻译后复制时显示确认提示</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://dl.getframecho.com/download/v0.53.1/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="TZQ6hceLnF09KsQHTA/bsH28tZ/hhqgJZCAAw5by/ss+B/2DG/T9Fju2gT6j3kMTS4rmeLTrJLSvdTl5BNUgAw=="
+        length="15011065"
+      />
+    </item>
+
+    <item>
       <title>Version 0.53.0</title>
       <sparkle:version>68</sparkle:version>
       <sparkle:shortVersionString>0.53.0</sparkle:shortVersionString>
