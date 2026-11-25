@@ -27,6 +27,34 @@
     -->
 
     <item>
+      <title>Version 0.53.2</title>
+      <sparkle:version>70</sparkle:version>
+      <sparkle:shortVersionString>0.53.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Wed, 25 Nov 2026 04:04:18 +0000</pubDate>
+      <description xml:lang="en"><![CDATA[
+        <h2>What's New in 0.53.2</h2>
+        <ul>
+          <li>-12142）的问题 / Fix area screen recordings failing to save on finish (-11800 / -12142) on some Intel Macs running macOS 15</li>
+          <li>Improve area recording reliability with pixel-aligned output and automatic fallback to full-display capture with local cropping</li>
+        </ul>
+      ]]></description>
+      <description xml:lang="zh"><![CDATA[
+        <h2>更新内容：0.53.2</h2>
+        <ul>
+          <li>修复部分 Intel Mac（macOS 15）在区域录屏结束保存时报错（-11800</li>
+          <li>区域录屏支持像素对齐与异常时自动回退至全屏采集裁剪，提升稳定性</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://dl.getframecho.com/download/v0.53.2/Framecho.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="4h5vJLtqaf9dQp3TinyWlppu86ExxCRd4TqlKwxpZKNyXvylEUeRRXA3bY8lDGet2QG5v3Zaz/Yz+HCpbLj8Cg=="
+        length="14835147"
+      />
+    </item>
+
+    <item>
       <title>Version 0.53.1</title>
       <sparkle:version>69</sparkle:version>
       <sparkle:shortVersionString>0.53.1</sparkle:shortVersionString>
